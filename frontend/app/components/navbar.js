@@ -1,0 +1,24 @@
+export function Navbar() {
+  return (
+    <main>
+        <div className="fixed inset-x-0 top-0 border-b border-gray-950/5 dark:border-white/10">
+        <nav className="bg-white dark:bg-gray-950">
+          
+            <div className="flex h-14 items-center justify-between gap-8 px-[100px] py-8">
+              <div>
+                <a href="/"><img src="\images\logo.png" alt="KUWHY_logo" className="w-20 h-20" /></a>
+              </div>
+              <ul className="flex items-center gap-6 ">
+                <a className="text-black font-sans text-sm hover:bg-gray-100 transition" href="/">Home</a>
+                <a className="text-black font-sans text-sm hover:bg-gray-100 transition" href="#">About us</a>
+                <li><a href="/login" className="px-4 py-2 border border-black rounded-full text-black hover:bg-gray-100">Login</a></li>
+              </ul>          
+            </div>
+          
+
+        </nav>
+        </div>
+
+    </main>
+  )
+}
