@@ -7,14 +7,14 @@ export default function NoteCard({ note }) {
         </p>
       </div>
      
-      {note.image && (
+      {note.img && (
         <img
-          src={note.image}
-          alt={note.id}
+          src={note.img}
+          alt={note.note_id}
           className="w-20 h-20 object-cover my-2 rounded-md"
         />
       )}
-      <span className="text-gray-1000 text-xs font-semibold">{note.username}</span>
+      <span className="text-gray-1000 text-xs font-semibold">{note.user_name}</span>
       </div>
     
   );
