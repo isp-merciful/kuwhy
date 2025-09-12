@@ -91,7 +91,7 @@ app.post('/api/note_api', async (req, res) => {
       [message, authorId]
     );
 
-    console.log('Note added with id:', noteResult.insertId, 'author:', authorId, 'user_name:', user_name);
+    console.log('Note added with id:', noteResult.insertId, 'author:', authorId);
 
     res.status(201).json({
       success: true,
