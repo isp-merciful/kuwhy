@@ -14,7 +14,7 @@ export default function Avatar() {
   }, []);
 
   return (
-    <div className="mt-2 flex justify-center w-full">
+    <div className="mt-1 flex justify-center w-full">
       <img
         src={personIcons[currentIndex]}
         alt="person"

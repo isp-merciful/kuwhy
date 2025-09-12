@@ -58,7 +58,16 @@ export default function NoteBubble() {
       />
       <Avatar />
       <UserNameEditor name={name} setName={setName} isPosted={isPosted} />
-      <Popup showPopup={showPopup} setShowPopup={setShowPopup} />
+      <Popup
+        showPopup={showPopup}
+        setShowPopup={setShowPopup}
+        text={text}
+        setText={setText}
+        name={name}
+        setName={setName}
+        isPosted={isPosted}
+      />
+
     </div>
   );
 }
