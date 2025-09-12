@@ -11,7 +11,7 @@ export default function NoteContainer() {
   useEffect(() => {
     async function fetchNotes() {
       try {
-        const res = await fetch("/api/note_api", { cache: "no-store" });
+        const res = await fetch("http://localhost:8000/api/note_api", { cache: "no-store" });
         if (!res.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
         const data = await res.json();
         setNotes(data);

@@ -9,8 +9,9 @@ export function Navbar() {
                 <a href="/"><img src="\images\logo.png" alt="KUWHY_logo" className="w-20 h-20" /></a>
               </div>
               <ul className="flex items-center gap-6 ">
-                <a className="text-black font-sans text-sm hover:bg-gray-100 transition" href="/">Home</a>
-                <a className="text-black font-sans text-sm hover:bg-gray-100 transition" href="#">About us</a>
+                <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="/">Home</a>
+                <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="#">Project</a>
+                <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="#">About us</a>
                 <li><a href="/login" className="px-4 py-2 border border-black rounded-full text-black hover:bg-gray-100">Login</a></li>
               </ul>          
             </div>

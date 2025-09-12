@@ -8,7 +8,7 @@ export default function NoteList({ notes }) {
   return (
     <div className="flex overflow-x-auto py-4">
       {notes.map((note) => (
-        <NoteCard key={note.id} note={note} />
+        <NoteCard key={note.note_id} note={note} />
       ))}
     </div>
   );
