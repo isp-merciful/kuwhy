@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { v4 as uuidv4 } from "uuid";
 import MessageInput from "./MessageInput";
 import Avatar from "./Avatar";
 import UserNameEditor from "./UserNameEditor";
@@ -7,13 +8,34 @@ import Popup from "./Popup";
 import useLocalStorage from "./useLocalStorage";
 
 export default function NoteBubble() {
-  // ✅ ใช้ localStorage ทั้งข้อความและชื่อ
   const [text, setText] = useLocalStorage("noteText", "");
   const [name, setName] = useLocalStorage("noteUserName", "anonymous");
 
   const [loading, setLoading] = useState(false);
   const [isPosted, setIsPosted] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [noteId, setNoteId] = useState(null);
+
+  const [userId, setUserId] = useState("");
+
+useEffect(() => {
+  let id = localStorage.getItem("userId");
+  if (id && id.startsWith('"') && id.endsWith('"')) {
+    try {
+      id = JSON.parse(id); 
+      localStorage.setItem("userId", id); 
+    } catch (e) {
+      console.error("Invalid userId format, resetting:", e);
+      id = null;
+    }
+  }
+  if (!id) {
+    id = uuidv4(); 
+    localStorage.setItem("userId", id);
+  }
+  setUserId(id);
+  console.log("UUID (fixed):", id);
+}, []);
 
   const handlePost = async () => {
     if (!text.trim()) {
@@ -22,19 +44,23 @@ export default function NoteBubble() {
     }
 
     setLoading(true);
-    const data = { user_name: name, message: text };
-
+    console.log('userId:', userId);
     try {
       const response = await fetch("http://localhost:8000/api/note_api", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+                  user_name: name,
+                  message: text,
+                  user_id: userId
+                })
       });
 
       const result = await response.json();
       if (response.ok) {
-        localStorage.removeItem("noteText");      // ล้างข้อความเมื่อโพสต์สำเร็จ
+        setNoteId(result.note_id); // ✅ เก็บ noteId
         setIsPosted(true);
+        localStorage.removeItem("noteText");
         alert("เพิ่มโน้ตสำเร็จ!");
       } else {
         alert("เกิดข้อผิดพลาด: " + result.error);
@@ -58,16 +84,17 @@ export default function NoteBubble() {
       />
       <Avatar />
       <UserNameEditor name={name} setName={setName} isPosted={isPosted} />
+
+      {/* Popup */}
       <Popup
         showPopup={showPopup}
         setShowPopup={setShowPopup}
         text={text}
-        setText={setText}
         name={name}
-        setName={setName}
         isPosted={isPosted}
+        noteId={noteId}
+        authorId={userId}
       />
-
     </div>
   );
 }
