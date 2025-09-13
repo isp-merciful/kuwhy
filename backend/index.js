@@ -1,17 +1,20 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
+
 const cors = require("cors");
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 app.use(bodyParser.json());
 
+
 app.use(cors({
   origin: "http://localhost:3000", 
   methods: ["GET", "POST"],        
   credentials: true
 }));
+
 
 
 let wire = null;
@@ -63,6 +66,7 @@ app.get('/api/note_api', async(req,res)=> {
             u.img,u.user_name,n.created_at
             from note n left join users u ON n.author = u.user_id
             ORDER BY n.note_id DESC;
+
             `
         )
         res.json(result[0])
@@ -209,4 +213,6 @@ app.delete('/api/comment/:comment_id', async (req, res) => {
 app.listen(8000, async () => {
     await waitconnection();
     console.log("Server running on port 8000");
+
 });
+
