@@ -11,7 +11,7 @@ app.use(bodyParser.json());
 
 app.use(cors({
   origin: "http://localhost:3000", 
-  methods: ["GET", "POST"],        
+  methods: ["GET", "POST","PUT","DELETE"],        
   credentials: true
 }));
 
@@ -29,6 +29,33 @@ const waitconnection = async () => {
     });
     console.log("MySQL connected");
 };
+
+app.put('/api/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name } = req.body;
+
+    if (!name || !userId) {
+      return res.status(400).json({ error: "Missing name or userId" });
+    }
+
+    const [result] = await wire.query(
+      "UPDATE users SET user_name = ? WHERE user_id = ?",
+      [name, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ message: "Name updated successfully", user_name: name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update user name" });
+  }
+});
+
+
 
 app.post('/api/create_users', async (req, res) => {
     try{
