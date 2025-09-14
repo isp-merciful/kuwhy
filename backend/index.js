@@ -134,79 +134,138 @@ app.delete('/api/note_api', async(req,res) => {
 })
 
 
-// GET comments สำหรับ noteId
-app.get("/api/comment/:noteId", async (req, res) => {
-  const noteId = req.params.noteId;
-  try {
-    const [rows] = await wire.query(
-      "SELECT c.comment_id, c.content, c.created_at, u.user_name " +
-      "FROM comment c " +
-      "LEFT JOIN users u ON c.author = u.user_id " +
-      "WHERE c.note_id = ? " +
-      "ORDER BY c.comment_id ASC",
-      [noteId]
-    );
-    res.json(rows); // ✅ ส่งเป็น array
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "fetch comment fail" });
-  }
-});
+function CommentTree(comments) {
+  const map = {};
+  const roots = [];
 
+  // map comment_id → comment พร้อม children
+  comments.forEach(c => {
+    map[c.comment_id] = { ...c, children: [] };
+  });
 
-// เพิ่ม comment
-app.post('/api/comment', async (req, res) => {
-  try {
-    const { note_id, author, content } = req.body;
-
-    if (!content) {
-      return res.status(400).json({ error: 'comment is required' });
+  // loop comments แล้วใส่เข้า parent
+  comments.forEach(c => {
+    if (c.parent_coment_id) {
+      if (map[c.parent_coment_id]) {
+        map[c.parent_coment_id].children.push(map[c.comment_id]);
+      }
+    } else {
+      roots.push(map[c.comment_id]);
     }
-    const [commentResult] = await wire.query(
-      'INSERT INTO comment (note_id, author, content) VALUES (?, ?, ?)',
-      [note_id, author, content]
-    );
+  });
 
-    res.status(201).json({
-      success: true,
-      comment_id: commentResult.insertId,
-      note_id,
-      author,
-      content
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'add comment fail' });
+  // เรียง root ตาม created_at
+  roots.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  // recursive sort children
+  function sortChildren(node) {
+    if (!node.children || node.children.length === 0) return;
+    node.children.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    node.children.forEach(sortChildren);
   }
-});
+
+  roots.forEach(sortChildren);
+  return roots;
+}
 
 
-app.delete('/api/comment/:comment_id', async (req, res) => {
+
+// API: ดึง comment ทั้งหมดเป็น tree
+app.get('/api/comment_api/:note_id', async (req, res) => {
   try {
-    const { comment_id } = req.params;
     const [result] = await wire.query(
-      'DELETE FROM comment WHERE comment_id = ?',
-      [comment_id]
+      `SELECT c.*, u.user_name, u.img
+       FROM comment c
+       JOIN users u ON c.author = u.user_id
+       WHERE c.note_id = ?
+       ORDER BY c.created_at ASC`,
+      [req.params.note_id]
     );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'comment not found' });
-    }
+    const commentTree = CommentTree(result);
 
-    res.json({ success: true, message: 'comment deleted' });
+    res.json({
+      message: "getnote",
+      comment: commentTree
+    });
+
+  } catch (error) {
+    console.error("❌ Fetch error:", error);
+    res.status(500).json({
+      error: error.message,
+      message: "can't fetch note comment"
+    });
+  }
+});
+
+app.post('/api/comment_api', async (req, res) => {
+  try {
+    const { author,message,blog_id,note_id,parent_coment_id } = req.body;
+
+    if (!author || !message) {
+      throw new Error('ไม่มี notes หรือ username');
+    }
+    
+
+    const [result] = await wire.query(
+      'INSERT INTO comment (author, message, blog_id,note_id,parent_comment_id) VALUES (?, ?, ?, ?, ?)',
+      [author, message, blog_id || null,note_id || null ,parent_coment_id || null]
+    );
+
+    res.json({
+        message : "add comment sucessful",
+        comment : result
+    });
+
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'delete comment fail' });
+    res.status(500).json({ error: error.message
+        ,massage :'add notes fail' });
   }
 });
 
 
 
+// app.get('/api/comment_api/:post_id', async(req,res) =>{
+//     try{
+//         const[result] = await wire.query(
+//             `select c* ,u.user_name , u.img
+//             from comment c join users on c.author = u.user_id
+//             where c.post_id = ? order by c.created_at ASC`,
+//             [req.params.post_id]
+//         )
+//     const commenttree = CommentTree(result);
+//     res.json(commenttree);
+//     }
+//     catch(error){
+//         res.status(500).json({error:error.message,massage : "can't fetch post comment "})
+//     }
+
+// });
 
 
 
+// app.get('/api/comment_api/:comment_id', async(req,res) =>{
+//     try{
+//         const[result] = await wire.query(
+//             `select c* ,u.user_name , u.img
+//             from comment c join users on c.author = u.user_id
+//             where c.parent_comment_id = ? order by c.created_at ASC`,
+//             [req.params.comment_id]
+//         )
+//         res.json({message : "getchildcomment",
+//             comment:result
+//         }
 
+//         );
+//     }
+//     catch(error){
+//         res.status(500).json({error:error.message
+//             ,message : "can't fetch child comment "
+//         })
+//     }
 
+// });
 
 
 
@@ -215,4 +274,3 @@ app.listen(8000, async () => {
     console.log("Server running on port 8000");
 
 });
-

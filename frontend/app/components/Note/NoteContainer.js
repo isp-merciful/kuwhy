@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import NoteList from "./NoteList";
 import Popup from "./Popup";
-import CommentSection from "./CommentSection";
 
 export default function NoteContainer() {
   const [notes, setNotes] = useState([]);
@@ -41,6 +40,7 @@ export default function NoteContainer() {
       <NoteList
         notes={notes}
         onNoteClick={(note) => {
+          console.log("🔥 คลิก note:", note);  
           setSelectedNote(note);
           setShowPopup(true);
         }}
@@ -48,15 +48,15 @@ export default function NoteContainer() {
 
       {/* Popup */}
       {selectedNote && (
-        <Popup
+        <Popup 
           showPopup={showPopup}
           setShowPopup={setShowPopup}
           noteId={selectedNote.note_id}
-          authorId={selectedNote.author}
           text={selectedNote.message}
           name={selectedNote.user_name}
           isPosted={true} // readonly
         />
+
       )}
     </div>
   );

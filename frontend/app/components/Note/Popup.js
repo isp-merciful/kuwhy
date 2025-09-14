@@ -11,9 +11,10 @@ export default function Popup({
   name,
   isPosted,
   noteId,
-  authorId,
 }) {
   if (!showPopup) return null;
+
+  const authorId = localStorage.getItem("userId");
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/10 backdrop-blur-sm z-50">
@@ -30,21 +31,14 @@ export default function Popup({
 
         {/* Note content */}
         <div className="p-4 border-b flex flex-col items-center space-y-2">
-          <MessageInput
-            text={text}
-            setText={() => {}}
-            isPosted={true}
-            handlePost={() => {}}
-            loading={false}
-            setShowPopup={() => {}}
-          />
+          <MessageInput text={text} setText={() => {}} isPosted={isPosted} />
           <Avatar />
-          <UserNameEditor name={name} setName={() => {}} isPosted={true} />
+          <UserNameEditor name={name} setName={() => {}} isPosted={isPosted} />
         </div>
 
         {/* Comment Section */}
         <div className="p-4 flex-1 overflow-y-auto">
-          {noteId && authorId && (
+          {noteId && (
             <CommentSection noteId={noteId} authorId={authorId} />
           )}
         </div>
