@@ -28,7 +28,7 @@ async function init() {
   const wire = await mysql.createConnection({
     host: "localhost",
     user: "root",
-    password: "ispgayweead",
+    password: "ispgraveyard!",
     database: "ispgraveyard",
     port: 3306,
   });

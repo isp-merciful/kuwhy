@@ -5,12 +5,31 @@ export default function UserNameEditor({ name, setName, isPosted }) {
   const [tempName, setTempName] = useState(name);
   const [isEditing, setIsEditing] = useState(false);
 
-  const confirmChange = () => {
-    if (tempName.trim() !== "") {
-      setName(tempName);
-    }
+const confirmChange = async () => {
+  if (tempName.trim() === "" || tempName === name) {
     setIsEditing(false);
-  };
+    return;
+  }
+
+  try {
+    const userId = localStorage.getItem("userId"); // ใช้ UUID ของผู้ใช้
+    const res = await fetch(`http://localhost:8000/api/user/${userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: tempName }),
+    });
+
+    if (!res.ok) throw new Error("Failed to update name");
+
+    const data = await res.json();
+    setName(data.user_name); // อัปเดตชื่อใน state
+  } catch (err) {
+    console.error("Error updating user name:", err);
+  } finally {
+    setIsEditing(false);
+  }
+};
+
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {

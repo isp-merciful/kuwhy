@@ -17,9 +17,9 @@ function CommentTree(comments) {
 
 
   comments.forEach(c => {
-    if (c.parent_coment_id) {
-      if (map[c.parent_coment_id]) {
-        map[c.parent_coment_id].children.push(map[c.comment_id]);
+    if (c.parent_comment_id) {
+      if (map[c.parent_comment_id]) {
+        map[c.parent_comment_id].children.push(map[c.comment_id]);
       }
     } else {
       roots.push(map[c.comment_id]);
@@ -70,7 +70,7 @@ router.get('/note/:note_id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { user_id,message,blog_id,note_id,parent_coment_id } = req.body;
+    const { user_id,message,blog_id,note_id,parent_comment_id } = req.body;
 
     if (!user_id || !message) {
       throw new Error('ไม่มี notes หรือ username');
@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
 
     const [result] = await wire.query(
       'INSERT INTO comment (user_id, message, blog_id,note_id,parent_comment_id) VALUES (?, ?, ?, ?, ?)',
-      [user_id, message, blog_id || null,note_id || null ,parent_coment_id || null]
+      [user_id, message, blog_id || null,note_id || null ,parent_comment_id || null]
     );
 
     res.json({
