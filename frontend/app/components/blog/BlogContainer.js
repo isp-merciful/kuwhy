@@ -8,12 +8,11 @@ export default async function BlogContainer() {
   });
   const data = await res.json();
 
-  // บังคับให้เป็น array
   const blogs = Array.isArray(data) ? data : data.data || [];
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-center mb-4">
         <CreateBlogModal />
       </div>
       <BlogList initialBlogs={blogs} />

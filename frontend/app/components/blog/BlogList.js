@@ -33,8 +33,8 @@ export default function BlogList() {
           <p className="text-gray-700">{b.message}</p>
           <div className="flex items-center gap-4 mt-2">
             <button className="bg-black text-white px-3 py-1 rounded">Reply</button>
-            <button>🤍 {b.blog_up ?? 0}</button>
-            <button>👎 {b.blog_down ?? 0}</button>
+            <button>👍🏻 {b.blog_up ?? 0}</button>
+            <button>👎🏻 {b.blog_down ?? 0}</button>
           </div>
           <p className="text-xs text-gray-400 mt-1">
             by {b.user_name ?? "Anonymous"} •{" "}
