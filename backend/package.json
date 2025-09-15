@@ -9,8 +9,11 @@
   "main": "index.js",
 
   "scripts": {
+
     "dev": "nodemon server.js",
+
     "test": "echo \"Error: no test specified\" && exit 1"
+
   },
 
   "keywords": [],
@@ -32,8 +35,11 @@
     "dotenv": "^17.2.2",
 
     "express": "^5.1.0",
+
     "mysql2": "^3.14.4",
+
     "uuid": "^13.0.0"
+
   }
 
 }

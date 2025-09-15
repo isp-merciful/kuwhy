@@ -15,7 +15,7 @@ export default function CreateBlogModal() {
 
 
   const handleSubmit = async () => {
-    await fetch("http://localhost:8000/api/blog_api", {
+    await fetch("http://localhost:8000/api/blog", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

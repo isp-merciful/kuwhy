@@ -3,7 +3,7 @@ import BlogList from "./BlogList";
 
 
 export default async function BlogContainer() {
-  const res = await fetch("http://localhost:8000/api/blog_api", {
+  const res = await fetch("http://localhost:8000/api/blog", {
     cache: "no-store",
   });
   const data = await res.json();
