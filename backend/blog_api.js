@@ -28,10 +28,10 @@ router.post('/', async (req, res) => {
 
 router.get('/', async(req,res)=> {
     try{
-        let result = await wire.query(`select b.blog_id,b.title,
+        let result = await wire.query(`select b.blog_id,b.blog_title,
             b.message,u.img,u.user_name,b.created_at
             from blog b left join users u ON b.user_id = u.user_id
-            ORDER BY n.note_id DESC;
+            ORDER BY b.blog_id DESC;
 
             `
         )
