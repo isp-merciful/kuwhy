@@ -1,9 +1,14 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
+require('dotenv').config();
 
 const cors = require("cors");
-const { v4: uuidv4 } = require('uuid');
+const { router: blogRouter, DBconnect: setblogDB } = require("./blog_api");
+const { router: commentRouter, DBconnect: setcommentDB } = require("./comment_api");
+const { router: noteRouter, DBconnect: setnoteDB } = require("./note_api");
+const { router: userRouter, DBconnect: setuserDB } = require("./user_api");
+
 
 const app = express();
 app.use(bodyParser.json());
@@ -19,291 +24,27 @@ app.use(cors({
 
 let wire = null;
 
-const waitconnection = async () => {
-    wire = await mysql.createConnection({
-        host: 'localhost',
-        user: 'root',
-        password: 'ispgraveyard!',
-        database: 'ispgraveyard',
-        port: 3306
-    });
-    console.log("MySQL connected");
-};
-
-app.put('/api/user/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { name } = req.body;
-
-    if (!name || !userId) {
-      return res.status(400).json({ error: "Missing name or userId" });
-    }
-
-    const [result] = await wire.query(
-      "UPDATE users SET user_name = ? WHERE user_id = ?",
-      [name, userId]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.json({ message: "Name updated successfully", user_name: name });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to update user name" });
-  }
-});
-
-
-
-app.post('/api/create_users', async (req, res) => {
-  try {
-    const { user_id, user_name } = req.body;
-
-    if (!user_id) {
-      return res.status(400).json({ error: "Missing user_id" });
-    }
-
-    const [existing] = await wire.query(
-      "SELECT * FROM users WHERE user_id = ?",
-      [user_id]
-    );
-
-    if (existing.length > 0) {
-      return res.json({
-        message: "User already exists",
-        user: existing[0]
-      });
-    }
-
-    const gender = "ไม่ระบุ";
-    const img = "/images/pfp.png";
-
-    await wire.query(
-      "INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)",
-      [user_id, user_name || "anonymous", gender, img]
-    );
-
-    res.json({
-      message: "User registered successfully",
-      user_id,
-      user_name: user_name || "anonymous",
-      gender,
-      img
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Database insert failed" });
-  }
-});
-
-
-app.get('/api/get_alluser', async(req,res) =>{
-    try{
-        let result = await wire.query('SELECT * from users'
-        )
-        res.json(result[0])
-    }catch(error) {
-        console.error(error);
-        res.status(500).json({error : 'fetch user fail'});
-    }
-
-});
-app.get('/api/note_api', async(req,res)=> {
-    try{
-        let result = await wire.query(`select n.note_id,n.message,
-            u.img,u.user_name,n.created_at
-            from note n left join users u ON n.user_id = u.user_id
-            ORDER BY n.note_id DESC;
-
-            `
-        )
-        res.json(result[0])
-    }catch(error) {
-        console.error(error);
-        res.status(500).json({error : 'fetch post fail'});
-    }
-});
-
-
-
-app.post('/api/note_api', async (req, res) => {
-  try {
-    const { user_name, message, user_id } = req.body; 
-    console.log(req.body)
-    if (!message) {
-      throw new Error('ไม่มี notes');
-    }
-    if (!user_id) {
-      return res.status(400).json({ error: 'Missing user_id' });
-    }
-
-
-    const [noteResult] = await wire.query(
-      'INSERT INTO note (message, user_id) VALUES (?, ?)',
-      [message, user_id]
-    );
-
-    console.log('Note added with id:', noteResult.insertId, 'user_id:', user_id);
-
-    res.status(201).json({  
-      success: true,
-      note_id: noteResult.insertId,
-      user_id: user_id,
-      user_name: user_name,
-      message
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'add notes fail'});
-  }
-});
-
-
-app.delete('/api/note_api', async(req,res) => {
-    try{
-
-    }catch(error){
-        console.error(error);
-        res.status(500).json({
-            error:"can't deleted "
-        })
-    }
-})
-
-
-function CommentTree(comments) {
-  const map = {};
-  const roots = [];
-
-  // map comment_id → comment พร้อม children
-  comments.forEach(c => {
-    map[c.comment_id] = { ...c, children: [] };
+async function init() {
+  const wire = await mysql.createConnection({
+    host: "localhost",
+    user: "root",
+    password: "ispgayweead",
+    database: "ispgraveyard",
+    port: 3306,
   });
-
-  // loop comments แล้วใส่เข้า parent
-  comments.forEach(c => {
-    if (c.parent_comment_id) {
-      if (map[c.parent_comment_id]) {
-        map[c.parent_comment_id].children.push(map[c.comment_id]);
-      }
-    } else {
-      roots.push(map[c.comment_id]);
-    }
-  });
-
-  // เรียง root ตาม created_at
-  roots.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-  // recursive sort children
-  function sortChildren(node) {
-    if (!node.children || node.children.length === 0) return;
-    node.children.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    node.children.forEach(sortChildren);
-  }
-
-  roots.forEach(sortChildren);
-  return roots;
-}
+  console.log("MySQL connected");
+  setblogDB(wire);
+  setcommentDB(wire);
+  setnoteDB(wire);
+  setuserDB(wire);
+  app.use("/api/blog", blogRouter);
+  app.use("/api/comment", commentRouter);
+  app.use("/api/note", noteRouter);
+  app.use("/api/user", userRouter);
 
 
-
-// API: ดึง comment ทั้งหมดเป็น tree
-app.get('/api/comment_api/:note_id', async (req, res) => {
-  try {
-    const [result] = await wire.query(
-      `SELECT c.*, u.user_name, u.img
-       FROM comment c
-       JOIN users u ON c.user_id = u.user_id
-       WHERE c.note_id = ?
-       ORDER BY c.created_at ASC`,
-      [req.params.note_id]
-    );
-
-    const commentTree = CommentTree(result);
-
-    res.json({
-      message: "getnote",
-      comment: commentTree
-    });
-
-  } catch (error) {
-    console.error("❌ Fetch error:", error);
-    res.status(500).json({
-      error: error.message,
-      message: "can't fetch note comment"
-    });
-  }
-});
-
-app.post('/api/comment_api', async (req, res) => {
-  try {
-    const { user_id,message,blog_id,note_id,parent_comment_id } = req.body;
-
-    if (!user_id || !message) {
-      throw new Error('ไม่มี notes หรือ username');
-    }
-    
-
-    const [result] = await wire.query(
-      'INSERT INTO comment (user_id, message, blog_id,note_id,parent_comment_id) VALUES (?, ?, ?, ?, ?)',
-      [user_id, message, blog_id || null,note_id || null ,parent_comment_id || null]
-    );
-
-    res.json({
-        message : "add comment sucessful",
-        comment : result
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message
-        ,massage :'add notes fail' });
-  }
-});
-
-
-
-  app.post('/api/blog_api', async (req, res) => {
-      try{
-          const {user_id,blog_title,message} = req.body;;
-     
-          const result = await wire.query(
-              'INSERT INTO blog (user_id,blog_title,message) VALUES (?,?,?)',
-              [user_id, blog_title, message]
-          );
-          res.json({
-              message: 'inserted',
-              insertedId: result.insertId
-          });
-
-      } catch(error) {
-          console.error(error);
-          res.status(500).json({error : 'Database insert failed'});
-      }
-  });
-
-  app.get('/api/blog_api', async(req,res)=> {
-      try{
-          let result = await wire.query(`select b.blog_id,b.blog_title,
-              b.message,u.img,u.user_name,b.created_at
-              from blog b left join users u ON b.user_id = u.user_id
-              ORDER BY b.blog_id DESC;
-
-              `
-          )
-          res.json(result[0])
-      }catch(error) {
-          console.error(error);
-          res.status(500).json({error : 'fetch post fail'});
-      }
-  });
-
-
-app.listen(8000, async () => {
-    await waitconnection();
+  app.listen(8000, () => {
     console.log("Server running on port 8000");
-
-});
+  });
+}
+init();
