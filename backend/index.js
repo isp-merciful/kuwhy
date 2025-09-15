@@ -58,22 +58,45 @@ app.put('/api/user/:userId', async (req, res) => {
 
 
 app.post('/api/create_users', async (req, res) => {
-    try{
-        const {user_id,user_name,gender} = req.body;
-        
-        const result = await wire.query(
-            'INSERT INTO users (user_id,user_name,gender) VALUES (?,?,?)',
-            [user_id, user_name, gender]
-        );
-        res.json({
-            message: 'inserted',
-            insertedId: result.insertId
-        });
+  try {
+    const { user_id, user_name } = req.body;
 
-    } catch(error) {
-        console.error(error);
-        res.status(500).json({error : 'Database insert failed'});
+    if (!user_id) {
+      return res.status(400).json({ error: "Missing user_id" });
     }
+
+    const [existing] = await wire.query(
+      "SELECT * FROM users WHERE user_id = ?",
+      [user_id]
+    );
+
+    if (existing.length > 0) {
+      return res.json({
+        message: "User already exists",
+        user: existing[0]
+      });
+    }
+
+    const gender = "ไม่ระบุ";
+    const img = "/images/pfp.png";
+
+    await wire.query(
+      "INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)",
+      [user_id, user_name || "anonymous", gender, img]
+    );
+
+    res.json({
+      message: "User registered successfully",
+      user_id,
+      user_name: user_name || "anonymous",
+      gender,
+      img
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Database insert failed" });
+  }
 });
 
 app.get('/api/get_alluser', async(req,res) =>{
@@ -91,7 +114,7 @@ app.get('/api/note_api', async(req,res)=> {
     try{
         let result = await wire.query(`select n.note_id,n.message,
             u.img,u.user_name,n.created_at
-            from note n left join users u ON n.author = u.user_id
+            from note n left join users u ON n.user_id = u.user_id
             ORDER BY n.note_id DESC;
 
             `
@@ -129,16 +152,16 @@ app.post('/api/note_api', async (req, res) => {
     }
 
     const [noteResult] = await wire.query(
-      'INSERT INTO note (message, author) VALUES (?, ?)',
+      'INSERT INTO note (message, user_id) VALUES (?, ?)',
       [message, user_id]
     );
 
-    console.log('Note added with id:', noteResult.insertId, 'author:', user_id);
+    console.log('Note added with id:', noteResult.insertId, 'user_id:', user_id);
 
     res.status(201).json({
       success: true,
       note_id: noteResult.insertId,
-      author: user_id,
+      user_id: user_id,
       user_name: user_name,
       message
     });
@@ -203,7 +226,7 @@ app.get('/api/comment_api/:note_id', async (req, res) => {
     const [result] = await wire.query(
       `SELECT c.*, u.user_name, u.img
        FROM comment c
-       JOIN users u ON c.author = u.user_id
+       JOIN users u ON c.user_id = u.user_id
        WHERE c.note_id = ?
        ORDER BY c.created_at ASC`,
       [req.params.note_id]
@@ -227,16 +250,16 @@ app.get('/api/comment_api/:note_id', async (req, res) => {
 
 app.post('/api/comment_api', async (req, res) => {
   try {
-    const { author,message,blog_id,note_id,parent_coment_id } = req.body;
+    const { user_id,message,blog_id,note_id,parent_coment_id } = req.body;
 
-    if (!author || !message) {
+    if (!user_id || !message) {
       throw new Error('ไม่มี notes หรือ username');
     }
     
 
     const [result] = await wire.query(
-      'INSERT INTO comment (author, message, blog_id,note_id,parent_comment_id) VALUES (?, ?, ?, ?, ?)',
-      [author, message, blog_id || null,note_id || null ,parent_coment_id || null]
+      'INSERT INTO comment (user_id, message, blog_id,note_id,parent_comment_id) VALUES (?, ?, ?, ?, ?)',
+      [user_id, message, blog_id || null,note_id || null ,parent_coment_id || null]
     );
 
     res.json({
@@ -257,7 +280,7 @@ app.post('/api/comment_api', async (req, res) => {
 //     try{
 //         const[result] = await wire.query(
 //             `select c* ,u.user_name , u.img
-//             from comment c join users on c.author = u.user_id
+//             from comment c join users on c.user_id = u.user_id
 //             where c.post_id = ? order by c.created_at ASC`,
 //             [req.params.post_id]
 //         )
@@ -276,7 +299,7 @@ app.post('/api/comment_api', async (req, res) => {
 //     try{
 //         const[result] = await wire.query(
 //             `select c* ,u.user_name , u.img
-//             from comment c join users on c.author = u.user_id
+//             from comment c join users on c.user_id = u.user_id
 //             where c.parent_comment_id = ? order by c.created_at ASC`,
 //             [req.params.comment_id]
 //         )
