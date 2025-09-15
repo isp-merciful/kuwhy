@@ -5,6 +5,8 @@ require('dotenv').config();
 
 const cors = require("cors");
 const { router: commentRouter, DBconnect: setBlogDB } = require("./comment_api");
+const { router: noteRouter, DBconnect: setBlogDB } = require("./note_api");
+const { router: userRouter, DBconnect: setBlogDB } = require("./user_api");
 
 
 const app = express();
@@ -32,7 +34,11 @@ async function init() {
   console.log("MySQL connected");
   setBlogDB(wire);
 
+
   app.use("/api/comment", commentRouter);
+  app.use("/api/note", noteRouter);
+  app.use("/api/user", userRouter);
+
 
   app.listen(8000, () => {
     console.log("Server running on port 8000");
