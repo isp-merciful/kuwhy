@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 require('dotenv').config();
 
 const cors = require("cors");
-const { router: blogRouter, DBconnect: setBlogDB } = require("./note_api");
+const { router: noteRouter, DBconnect: setBlogDB } = require("./note_api");
 
 
 const app = express();
@@ -32,7 +32,7 @@ async function init() {
   console.log("MySQL connected");
   setBlogDB(wire);
 
-  app.use("/api/note", blogRouter);
+  app.use("/api/note", noteRouter);
 
   app.listen(8000, () => {
     console.log("Server running on port 8000");
