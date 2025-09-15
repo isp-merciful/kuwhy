@@ -33,7 +33,7 @@ export default function CreateBlogModal() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="bg-lime-400 px-6 py-3 rounded-xl font-medium"
+        className="bg-lime-400 px-6 py-6 rounded-xl font-medium"
       >
         Create Question
       </button>
