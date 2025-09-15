@@ -105,7 +105,7 @@ export default function CommentSection({ noteId, authorId }) {
 
     try {
       const payload = {
-        author: authorId,
+        user_id: authorId,
         message,
         note_id: noteId,
         parent_comment_id: parentId,
