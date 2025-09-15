@@ -20,22 +20,46 @@ export default function NoteBubble() {
 
 useEffect(() => {
   let id = localStorage.getItem("userId");
+
   if (id && id.startsWith('"') && id.endsWith('"')) {
     try {
-      id = JSON.parse(id); 
-      localStorage.setItem("userId", id); 
+      id = JSON.parse(id);
+      localStorage.setItem("userId", id);
     } catch (e) {
       console.error("Invalid userId format, resetting:", e);
       id = null;
     }
   }
+
   if (!id) {
-    id = uuidv4(); 
+    id = uuidv4();
     localStorage.setItem("userId", id);
   }
+
   setUserId(id);
   console.log("UUID (fixed):", id);
+
+  async function registerUser() {
+    try {
+      const res = await fetch("http://localhost:8000/api/create_users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: id,
+          user_name: name, 
+        }),
+      });
+
+      const data = await res.json();
+      console.log("Register response:", data);
+    } catch (error) {
+      console.error("Register failed:", error);
+    }
+  }
+
+  registerUser();
 }, []);
+
 
   const handlePost = async () => {
     if (!text.trim()) {
