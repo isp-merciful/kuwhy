@@ -1,37 +1,13 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
-const bodyParser = require('body-parser');
-
-const cors = require("cors");
-
-
-
-const app = express();
-app.use(bodyParser.json());
-
-
-app.use(cors({
-  origin: "http://localhost:3000", 
-  methods: ["GET", "POST"],        
-  credentials: true
-}));
-
-
+const router = express.Router();
 
 let wire = null;
 
-const waitconnection = async () => {
-    wire = await mysql.createConnection({
-        host: 'localhost',
-        user: 'root',
-        password: 'ispgayweead',
-        database: 'ispgraveyard',
-        port: 3306
-    });
-    console.log("MySQL connected");
-};
+function DBconnect(val){
+    wire = val;
+}
 
-app.post('/api/blog_api', async (req, res) => {
+router.post('/', async (req, res) => {
     try{
         const {user_id,blog_title,message} = req.body;
         
@@ -50,11 +26,11 @@ app.post('/api/blog_api', async (req, res) => {
     }
 });
 
-app.get('/api/blog_api', async(req,res)=> {
+router.get('/', async(req,res)=> {
     try{
         let result = await wire.query(`select b.blog_id,b.title,
             b.message,u.img,u.user_name,b.created_at
-            from note n left join blog b ON b.author = u.user_id
+            from blog b left join users u ON b.user_id = u.user_id
             ORDER BY n.note_id DESC;
 
             `
@@ -66,8 +42,5 @@ app.get('/api/blog_api', async(req,res)=> {
     }
 });
 
-app.listen(8000, async () => {
-    await waitconnection();
-    console.log("Server running on port 8000");
 
-});
+module.exports = { router, DBconnect };
