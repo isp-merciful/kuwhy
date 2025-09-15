@@ -140,17 +140,6 @@ app.post('/api/note_api', async (req, res) => {
       return res.status(400).json({ error: 'Missing user_id' });
     }
 
-    const [existingUser] = await wire.query(
-      'SELECT * FROM users WHERE user_id = ?',
-      [user_id]
-    );
-
-    if (existingUser.length === 0) {
-      await wire.query(
-        'INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)',
-        [user_id, user_name || 'anonymous', 'ไม่ระบุ', '/images/pfp.png']
-      );
-    }
 
     const [noteResult] = await wire.query(
       'INSERT INTO note (message, user_id) VALUES (?, ?)',
@@ -159,7 +148,7 @@ app.post('/api/note_api', async (req, res) => {
 
     console.log('Note added with id:', noteResult.insertId, 'user_id:', user_id);
 
-    res.status(201).json({
+    res.status(201).json({  
       success: true,
       note_id: noteResult.insertId,
       user_id: user_id,
@@ -196,9 +185,9 @@ function CommentTree(comments) {
 
   // loop comments แล้วใส่เข้า parent
   comments.forEach(c => {
-    if (c.parent_coment_id) {
-      if (map[c.parent_coment_id]) {
-        map[c.parent_coment_id].children.push(map[c.comment_id]);
+    if (c.parent_comment_id) {
+      if (map[c.parent_comment_id]) {
+        map[c.parent_comment_id].children.push(map[c.comment_id]);
       }
     } else {
       roots.push(map[c.comment_id]);
@@ -251,7 +240,7 @@ app.get('/api/comment_api/:note_id', async (req, res) => {
 
 app.post('/api/comment_api', async (req, res) => {
   try {
-    const { user_id,message,blog_id,note_id,parent_coment_id } = req.body;
+    const { user_id,message,blog_id,note_id,parent_comment_id } = req.body;
 
     if (!user_id || !message) {
       throw new Error('ไม่มี notes หรือ username');
@@ -260,7 +249,7 @@ app.post('/api/comment_api', async (req, res) => {
 
     const [result] = await wire.query(
       'INSERT INTO comment (user_id, message, blog_id,note_id,parent_comment_id) VALUES (?, ?, ?, ?, ?)',
-      [user_id, message, blog_id || null,note_id || null ,parent_coment_id || null]
+      [user_id, message, blog_id || null,note_id || null ,parent_comment_id || null]
     );
 
     res.json({
@@ -277,62 +266,10 @@ app.post('/api/comment_api', async (req, res) => {
 
 
 
-// app.get('/api/comment_api/:post_id', async(req,res) =>{
-//     try{
-//         const[result] = await wire.query(
-//             `select c* ,u.user_name , u.img
-//             from comment c join users on c.user_id = u.user_id
-//             where c.post_id = ? order by c.created_at ASC`,
-//             [req.params.post_id]
-//         )
-//     const commenttree = CommentTree(result);
-//     res.json(commenttree);
-//     }
-//     catch(error){
-//         res.status(500).json({error:error.message,massage : "can't fetch post comment "})
-//     }
-
-// });
-
-
-
-// app.get('/api/comment_api/:comment_id', async(req,res) =>{
-//     try{
-//         const[result] = await wire.query(
-//             `select c* ,u.user_name , u.img
-//             from comment c join users on c.user_id = u.user_id
-//             where c.parent_comment_id = ? order by c.created_at ASC`,
-//             [req.params.comment_id]
-//         )
-//         res.json({message : "getchildcomment",
-//             comment:result
-//         }
-
-//         );
-//     }
-//     catch(error){
-//         res.status(500).json({error:error.message
-//             ,message : "can't fetch child comment "
-//         })
-//     }
-
-// });
-
   app.post('/api/blog_api', async (req, res) => {
       try{
-          const {user_id,blog_title,message} = req.body;
-          const [existingUser] = await wire.query(
-          'SELECT * FROM users WHERE user_id = ?',
-          [user_id]
-        );
-
-        if (existingUser.length === 0) {
-          await wire.query(
-            'INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)',
-            [user_id, 'anonymous', 'ไม่ระบุ', '/images/pfp.png']
-          );
-        }
-          
+          const {user_id,blog_title,message} = req.body;;
+     
           const result = await wire.query(
               'INSERT INTO blog (user_id,blog_title,message) VALUES (?,?,?)',
               [user_id, blog_title, message]

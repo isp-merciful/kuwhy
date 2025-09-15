@@ -40,7 +40,7 @@ export default function NoteContainer() {
       <NoteList
         notes={notes}
         onNoteClick={(note) => {
-          console.log("🔥 คลิก note:", note);  
+          console.log("click note:", note);  
           setSelectedNote(note);
           setShowPopup(true);
         }}
