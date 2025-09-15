@@ -58,47 +58,23 @@ app.put('/api/user/:userId', async (req, res) => {
 
 
 app.post('/api/create_users', async (req, res) => {
-  try {
-    const { user_id, user_name } = req.body;
+    try{
+        const {user_id,user_name,gender} = req.body;
+        
+        const result = await wire.query(
+            'INSERT INTO users (user_id,user_name,gender) VALUES (?,?,?)',
+            [user_id, user_name, gender||"ไม่ระบุ"]
+        );
+        res.json({
+            message: 'inserted',
+            insertedId: result.insertId
+        });
 
-    if (!user_id) {
-      return res.status(400).json({ error: "Missing user_id" });
+    } catch(error) {
+        console.error(error);
+        res.status(500).json({error : 'Database insert failed'});
     }
-
-    const [existing] = await wire.query(
-      "SELECT * FROM users WHERE user_id = ?",
-      [user_id]
-    );
-
-    if (existing.length > 0) {
-      return res.json({
-        message: "User already exists",
-        user: existing[0]
-      });
-    }
-
-    const gender = "ไม่ระบุ";
-    const img = "/images/pfp.png";
-
-    await wire.query(
-      "INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)",
-      [user_id, user_name || "anonymous", gender, img]
-    );
-
-    res.json({
-      message: "User registered successfully",
-      user_id,
-      user_name: user_name || "anonymous",
-      gender,
-      img
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Database insert failed" });
-  }
 });
-
 
 app.get('/api/get_alluser', async(req,res) =>{
     try{
@@ -145,7 +121,12 @@ app.post('/api/note_api', async (req, res) => {
       [user_id]
     );
 
-
+    if (existingUser.length === 0) {
+      await wire.query(
+        'INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)',
+        [user_id, user_name || 'anonymous', 'ไม่ระบุ', '/images/pfp.png']
+      );
+    }
 
     const [noteResult] = await wire.query(
       'INSERT INTO note (message, user_id) VALUES (?, ?)',
@@ -246,20 +227,16 @@ app.get('/api/comment_api/:note_id', async (req, res) => {
 
 app.post('/api/comment_api', async (req, res) => {
   try {
-    const { user_id,message,blog_id,note_id,parent_comment_id } = req.body;
-        const [existingUser] = await wire.query(
-          'SELECT * FROM users WHERE user_id = ?',
-          [user_id]);
+    const { user_id,message,blog_id,note_id,parent_coment_id } = req.body;
 
     if (!user_id || !message) {
-      throw new Error('ไม่มี notes หรือ user_id');
+      throw new Error('ไม่มี notes หรือ username');
     }
-
-
+    
 
     const [result] = await wire.query(
       'INSERT INTO comment (user_id, message, blog_id,note_id,parent_comment_id) VALUES (?, ?, ?, ?, ?)',
-      [user_id, message, blog_id || null,note_id || null ,parent_comment_id || null]
+      [user_id, message, blog_id || null,note_id || null ,parent_coment_id || null]
     );
 
     res.json({
@@ -280,7 +257,7 @@ app.post('/api/comment_api', async (req, res) => {
 //     try{
 //         const[result] = await wire.query(
 //             `select c* ,u.user_name , u.img
-//             from comment c join users on c.author = u.user_id
+//             from comment c join users on c.user_id = u.user_id
 //             where c.post_id = ? order by c.created_at ASC`,
 //             [req.params.post_id]
 //         )
@@ -299,7 +276,7 @@ app.post('/api/comment_api', async (req, res) => {
 //     try{
 //         const[result] = await wire.query(
 //             `select c* ,u.user_name , u.img
-//             from comment c join users on c.author = u.user_id
+//             from comment c join users on c.user_id = u.user_id
 //             where c.parent_comment_id = ? order by c.created_at ASC`,
 //             [req.params.comment_id]
 //         )
@@ -325,6 +302,12 @@ app.post('/api/comment_api', async (req, res) => {
           [user_id]
         );
 
+        if (existingUser.length === 0) {
+          await wire.query(
+            'INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)',
+            [user_id, 'anonymous', 'ไม่ระบุ', '/images/pfp.png']
+          );
+        }
           
           const result = await wire.query(
               'INSERT INTO blog (user_id,blog_title,message) VALUES (?,?,?)',
