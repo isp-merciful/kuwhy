@@ -1,56 +1,55 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
-const bodyParser = require('body-parser');
-
-const cors = require("cors");
-
-
-
-const app = express();
-app.use(bodyParser.json());
-
-
-app.use(cors({
-  origin: "http://localhost:3000", 
-  methods: ["GET", "POST"],        
-  credentials: true
-}));
-
-
+const router = express.Router();
 
 let wire = null;
 
-const waitconnection = async () => {
-    wire = await mysql.createConnection({
-        host: 'localhost',
-        user: 'root',
-        password: 'ispgayweead',
-        database: 'ispgraveyard',
-        port: 3306
-    });
-    console.log("MySQL connected");
-};
+function DBconnect(val){
+    wire = val;
+}
 
-app.post('/api/create_users', async (req, res) => {
-    try{
-        const {user_id,user_name,gender} = req.body;
-        
-        const result = await wire.query(
-            'INSERT INTO users (user_id,user_name,gender) VALUES (?,?,?)',
-            [user_id, user_name, gender]
-        );
-        res.json({
-            message: 'inserted',
-            insertedId: result.insertId
-        });
+router.post('/', async (req, res) => {
+  try {
+    const { user_id, user_name } = req.body;
 
-    } catch(error) {
-        console.error(error);
-        res.status(500).json({error : 'Database insert failed'});
+    if (!user_id) {
+      return res.status(400).json({ error: "Missing user_id" });
     }
+
+    const [existing] = await wire.query(
+      "SELECT * FROM users WHERE user_id = ?",
+      [user_id]
+    );
+
+    if (existing.length > 0) {
+      return res.json({
+        message: "User already exists",
+        user: existing[0]
+      });
+    }
+
+    const gender = "ไม่ระบุ";
+    const img = "/images/pfp.png";
+
+    await wire.query(
+      "INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)",
+      [user_id, user_name || "anonymous", gender, img]
+    );
+
+    res.json({
+      message: "User registered successfully",
+      user_id,
+      user_name: user_name || "anonymous",
+      gender,
+      img
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Database insert failed" });
+  }
 });
 
-app.get('/api/get_alluser', async(req,res) =>{
+router.get('/', async(req,res) =>{
     try{
         let result = await wire.query('SELECT * from users'
         )
@@ -61,8 +60,45 @@ app.get('/api/get_alluser', async(req,res) =>{
     }
 });
 
-app.listen(8000, async () => {
-    await waitconnection();
-    console.log("Server running on port 8000");
+router.put('/api/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name } = req.body;
 
+    if (!name || !userId) {
+      return res.status(400).json({ error: "Missing name or userId" });
+    }
+
+    const [result] = await wire.query(
+      "UPDATE users SET user_name = ? WHERE user_id = ?",
+      [name, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ message: "Name updated successfully", user_name: name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update user name" });
+  }
 });
+
+router.delete('/:id', async(req,res) => {
+    try{
+      const [result] = await wire.query(
+        'delete from users where user_id = ?',[req.params.id]
+      )
+    res.json('delete success');
+    }catch(error){
+        console.error(error);
+        res.status(500).json({
+            error:"can't deleted "
+        })
+    }
+});
+
+
+
+module.exports = { router, DBconnect };

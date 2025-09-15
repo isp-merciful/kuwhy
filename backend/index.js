@@ -1,9 +1,13 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
+require('dotenv').config();
 
 const cors = require("cors");
 const { router: blogRouter, DBconnect: setBlogDB } = require("./blog_api");
+const { router: commentRouter, DBconnect: setBlogDB } = require("./comment_api");
+const { router: noteRouter, DBconnect: setBlogDB } = require("./note_api");
+const { router: userRouter, DBconnect: setBlogDB } = require("./user_api");
 
 
 const app = express();
@@ -12,7 +16,7 @@ app.use(bodyParser.json());
 
 app.use(cors({
   origin: "http://localhost:3000", 
-  methods: ["GET", "POST"],        
+  methods: ["GET", "POST","PUT","DELETE"],        
   credentials: true
 }));
 
@@ -32,6 +36,10 @@ async function init() {
   setBlogDB(wire);
 
   app.use("/api/blog", blogRouter);
+  app.use("/api/comment", commentRouter);
+  app.use("/api/note", noteRouter);
+  app.use("/api/user", userRouter);
+
 
   app.listen(8000, () => {
     console.log("Server running on port 8000");

@@ -1,41 +1,18 @@
 const express = require('express');
-const mysql = require('mysql2/promise');
-const bodyParser = require('body-parser');
-
-const cors = require("cors");
-
-
-
-const app = express();
-app.use(bodyParser.json());
-
-
-app.use(cors({
-  origin: "http://localhost:3000", 
-  methods: ["GET", "POST"],        
-  credentials: true
-}));
-
-
+const router = express.Router();
 
 let wire = null;
 
-const waitconnection = async () => {
-    wire = await mysql.createConnection({
-        host: 'localhost',
-        user: 'root',
-        password: 'ispgayweead',
-        database: 'ispgraveyard',
-        port: 3306
-    });
-    console.log("MySQL connected");
-};
+function DBconnect(val){
+    wire = val;
+}
 
-app.get('/api/note_api', async(req,res)=> {
+
+router.get('/', async(req,res)=> {
     try{
         let result = await wire.query(`select n.note_id,n.message,
             u.img,u.user_name,n.created_at
-            from note n left join users u ON n.author = u.user_id
+            from note n left join users u ON n.user_id = u.user_id
             ORDER BY n.note_id DESC;
 
             `
@@ -48,45 +25,43 @@ app.get('/api/note_api', async(req,res)=> {
 });
 
 
-app.post('/api/note_api', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const { user_name, message } = req.body;
-
+    const {message, user_id } = req.body; 
+    console.log(req.body)
     if (!message) {
       throw new Error('ไม่มี notes');
     }
-    
-    const [userResult] = await wire.query(
-      'INSERT INTO users (user_name, gender, img) VALUES (?, ?, ?)',
-      [user_name, 'ไม่ระบุ', '/images/pfp.png']
-    );
+    if (!user_id) {
+      return res.status(400).json({ error: 'Missing user_id' });
+    }
 
-    const authorId = userResult.insertId; 
 
     const [noteResult] = await wire.query(
-      'INSERT INTO note (message, author) VALUES (?, ?)',
-      [message, authorId]
+      'INSERT INTO note (message, user_id) VALUES (?, ?)',
+      [message, user_id]
     );
 
-    console.log('Note added with id:', noteResult.insertId, 'author:', authorId);
+    console.log('Note added with id:', noteResult.insertId, 'user_id:', user_id);
 
-    res.status(201).json({
-      success: true,
-      note_id: noteResult.insertId,
-      author: authorId,
-      user_name: user_name,
-      message
+    res.status(201).json({  
+      message:"add note success",
+      value : noteResult
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'add notes fail' });
+    res.status(500).json({ error: 'add notes fail'});
   }
 });
 
 
-app.delete('/api/note_api', async(req,res) => {
-    try{
 
+router.delete('/:id', async(req,res) => {
+    try{
+      const [result] = await wire.query(
+        'delete from note where note_id = ?',[req.params.id]
+      )
+    res.json('delete success');
     }catch(error){
         console.error(error);
         res.status(500).json({
@@ -94,14 +69,8 @@ app.delete('/api/note_api', async(req,res) => {
         })
     }
 })
+module.exports = { router, DBconnect };
 
 
 
-
-
-app.listen(8000, async () => {
-    await waitconnection();
-    console.log("Server running on port 8000");
-
-});
 
