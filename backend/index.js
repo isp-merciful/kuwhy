@@ -3,7 +3,7 @@ const mysql = require('mysql2/promise');
 const bodyParser = require('body-parser');
 
 const cors = require("cors");
-const { router: blogRouter, DBConnect: setBlogDB } = require("./blog_api");
+const { router: blogRouter, DBconnect: setBlogDB } = require("./blog_api");
 
 
 const app = express();
@@ -20,23 +20,22 @@ app.use(cors({
 
 let wire = null;
 
-const waitconnection = async () => {
-    wire = await mysql.createConnection({
-        host: 'localhost',
-        user: 'root',
-        password: 'ispgraveyard!',
-        database: 'ispgraveyard',
-        port: 3306
-    });
-    console.log("MySQL connected");
-};
+async function init() {
+  const wire = await mysql.createConnection({
+    host: "localhost",
+    user: "root",
+    password: "ispgayweead",
+    database: "ispgraveyard",
+    port: 3306,
+  });
+  console.log("MySQL connected");
+  setBlogDB(wire);
 
-setBlogDB(wire);
-app.use("/api/blog", blogRouter);
+  app.use("/api/blog", blogRouter);
 
-app.listen(8000, async () => {
-    await waitconnection();
+  app.listen(8000, () => {
     console.log("Server running on port 8000");
-
-});
+  });
+}
+init();
 

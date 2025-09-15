@@ -30,7 +30,7 @@ router.get('/', async(req,res)=> {
     try{
         let result = await wire.query(`select b.blog_id,b.title,
             b.message,u.img,u.user_name,b.created_at
-            from note n left join blog b ON b.user_id = u.user_id
+            from blog b left join users u ON b.user_id = u.user_id
             ORDER BY n.note_id DESC;
 
             `
@@ -43,4 +43,4 @@ router.get('/', async(req,res)=> {
 });
 
 
-module.exports = { router, DBConnect };
+module.exports = { router, DBconnect };
