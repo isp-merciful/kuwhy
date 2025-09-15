@@ -294,6 +294,51 @@ app.post('/api/comment_api', async (req, res) => {
 
 // });
 
+  app.post('/api/blog_api', async (req, res) => {
+      try{
+          const {user_id,blog_title,message} = req.body;
+          const [existingUser] = await wire.query(
+          'SELECT * FROM users WHERE user_id = ?',
+          [user_id]
+        );
+
+        if (existingUser.length === 0) {
+          await wire.query(
+            'INSERT INTO users (user_id, user_name, gender, img) VALUES (?, ?, ?, ?)',
+            [user_id, 'anonymous', 'ไม่ระบุ', '/images/pfp.png']
+          );
+        }
+          
+          const result = await wire.query(
+              'INSERT INTO blog (user_id,blog_title,message) VALUES (?,?,?)',
+              [user_id, blog_title, message]
+          );
+          res.json({
+              message: 'inserted',
+              insertedId: result.insertId
+          });
+
+      } catch(error) {
+          console.error(error);
+          res.status(500).json({error : 'Database insert failed'});
+      }
+  });
+
+  app.get('/api/blog_api', async(req,res)=> {
+      try{
+          let result = await wire.query(`select b.blog_id,b.blog_title,
+              b.message,u.img,u.user_name,b.created_at
+              from blog b left join users u ON b.user_id = u.user_id
+              ORDER BY b.blog_id DESC;
+
+              `
+          )
+          res.json(result[0])
+      }catch(error) {
+          console.error(error);
+          res.status(500).json({error : 'fetch post fail'});
+      }
+  });
 
 
 app.listen(8000, async () => {
