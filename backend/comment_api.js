@@ -39,6 +39,43 @@ function CommentTree(comments) {
   return roots;
 }
 
+router.get('/', async (req, res) => {
+  try {
+    const [result] = await wire.query(
+      `SELECT * from comment`
+    );
+
+    const commentTree = CommentTree(result);
+
+    res.json({
+      message: "getallcomment",
+      comment: commentTree
+    });
+
+  } catch (error) {
+    console.error("❌ Fetch error:", error);
+    res.status(500).json({
+      error: error.message,
+      message: "can't fetch note comment"
+    });
+  }
+});
+
+router.delete('/:id', async(req,res) => {
+    try{
+      const [result] = await wire.query(
+        'delete from comment where comment_id = ?',[req.params.id]
+      )
+    res.json('delete success');
+    }catch(error){
+        console.error(error);
+        res.status(500).json({
+            error:"can't deleted "
+        })
+    }
+});
+
+
 
 
 router.get('/note/:note_id', async (req, res) => {
@@ -67,6 +104,24 @@ router.get('/note/:note_id', async (req, res) => {
     });
   }
 });
+
+router.put('/', async (req, res) => {
+  try {
+    const { message,comment_id } = req.body;
+    const [result] = await wire.query(
+      `UPDATE comment SET message = ? WHERE comment_id = ?`,[message,comment_id]);
+    res.json({
+      message : "updatesuccess"
+    })
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update user name" });
+  }
+});
+
+
+
+
 
 router.post('/', async (req, res) => {
   try {

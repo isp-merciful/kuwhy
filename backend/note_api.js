@@ -68,7 +68,7 @@ router.delete('/:id', async(req,res) => {
             error:"can't deleted "
         })
     }
-})
+});
 module.exports = { router, DBconnect };
 
 
