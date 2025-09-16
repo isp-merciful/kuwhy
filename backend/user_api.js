@@ -60,7 +60,7 @@ router.get('/', async(req,res) =>{
     }
 });
 
-router.put('/api/user/:userId', async (req, res) => {
+router.put('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { name } = req.body;

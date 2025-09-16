@@ -41,7 +41,7 @@ useEffect(() => {
 
   async function registerUser() {
     try {
-      const res = await fetch("http://localhost:8000/api/create_users", {
+      const res = await fetch("http://localhost:8000/api/user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -70,7 +70,7 @@ useEffect(() => {
     setLoading(true);
     console.log('userId:', userId);
     try {
-      const response = await fetch("http://localhost:8000/api/note_api", {
+      const response = await fetch("http://localhost:8000/api/note", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

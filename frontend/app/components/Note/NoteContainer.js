@@ -16,7 +16,7 @@ export default function NoteContainer() {
   useEffect(() => {
     async function fetchNotes() {
       try {
-        const res = await fetch("http://localhost:8000/api/note_api", { cache: "no-store" });
+        const res = await fetch("http://localhost:8000/api/note", { cache: "no-store" });
         if (!res.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
         const data = await res.json();
         setNotes(data);
@@ -40,7 +40,7 @@ export default function NoteContainer() {
       <NoteList
         notes={notes}
         onNoteClick={(note) => {
-          console.log("🔥 คลิก note:", note);  
+          console.log("click note:", note);  
           setSelectedNote(note);
           setShowPopup(true);
         }}
