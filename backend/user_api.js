@@ -7,7 +7,7 @@ function DBconnect(val){
     wire = val;
 }
 
-router.post('/', async (req, res) => {
+router.post('/', async (req, res) => { 
   try {
     const { user_id, user_name } = req.body;
 

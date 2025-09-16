@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSession, signIn } from "next-auth/react";
 
 // Helper function: flatten tree to array
 const flattenComments = (comments, level = 0) => {
@@ -14,6 +15,12 @@ const flattenComments = (comments, level = 0) => {
 };
 
 export default function AdminPage() {
+  const { status } = useSession();
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      signIn(undefined, { callbackUrl: "/admin" });
+    }
+  }, [status]);
   const categories = ["user", "note", "blog", "comment"];
   const [category, setCategory] = useState("note");
   const [sort, setSort] = useState("DESC");

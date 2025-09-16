@@ -1,6 +1,7 @@
 import { Roboto } from "next/font/google";
 import "./globals.css";
 import {Navbar} from "./components/navbar"
+import Providers from "./providers";
 
 const roboto = Roboto({
   variable: "--font-roboto",
@@ -18,8 +19,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={roboto.variable}>
       <body className="flex flex-col min-h-screen">
-        <Navbar /> 
-      <main className="flex-1 p-4 pt-17">{children}</main>
+        <Providers>
+          <Navbar /> 
+          <main className="flex-1 p-4 pt-17">{children}</main>
+        </Providers>
       </body>
     </html>
     
