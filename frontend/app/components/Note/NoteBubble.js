@@ -39,6 +39,27 @@ useEffect(() => {
   setUserId(id);
   console.log("UUID (fixed):", id);
 
+  const savedNoteId = localStorage.getItem("noteId");
+  if (savedNoteId) {
+    fetch(`http://localhost:8000/api/note/${savedNoteId}`)
+      .then(res => {
+        if (!res.ok) throw new Error("Note not found");
+        return res.json();
+      })
+      .then(data => {
+        setNoteId(savedNoteId);
+        setIsPosted(true);
+        setText(data.message); 
+      })
+      .catch(err => {
+        console.log("Note not found, clearing noteId:", err);
+        setNoteId(null);
+        setIsPosted(false);
+        localStorage.removeItem("noteId");
+      });
+  }
+
+
   async function registerUser() {
     try {
       const res = await fetch("http://localhost:8000/api/user", {
@@ -79,15 +100,22 @@ useEffect(() => {
                   user_id: userId
                 })
       });
-
+      
       const result = await response.json();
       if (response.ok) {
-        setNoteId(result.note_id); // ✅ เก็บ noteId
-        setIsPosted(true);
-        localStorage.removeItem("noteText");
-        alert("เพิ่มโน้ตสำเร็จ!");
-      } else {
-        alert("เกิดข้อผิดพลาด: " + result.error);
+        console.log("Note post result:", result); 
+
+        const newNoteId = result.note_id || result.value?.insertId;
+
+        if (newNoteId) {
+          setNoteId(newNoteId);
+          localStorage.setItem("noteId", newNoteId); // ✅ เก็บ
+          setIsPosted(true);
+          localStorage.removeItem("noteText");
+          alert("เพิ่มโน้ตสำเร็จ!");
+        } else {
+          console.error("API response missing note_id:", result);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -96,6 +124,7 @@ useEffect(() => {
     setLoading(false);
   };
 
+  //console.log("Debug => noteId:", noteId, "isPosted:", isPosted, "userId:", userId);
   return (
     <div className="flex flex-col items-center w-full mt-6 relative">
       <MessageInput
@@ -117,7 +146,7 @@ useEffect(() => {
         name={name}
         isPosted={isPosted}
         noteId={noteId}
-        authorId={userId}
+        userId={userId}
       />
     </div>
   );

@@ -94,4 +94,40 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.get('/', async (req, res) => {
+  try {
+    const [result] = await wire.query(
+      `SELECT * from comment`
+    );
+
+    const commentTree = CommentTree(result);
+
+    res.json({
+      message: "getallcomment",
+      comment: commentTree
+    });
+
+  } catch (error) {
+    console.error("❌ Fetch error:", error);
+    res.status(500).json({
+      error: error.message,
+      message: "can't fetch note comment"
+    });
+  }
+});
+
+router.delete('/:id', async(req,res) => {
+    try{
+      const [result] = await wire.query(
+        'delete from comment where comment_id = ?',[req.params.id]
+      )
+    res.json('delete success');
+    }catch(error){
+        console.error(error);
+        res.status(500).json({
+            error:"can't deleted "
+        })
+    }
+})
+
 module.exports = { router, DBconnect };
