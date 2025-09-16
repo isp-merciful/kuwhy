@@ -42,5 +42,34 @@ router.get('/', async(req,res)=> {
     }
 });
 
+router.put('/', async (req, res) => {
+  try {
+    const { message,blog_id } = req.body;
+    const [result] = await wire.query(
+      `UPDATE blog SET message = ? WHERE blog_id = ?`,[message,blog_id]);
+    res.json({
+      message : "updatesuccess"
+    })
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update user name" });
+  }
+});
+
+
+router.delete('/:id', async(req,res) => {
+    try{
+      const [result] = await wire.query(
+        'delete from blog where blog_id = ?',[req.params.id]
+      )
+    res.json('delete success');
+    }catch(error){
+        console.error(error);
+        res.status(500).json({
+            error:"can't deleted blog"
+        })
+    }
+});
+
 
 module.exports = { router, DBconnect };
