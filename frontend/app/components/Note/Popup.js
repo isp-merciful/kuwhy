@@ -10,11 +10,12 @@ export default function Popup({
   text,
   name,
   isPosted,
+  noteId,
 }) {
   if (!showPopup) return null;
 
   const userId = localStorage.getItem("userId");
-  const noteId = localStorage.getItem("noteId");
+  
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/10 backdrop-blur-sm z-50">
       <div className="relative bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-xl overflow-hidden">
