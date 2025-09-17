@@ -29,9 +29,9 @@ To provide a central hub for students to:
 
 ## 🧑‍💻 Tech Stack
 
-- **Frontend**: React / Next.js *(replace if different)*  
-- **Backend**: Node.js / Express *(replace if different)*  
-- **Database**: MySQL / PostgreSQL *(replace if different)*  
+- **Frontend**: React / Next.js 
+- **Backend**: Node.js / Express
+- **Database**: MySQL
 - **Authentication**: OAuth, Email login  
 
 ---
@@ -48,10 +48,9 @@ To provide a central hub for students to:
 ``` npm run dev```
 
 ## Document
-⭐️ click link below to see:
-
+⭐️ click link below:
 https://docs.google.com/document/d/1Qpohqe-PV7CgXGMQ9-G8eq4YhvzWdbHtJ0g0sJQi1s0/edit?tab=t.0#heading=h.g73n84aggscq
 
 ## Iteration 1 Presentation link:
-🍎 click link below to see:
+🍎 click link below:
 https://www.youtube.com/watch?v=-kIwVKTTAkA
