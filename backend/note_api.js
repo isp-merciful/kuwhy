@@ -25,6 +25,31 @@ router.get('/', async(req,res)=> {
 });
 
 
+router.get('/:id', async (req, res) => {
+  const noteId = req.params.id;
+  try {
+    const [result] = await wire.query(
+      `SELECT n.note_id, n.message, u.user_id, u.user_name, u.img, n.created_at
+       FROM note n
+       LEFT JOIN users u ON n.user_id = u.user_id
+       WHERE n.note_id = ?`,
+      [noteId]
+    );
+
+    if (!result[0]) {
+      return res.status(404).json({ error: "Note not found" });
+    }
+
+    res.json(result[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Fetch note failed" });
+  }
+});
+
+
+
+
 router.post('/', async (req, res) => {
   try {
     const {message, user_id } = req.body; 
