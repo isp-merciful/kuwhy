@@ -13,7 +13,7 @@ const confirmChange = async () => {
 
   try {
     const userId = localStorage.getItem("userId"); // ใช้ UUID ของผู้ใช้
-    const res = await fetch(`http://localhost:8000/api/user/${userId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/${userId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: tempName }),

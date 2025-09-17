@@ -4,6 +4,7 @@ import BlogContainer from "./components/blog/BlogContainer";
 
 export default function Home() {
   return (
+    <div>API URL: {process.env.NEXT_PUBLIC_API_URL}
     <div className="p-6 flex flex-col items-center min-h-screen bg-gray-50">
       <NoteBubble />
       <div className="mt-6 w-full max-w-lg">
@@ -13,6 +14,7 @@ export default function Home() {
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Community Blog</h2>
         <BlogContainer />
       </div>
+    </div>
     </div>
   );
 }

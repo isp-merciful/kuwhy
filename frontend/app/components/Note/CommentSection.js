@@ -85,7 +85,7 @@ export default function CommentSection({ noteId, userId }) {
 
     const fetchComments = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/comment/note/${noteId}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/comment/note/${noteId}`);
         const data = await res.json();
         const tree = Array.isArray(data.comment) ? data.comment : [];
         setComments(tree);
@@ -111,7 +111,7 @@ export default function CommentSection({ noteId, userId }) {
         parent_comment_id: parentId,
       };
 
-      const res = await fetch("http://localhost:8000/api/comment", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/comment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -121,7 +121,7 @@ export default function CommentSection({ noteId, userId }) {
       await res.json();
 
       // reload comments
-      const refresh = await fetch(`http://localhost:8000/api/comment/note/${noteId}`);
+      const refresh = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/comment/note/${noteId}`);
       const freshData = await refresh.json();
       const tree = Array.isArray(freshData.comment) ? freshData.comment : [];
       setComments(tree);

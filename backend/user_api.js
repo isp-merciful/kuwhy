@@ -27,7 +27,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const gender = "ไม่ระบุ";
+    const gender = "Not Specified";
     const img = "/images/pfp.png";
 
     await wire.query(

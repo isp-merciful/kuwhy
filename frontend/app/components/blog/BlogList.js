@@ -8,7 +8,7 @@ export default function BlogList() {
   useEffect(() => {
     const fetchBlogs = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/blog");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/blog`);
         const data = await res.json();
         // ตรวจสอบว่าเป็น array หรือไม่
         setBlogs(Array.isArray(data) ? data : data.data || []);

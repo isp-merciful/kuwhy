@@ -12,6 +12,8 @@ services:
       MYSQL_PASSWORD: apppass
     ports:
       - "3307:3306"
+    networks:
+      - kuwhy-net
     volumes:
       - db_data:/var/lib/mysql
 
@@ -23,7 +25,10 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ./backend/.env 
+      - ./backend/.env
+    depends_on:
+      - db
+
   frontend:
     build:
       context: ./frontend
@@ -31,9 +36,15 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    networks:
+      - kuwhy-net
     env_file:
-      - ./frontend/.env 
+      - ./frontend/.env.docker
     depends_on:
       - backend
 
 volumes:
+  db_data:
+
+networks:
+  kuwhy-net:

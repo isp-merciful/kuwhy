@@ -41,7 +41,7 @@ useEffect(() => {
 
   const savedNoteId = localStorage.getItem("noteId");
   if (savedNoteId) {
-    fetch(`http://localhost:8000/api/note/${savedNoteId}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/note/${savedNoteId}`)
       .then(res => {
         if (!res.ok) throw new Error("Note not found");
         return res.json();
@@ -62,7 +62,7 @@ useEffect(() => {
 
   async function registerUser() {
     try {
-      const res = await fetch("http://localhost:8000/api/user", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -91,7 +91,7 @@ useEffect(() => {
     setLoading(true);
     console.log('userId:', userId);
     try {
-      const response = await fetch("http://localhost:8000/api/note", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/note`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

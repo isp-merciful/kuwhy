@@ -24,7 +24,7 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const apiUrl = `http://localhost:8000/api/${category}`;
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/${category}`;
       const res = await fetch(apiUrl);
       const json = await res.json();
 
@@ -57,7 +57,7 @@ export default function AdminPage() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
-      const apiUrl = `http://localhost:8000/api/${category}/${id}`;
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/${category}/${id}`;
       await fetch(apiUrl, { method: "DELETE" });
       fetchData();
     } catch (err) {
