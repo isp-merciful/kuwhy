@@ -7,13 +7,14 @@ Our goal is to make campus life more **interactive, engaging, and inclusive**.
 
 ## 🚀 Features  
 
-- 📝 **Casual Notes & Polls** – Share short posts that disappear after 24 hours. Anonymous posting supported.  
-- 🎉 **Party & Activity Groups** – Create, join, and manage events or study groups *(login required)*.  
-- 📚 **Blog & Q&A** – Post serious questions, write blogs, and interact through comments.  
-- 📰 **Feed / Timeline** – Browse recent posts with filters by type (notes, parties, blogs).  
-- 🔐 **Authentication** – Login via email or OAuth. Anonymous users can view posts with limited interaction.  
-- 🧢 **Admin Panel** – Manage reports, remove inappropriate content, and ban users.  
-- 🔄 **Infinite Scroll** – Smooth and continuous browsing experience.  
+- **Casual Notes & Polls** – Share quick posts or polls that vanish in 24h. Anonymous posting supported.
+- **Groups & Events** – Create or join study groups and activities *(login required)*.  
+- **Blogs & Q&A** – Write blogs, ask questions, and engage through comments.  
+- **Smart Feed** – Browse posts with filters and infinite scroll.  
+- **File Sharing** – Upload and download project files for collaboration.  
+- **Notifications** – Stay updated on replies, comments, and group requests.  
+- **Authentication** – Sign in via email or OAuth; guests get limited access.  
+- **Admin Panel** – Moderate reports, remove content, and manage users.  
 
 ---
 
@@ -29,27 +30,40 @@ The platform provides KU students with a **central hub** to:
 
 ## 🧑‍💻 Tech Stack  
 
-**Frontend**: React / Next.js  
-**Backend**: Node.js / Express  
-**Database**: MySQL  
-**Authentication**: OAuth (Google) & Email login  
+**Frontend**
+- React
+- Next.js
+  
+**Backend**
+- Node.js
+- Express
+  
+**Database**
+- MySQL
+  
+**Authentication**
+- OAuth (Google) & Email login  
 
 ---
 
 ## 📂 Documentation and Presentations
 
-- 📖 [Project Document (Google Docs)](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)  
+**📖 Documentation**
+-  [Project Document (Google Docs)](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)  
 
--  [Iteration 1 Presentation](https://www.youtube.com/watch?v=-kIwVKTTAkA)  
+**Iteration 1**
+-  [Iteration 1 Presentation](https://www.youtube.com/watch?v=-kIwVKTTAkA)
+
+**Iteration 2**
 -  [Iteration 2 Presentation](https://youtu.be/FUl6rNU6EiE?si=ku89KkIwvy0TvFfR)  
 
 ---
 
 ## 👥 Team – Merciful Group  
 
-| Name  |
-|------|
-| Danita Frikaow |
-| Thanabordee Bundisakul |
-| Piyawat Wiriyayothin |
-| Thanabordee Bundisakul |
+| Name  | Student ID  |
+|------|------|
+| Danita Frikaow | 6410545461 |
+| Thanabordee Bundisakul | 6510545489 |
+| Piyawat Wiriyayothin | 6710545539 |
+| Piyawat Wiriyayothin | 6710545717 |
