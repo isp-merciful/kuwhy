@@ -70,12 +70,12 @@ function Comment({ comment, onReply }) {
   );
 }
 
-export default function CommentSection({ noteId, authorId }) {
+export default function CommentSection({ noteId, userId }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const containerRef = useRef(null);
-  if (!authorId) {
-    console.warn("authorId ยังไม่มีค่า");
+  if (!userId) {
+    console.warn("userId ยังไม่มีค่า");
     return null; 
   }
 
@@ -100,12 +100,12 @@ export default function CommentSection({ noteId, authorId }) {
 
   // add new comment or reply
   const handleSubmit = async (message, parentId = null) => {
-     console.log("authorId inside handleSubmit:", authorId);
-    if (!message.trim() || !authorId) return;
+     console.log("userId inside handleSubmit:", userId);
+    if (!message.trim() || !userId) return;
 
     try {
       const payload = {
-        user_id: authorId,
+        user_id: userId,
         message,
         note_id: noteId,
         parent_comment_id: parentId,
