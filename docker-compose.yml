@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   db:
     image: mysql:8.0
@@ -9,16 +11,15 @@ services:
       MYSQL_USER: appuser
       MYSQL_PASSWORD: apppass
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
 
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    image: backend
     container_name: backend
+    restart: always
     ports:
       - "8000:8000"
     env_file:
@@ -29,9 +30,8 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    image: frontend
     container_name: frontend
+    restart: always
     ports:
       - "3000:3000"
     env_file:
@@ -40,4 +40,3 @@ services:
       - backend
 
 volumes:
-  db_data:
