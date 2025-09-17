@@ -1,56 +1,55 @@
-# KUWHY? - Group 13: Merciful
+# 🌐 KUWHY? – Group 13: Merciful  
 
-***KUWHY?*** is a web platform for Kasetsart University students to connect across faculties, share ideas, ask questions, and organize events. It’s designed to make campus life more interactive and inclusive.
-
----
-
-## 🚀 Features
-
-- **Casual Notes / Polls**: Share short posts that disappear in 24 hours. Anonymous posting supported.  
-- **Party & Activity Groups**: Create, join, and manage events or study groups (login required).  
-- **Blog & Q&A**: Ask serious questions, write posts, and interact through comments.  
-- **Feed / Timeline**: Browse recent posts with filters by type (notes, parties, blogs).  
-- **Authentication**: Login via email or OAuth; anonymous users can view posts but limited interaction.  
-- **Admin Panel**: Manage reports, remove inappropriate content, and ban users.  
-- **Infinite Scroll**: Smooth browsing experience.
+KUWHY? is a **web platform for Kasetsart University students** to connect across faculties, share ideas, ask questions, and organize events.  
+Our goal is to make campus life more **interactive, engaging, and inclusive**.  
 
 ---
 
-## 🎯 Objective
+## 🚀 Features  
 
-To provide a central hub for students to:
-
-- Connect with peers outside their own faculty  
-- Share casual or academic ideas  
-- Organize and join events  
-- Access official announcements  
-
----
-
-## 🧑‍💻 Tech Stack
-
-- **Frontend**: React / Next.js 
-- **Backend**: Node.js / Express
-- **Database**: MySQL
-- **Authentication**: OAuth, Email login  
+- 📝 **Casual Notes & Polls** – Share short posts that disappear after 24 hours. Anonymous posting supported.  
+- 🎉 **Party & Activity Groups** – Create, join, and manage events or study groups *(login required)*.  
+- 📚 **Blog & Q&A** – Post serious questions, write blogs, and interact through comments.  
+- 📰 **Feed / Timeline** – Browse recent posts with filters by type (notes, parties, blogs).  
+- 🔐 **Authentication** – Login via email or OAuth. Anonymous users can view posts with limited interaction.  
+- 🧢 **Admin Panel** – Manage reports, remove inappropriate content, and ban users.  
+- 🔄 **Infinite Scroll** – Smooth and continuous browsing experience.  
 
 ---
 
-## ⚡ Getting Started
+## 🎯 Project Objective  
 
-1. Clone the repo:  
-```git clone https://github.com/yourusername/kuwhy.git```
+The platform provides KU students with a **central hub** to:  
+- Connect with peers outside their faculty  
+- Share both casual and academic ideas  
+- Organize and join activities or events  
+- Access important university announcements  
 
-2. Install
-```npm install```
+---
 
-3. Run Frontend and Backend
-``` npm run dev```
+## 🧑‍💻 Tech Stack  
 
-## Document
-⭐️ click link below:
-https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing
+**Frontend**: React / Next.js  
+**Backend**: Node.js / Express  
+**Database**: MySQL  
+**Authentication**: OAuth (Google) & Email login  
 
-## Iteration 1 Presentation link:
-🍎 click link below:
-https://www.youtube.com/watch?v=-kIwVKTTAkA
+---
+
+## 📂 Documentation and Presentations
+
+- 📖 [Project Document (Google Docs)](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)  
+
+-  [Iteration 1 Presentation](https://www.youtube.com/watch?v=-kIwVKTTAkA)  
+-  [Iteration 2 Presentation](https://youtu.be/FUl6rNU6EiE?si=ku89KkIwvy0TvFfR)  
+
+---
+
+## 👥 Team – Merciful Group  
+
+| Name  |
+|------|
+| Danita Frikaow |
+| Thanabordee Bundisakul |
+| Piyawat Wiriyayothin |
+| Thanabordee Bundisakul |
