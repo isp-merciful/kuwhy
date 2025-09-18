@@ -65,5 +65,5 @@ The platform provides KU students with a **central hub** to:
 |------|------|
 | Danita Frikaow | 6410545461 |
 | Thanabordee Bundisakul | 6510545489 |
-| Piyawat Wiriyayothin | 6710545539 |
+| Chitiwat Phajan | 6710545539 |
 | Piyawat Wiriyayothin | 6710545717 |
