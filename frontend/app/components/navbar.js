@@ -1,25 +1,35 @@
+"use client";
+import NotificationBell from "./notification/NotificationBell";
+
 export function Navbar() {
   return (
     <main>
-        <div className="fixed inset-x-0 top-0 border-b border-gray-950/5 dark:border-white/10">
+      <div className="fixed inset-x-0 top-0 border-b border-gray-950/5 dark:border-white/10 z-50">
         <nav className="bg-white dark:bg-gray-950">
-          
-            <div className="flex h-14 items-center justify-between gap-8 px-[100px] py-8">
-              <div>
-                <a href="/"><img src="\images\logo.png" alt="KUWHY_logo" className="w-20 h-20" /></a>
-              </div>
-              <ul className="flex items-center gap-6 ">
-                <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="/">Home</a>
-                <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="#">Project</a>
-                <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="#">About us</a>
-                <li><a href="/login" className="px-4 py-2 border border-black rounded-full text-black hover:bg-gray-100">Login</a></li>
-              </ul>          
+          <div className="flex h-14 items-center justify-between gap-8 px-[100px] py-4">
+            {/* Logo */}
+            <div>
+              <a href="/">
+                <img src="/images/logo.png" alt="KUWHY_logo" className="w-20 h-20" />
+              </a>
             </div>
-          
 
+            {/* Menu */}
+            <ul className="flex items-center gap-6">
+              <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="/">Home</a>
+              <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="#">Project</a>
+              <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="#">About us</a>
+
+              {/* NotificationBell */}
+              <li><NotificationBell /></li>
+
+              <li>
+                <a href="/login" className="px-4 py-2 border border-black rounded-full text-black hover:bg-gray-100">Login</a>
+              </li>
+            </ul>
+          </div>
         </nav>
-        </div>
-
+      </div>
     </main>
-  )
+  );
 }
