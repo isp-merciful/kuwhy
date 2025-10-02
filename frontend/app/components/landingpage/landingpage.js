@@ -2,18 +2,36 @@ export default function LandingPage() {
   return (
     <main className="w-full">
       {/* Hero Section */}
-      <section className="relative isolate pt-28 sm:pt-32 min-h-[500px]">
+        <section className="relative isolate pt-[36px] min-h-[500px]">
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-          {/* Rectangle background (original) */}
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 691" className="h-full w-full" preserveAspectRatio="none">
-            <path d="M0 -6H1440V645C1440 645 1038 746.399 669.5 645C301 543.601 0 645 0 645V-6Z" fill="url(#paint0_linear_276_801)" fillOpacity="0.5" />
+            {/* Straight rectangle background */}
+            <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 1440 691"
+            className="h-full w-full"
+            preserveAspectRatio="none"
+            >
+            <rect width="1440" height="1440" fill="url(#paint0_linear_276_801)" fillOpacity="0.5" />
             <defs>
-              <linearGradient id="paint0_linear_276_801" x1="365.5" y1="-138.5" x2="1092" y2="981.5" gradientUnits="userSpaceOnUse">
+                <linearGradient id="paint0_linear_276_801" x1="365.5" y1="-138.5" x2="1092" y2="981.5" gradientUnits="userSpaceOnUse">
                 <stop stopColor="#00C9FF" />
                 <stop offset="1" stopColor="#92FE9D" />
-              </linearGradient>
+                </linearGradient>
             </defs>
-          </svg>
+            </svg>
+        
+        <div className="absolute bottom-0 w-full h-40">
+            
+            {/* Blur overlay at bottom */}
+            {/* <div className="absolute bottom-0 w-full h-40 bg-gradient-to-t from-white via-white/80 to-transparent backdrop-blur-none"></div> */}
+            
+            {/* Glass image on top */}
+            <img 
+                src="/images/glass.png" 
+                alt="grass effect" 
+                className="w-full h-auto object-cover"
+            />
+        </div>
 
           {/* Gradient blob below the rectangle */}
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1405" className="absolute left-[-39px] top-[389px] w-[1515px] h-[931px] shrink-0 rotate-180" preserveAspectRatio="none">
@@ -33,38 +51,53 @@ export default function LandingPage() {
             </defs>
           </svg>
         </div>
-        <div className="relative z-10 mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
-            <div>
-              <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">
+
+        
+        <div className="relative z-20 mx-auto w-full pl-6 pr-0">
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
+            <div className="-mt-1">
+              <h1 className="text-[40px] font-extrabold tracking-[6px] text-white" style={{ textShadow: '0 4px 4px rgba(0,0,0,0.25)' }}>
                 Connect, Ask, Share at Kasetsart University
               </h1>
-              <p className="mt-6 max-w-xl text-base leading-7 text-gray-600 sm:text-lg">
+              <p className="mt-6 max-w-xl text-base leading-7 text-white/90">
                 KU WHY makes it effortless to write notes, post thoughts, and spark
                 meaningful conversations across campus.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href="#share-ways" className="inline-flex items-center justify-center rounded-full bg-black px-6 py-3 text-white hover:bg-gray-800 transition">
+                <a href="#share-ways" className="inline-flex items-center justify-center rounded-full bg-white/90 px-6 py-3 text-black hover:bg-white transition">
                   Get Started
                 </a>
-                <a href="/login" className="inline-flex items-center justify-center rounded-full border border-black px-6 py-3 text-black hover:bg-gray-100 transition">
+                <a href="/login" className="inline-flex items-center justify-center rounded-full border border-white/70 px-6 py-3 text-white hover:bg-white/10 transition">
                   Log in
                 </a>
               </div>
             </div>
-            <div className="relative lg:justify-self-end">
-              <div className="aspect-[4/3] w-full max-w-xl overflow-hidden rounded-3xl border border-gray-200 shadow-sm">
-
-                <img
-                src="/images/unihero.png"
-                alt="Kasetsart University Hero"
-                className="h-full w-full object-cover"
-                />
-
+            
+            {/* <div className="flex justify-end">
+              <div className="w-full max-w-none lg:w-[55%] h-[360px] sm:h-[420px] lg:h-[500px] lg:translate-y-[6px]">
+                <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"> */}
+                  {/* <defs>
+                    <clipPath id="heroClip" clipPathUnits="objectBoundingBox">
+                      <rect x="0" y="0" width="1" height="1" rx="0" ry="0" />
+                    </clipPath>
+                  </defs> */}
+                  {/* <image
+                    href="/images/herouni.png"
+                    x="-10%" y="0" width="110%" height="100%"
+                    preserveAspectRatio="xMidYMid slice"
+                    clipPath="url(#heroClip)"
+                  /> */}
+                {/* </svg>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
+        {/* Foreground bottom wave overlay to match design */}
+        {/* <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10" aria-hidden="true">
+          <svg viewBox="0 0 1440 220" className="h-[180px] w-full" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 0C301 100 1038 -100 1440 0V220H0V0Z" fill="white"/>
+          </svg>
+        </div> */}
       </section>
 
       {/* Two Ways to Share */}
