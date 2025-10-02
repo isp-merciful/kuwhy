@@ -20,21 +20,21 @@ export default function LandingPage() {
             </defs>
             </svg>
         
-        <div className="absolute bottom-0 w-full h-40">
+        {/* <div className="absolute bottom-0 w-full h-40"> */}
             
             {/* Blur overlay at bottom */}
             {/* <div className="absolute bottom-0 w-full h-40 bg-gradient-to-t from-white via-white/80 to-transparent backdrop-blur-none"></div> */}
             
             {/* Glass image*/}
-            <img 
+            {/* <img 
                 src="/images/glass.png" 
                 alt="grass effect" 
                 className="w-full h-auto object-cover"
             />
-        </div>
+        </div> */}
 
           {/* Gradient blob below the rectangle */}
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1405" className="absolute left-[-39px] top-[389px] w-[1515px] h-[931px] shrink-0 rotate-180" preserveAspectRatio="none">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1405" className="absolute left-[-39px] top-[389px] w-[1515px] h-[931px] shrink-0 rotate-180 -z-10" preserveAspectRatio="none">
             <g filter="url(#filter0_f_282_482)">
               <path d="M480.835 354.629C960.227 593.014 748.353 -142.005 1476 679.925C1463.16 908.377 741.932 1437.29 536.479 1000.25C331.026 563.216 172.655 1112 20.7056 679.925C-131.244 247.853 1.44421 116.245 480.835 354.629Z" fill="url(#paint0_linear_282_482)" fillOpacity="0.35"/>
             </g>
@@ -152,6 +152,41 @@ export default function LandingPage() {
               </div>
               <div className="mt-4">
                 <a href="/blog" className="text-sm font-medium text-black hover:underline">Write a post →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* About Us Section */}
+      <section className="py-16 sm:py-20 bg-white">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="bg-white rounded-2xl shadow-lg p-8 sm:p-12">
+            <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16 items-center">
+              {/* Left side - 3D Illustration */}
+              <div className="flex justify-center lg:justify-start">
+                <img 
+                  src="/images/feature3d.png" 
+                  alt="KU WHY Features - 3D Illustration" 
+                  className="w-full max-w-md h-auto object-contain"
+                />
+              </div>
+
+              {/* Right side - Text content */}
+              <div className="space-y-6">
+                <div className="text-blue-600 font-semibold text-sm uppercase tracking-wider">
+                  ABOUT US
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+                  Our Features
+                </h2>
+                <p className="text-lg text-gray-600 leading-relaxed">
+                  KU WHY is a hub for Kasetsart University students to connect and share. 
+                  <span className="font-semibold"> Post quick notes</span> or polls that vanish in 24h, 
+                  join study groups, ask <span className="font-semibold">lasting questions</span>, 
+                  <span className="font-semibold"> share files</span>, stay updated, and help keep the 
+                  community safe with our reporting system.
+                </p>
               </div>
             </div>
           </div>
