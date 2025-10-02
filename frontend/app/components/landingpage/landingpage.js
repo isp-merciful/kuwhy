@@ -2,7 +2,7 @@ export default function LandingPage() {
   return (
     <main className="w-full">
       {/* Hero Section */}
-        <section className="relative isolate pt-[36px] min-h-[500px]">
+        <section className="relative isolate pt-[36px] min-h-[450px]">
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
             {/* Straight rectangle background */}
             <svg
@@ -25,7 +25,7 @@ export default function LandingPage() {
             {/* Blur overlay at bottom */}
             {/* <div className="absolute bottom-0 w-full h-40 bg-gradient-to-t from-white via-white/80 to-transparent backdrop-blur-none"></div> */}
             
-            {/* Glass image on top */}
+            {/* Glass image*/}
             <img 
                 src="/images/glass.png" 
                 alt="grass effect" 
@@ -52,7 +52,17 @@ export default function LandingPage() {
           </svg>
         </div>
 
-        
+        {/* Image on Hero Section */}
+        <div className="absolute bottom-0 right-0 w-full h-full flex justify-end items-end">
+        <img
+            src="/images/students.png"
+            alt="Graduates celebrating"
+            className="h-full object-contain"
+        />
+        </div>
+
+
+
         <div className="relative z-20 mx-auto w-full pl-6 pr-0">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
             <div className="-mt-1">
