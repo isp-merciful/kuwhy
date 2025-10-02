@@ -53,7 +53,8 @@ export default function NewNotePage() {
     <div className="min-h-screen bg-white">
       <Navbar />
       <section className="relative isolate overflow-hidden py-12 bg-gradient-to-b from-[#DDF3FF] to-[#E8FFF2] min-h-screen">
-        <div className="max-w-5xl mx-auto px-4">
+        <div className="max-w-5xl mx-auto px-4">  
+          <h2 className="text-2xl font-bold mb-6">Casual Note</h2>
           <div className="mb-4">
             <button
               onClick={() => (window.location.href = "/note")}
@@ -63,7 +64,6 @@ export default function NewNotePage() {
               <span>Back</span>
             </button>
           </div>
-          <h2 className="text-2xl font-bold mb-6">Casual Note</h2>
           <div className="flex flex-col items-center gap-4">
             <MessageInput
               text={text}
