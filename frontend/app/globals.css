@@ -2,11 +2,27 @@
 
 @theme {
   --font-sans: var(--font-roboto), sans-serif;
+  /* Design tokens (can be mapped from Figma later) */
+  --color-brand: #000000;
+  --color-text: #0a0a0a;
+  --color-muted: #6b7280; /* gray-500 */
 }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* Typography helpers */
+.heading-hero {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* Brand button */
+.btn-brand {
+  background: var(--color-brand);
+  color: #fff;
+}
+
 
 
 /*hide scrollbar from flex overflow-x-auto */

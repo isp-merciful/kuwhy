@@ -6,7 +6,7 @@ export function Navbar() {
           
             <div className="flex h-14 items-center justify-between gap-8 px-[100px] py-8">
               <div>
-                <a href="/"><img src="\images\logo.png" alt="KUWHY_logo" className="w-20 h-20" /></a>
+                <a href="/"><img src="/images/logo.png" alt="KUWHY_logo" className="w-20 h-20" /></a>
               </div>
               <ul className="flex items-center gap-6 ">
                 <a className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition" href="/">Home</a>
