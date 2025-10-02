@@ -199,57 +199,57 @@ export default function LandingPage() {
           <div className="overflow-x-auto">
             <div className="flex gap-6 pb-4" style={{ width: 'max-content' }}>
               {/* Casual Notes & Polls */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 w-[398px] flex-shrink-0">
-                <div className="w-12 h-12 mb-4 flex items-center justify-center">
-                  <img src="/images/chat.png" alt="Notes & Polls" className="w-12 h-12" />
+              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+                <div className="w-16 h-16 mb-6 flex items-center justify-center">
+                  <img src="/images/chat.png" alt="Notes & Polls" className="w-16 h-16" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Casual Notes & Polls</h3>
-                <p className="text-gray-600 text-sm">Share quick posts or polls that disappear in 24 hours (anonymous option available).</p>
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">Casual Notes & Polls</h3>
+                <p className="text-lg text-gray-600 leading-relaxed">Share quick posts or polls that disappear in 24 hours (anonymous option available).</p>
               </div>
 
               {/* Groups & Events */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 w-[398px] flex-shrink-0">
-                <div className="w-12 h-12 mb-4 flex items-center justify-center">
-                  <img src="/images/event.png" alt="Groups & Events" className="w-12 h-12" />
+              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+                <div className="w-16 h-16 mb-6 flex items-center justify-center">
+                  <img src="/images/event.png" alt="Groups & Events" className="w-16 h-16" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Groups & Events</h3>
-                <p className="text-gray-600 text-sm">Join or create study groups, activities, and parties.</p>
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">Groups & Events</h3>
+                <p className="text-lg text-gray-600 leading-relaxed">Join or create study groups, activities, and parties.</p>
               </div>
 
               {/* Blogs & Q&A */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 w-[398px] flex-shrink-0">
-                <div className="w-12 h-12 mb-4 flex items-center justify-center">
-                  <img src="/images/qa.png" alt="Blogs & Q&A" className="w-12 h-12" />
+              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+                <div className="w-16 h-16 mb-6 flex items-center justify-center">
+                  <img src="/images/qa.png" alt="Blogs & Q&A" className="w-16 h-16" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Blogs & Q&A</h3>
-                <p className="text-gray-600 text-sm">Ask questions, share experiences, get lasting replies.</p>
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">Blogs & Q&A</h3>
+                <p className="text-lg text-gray-600 leading-relaxed">Ask questions, share experiences, get lasting replies.</p>
               </div>
 
               {/* File Sharing */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 w-[398px] flex-shrink-0">
-                <div className="w-12 h-12 mb-4 flex items-center justify-center">
-                  <img src="/images/file.png" alt="File Sharing" className="w-12 h-12" />
+              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+                <div className="w-16 h-16 mb-6 flex items-center justify-center">
+                  <img src="/images/file.png" alt="File Sharing" className="w-16 h-16" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">File Sharing</h3>
-                <p className="text-gray-600 text-sm">Upload and download project files for collaboration.</p>
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">File Sharing</h3>
+                <p className="text-lg text-gray-600 leading-relaxed">Upload and download project files for collaboration.</p>
               </div>
 
               {/* Notifications */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 w-[398px] flex-shrink-0">
-                <div className="w-12 h-12 mb-4 flex items-center justify-center">
-                  <img src="/images/notification.png" alt="Notifications" className="w-12 h-12" />
+              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+                <div className="w-16 h-16 mb-6 flex items-center justify-center">
+                  <img src="/images/notification.png" alt="Notifications" className="w-16 h-16" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Notifications</h3>
-                <p className="text-gray-600 text-sm">Stay updated when someone replies, comments, or invites you to a group.</p>
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">Notifications</h3>
+                <p className="text-lg text-gray-600 leading-relaxed">Stay updated when someone replies, comments, or invites you to a group.</p>
               </div>
 
               {/* Report System */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 w-[398px] flex-shrink-0">
-                <div className="w-12 h-12 mb-4 flex items-center justify-center">
-                  <img src="/images/report.png" alt="Report System" className="w-12 h-12" />
+              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+                <div className="w-16 h-16 mb-6 flex items-center justify-center">
+                  <img src="/images/report.png" alt="Report System" className="w-16 h-16" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Report System</h3>
-                <p className="text-gray-600 text-sm">Keep the community safe with reporting and admin moderation.</p>
+                <h3 className="text-3xl font-bold text-gray-900 mb-4">Report System</h3>
+                <p className="text-lg text-gray-600 leading-relaxed">Keep the community safe with reporting and admin moderation.</p>
               </div>
             </div>
           </div>
