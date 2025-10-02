@@ -1,7 +1,7 @@
 "use client";
 import { useState,useEffect  } from "react";
 
-export default function CreateBlogModal() {
+export default function CreateBlogModal({ children }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -31,12 +31,18 @@ export default function CreateBlogModal() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="bg-lime-400 px-6 py-6 rounded-xl font-medium"
-      >
-        Create Question
-      </button>
+      {children ? (
+        <div onClick={() => setOpen(true)}>
+          {children}
+        </div>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="bg-lime-400 px-6 py-6 rounded-xl font-medium"
+        >
+          Create Question
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
