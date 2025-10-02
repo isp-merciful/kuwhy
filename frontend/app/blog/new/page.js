@@ -32,17 +32,38 @@ export default function NewBlogPage() {
 
   const canSubmit = title.trim() && detail.trim();
 
+  const ensureUserNow = async () => {
+    let id = userId || (typeof window !== "undefined" ? localStorage.getItem("userId") : null);
+    if (!id) {
+      id = crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      setUserId(id);
+      if (typeof window !== "undefined") localStorage.setItem("userId", JSON.stringify(id));
+    }
+    try {
+      await fetch("http://localhost:8000/api/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: id, user_name: userName || "anonymous" }),
+      });
+    } catch {}
+    return id;
+  };
+
   const handleCreate = async () => {
-    if (!canSubmit || !userId) return;
+    if (!canSubmit) return;
     setLoading(true);
     try {
+      const id = await ensureUserNow();
       const res = await fetch("http://localhost:8000/api/blog", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, blog_title: title.trim(), message: detail.trim() }),
+        body: JSON.stringify({ user_id: id, blog_title: title.trim(), message: detail.trim() }),
       });
       if (!res.ok) throw new Error("Create blog failed");
       window.location.href = "/blog";
+    } catch (e) {
+      console.error(e);
+      alert("Failed to create blog. Please try again.");
     } finally {
       setLoading(false);
     }
