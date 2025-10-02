@@ -57,7 +57,7 @@ export default function LandingPage() {
         <img
             src="/images/students.png"
             alt="Graduates celebrating"
-            className="h-full object-contain"
+            className="h-auto w-[60%] object-contain object-right-bottom"
         />
         </div>
 
