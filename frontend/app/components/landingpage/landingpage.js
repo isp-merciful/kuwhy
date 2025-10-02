@@ -135,7 +135,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="mt-4">
-                <a href="#" className="text-sm font-medium text-black hover:underline">Start a note →</a>
+                <a href="/note" className="text-sm font-medium text-black hover:underline">Start a note →</a>
               </div>
             </div>
 

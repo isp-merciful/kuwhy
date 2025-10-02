@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const personIcons = ["/images/person1.png", "/images/person2.png", "/images/person3.png"];
+const personIcons = ["/images/avatar1.png", "/images/avatar2.png", "/images/avatar3.png"];
 
 export default function Avatar() {
   const [currentIndex, setCurrentIndex] = useState(0);
