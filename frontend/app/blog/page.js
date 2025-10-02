@@ -9,6 +9,16 @@ export default function BlogPage() {
       <Navbar />
       <section className="relative isolate overflow-hidden py-12 bg-gradient-to-b from-[#DDF3FF] to-[#E8FFF2] min-h-screen">
         <div className="max-w-5xl mx-auto px-4">
+          <h2 className="text-2xl font-bold mb-6">Blog Q&A</h2>
+          <div className="mb-4">
+            <button
+              onClick={() => (window.location.href = "/")}
+              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            >
+              <span className="text-xl">←</span>
+              <span>Back</span>
+            </button>
+          </div>
           <div className="flex flex-col items-center gap-4">
             <div className="text-gray-500 text-sm">username</div>
             <div className="flex items-center gap-6">
