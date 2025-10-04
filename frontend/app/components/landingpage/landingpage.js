@@ -83,31 +83,8 @@ export default function LandingPage() {
               </div>
             </div>
             
-            {/* <div className="flex justify-end">
-              <div className="w-full max-w-none lg:w-[55%] h-[360px] sm:h-[420px] lg:h-[500px] lg:translate-y-[6px]">
-                <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"> */}
-                  {/* <defs>
-                    <clipPath id="heroClip" clipPathUnits="objectBoundingBox">
-                      <rect x="0" y="0" width="1" height="1" rx="0" ry="0" />
-                    </clipPath>
-                  </defs> */}
-                  {/* <image
-                    href="/images/herouni.png"
-                    x="-10%" y="0" width="110%" height="100%"
-                    preserveAspectRatio="xMidYMid slice"
-                    clipPath="url(#heroClip)"
-                  /> */}
-                {/* </svg>
-              </div>
-            </div> */}
           </div>
         </div>
-        {/* Foreground bottom wave overlay to match design */}
-        {/* <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10" aria-hidden="true">
-          <svg viewBox="0 0 1440 220" className="h-[180px] w-full" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 0C301 100 1038 -100 1440 0V220H0V0Z" fill="white"/>
-          </svg>
-        </div> */}
       </section>
 
       {/* Two Ways to Share */}
