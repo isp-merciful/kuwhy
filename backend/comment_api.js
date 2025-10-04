@@ -1,11 +1,8 @@
-const express = require('express');
+const express = require("express");
+const { PrismaClient } = require("@prisma/client");
+
+const prisma = new PrismaClient();
 const router = express.Router();
-
-let wire = null;
-
-function DBconnect(val){
-    wire = val;
-}
 
 function CommentTree(comments) {
   const map = {};
@@ -14,7 +11,6 @@ function CommentTree(comments) {
   comments.forEach(c => {
     map[c.comment_id] = { ...c, children: [] };
   });
-
 
   comments.forEach(c => {
     if (c.parent_comment_id) {
@@ -25,7 +21,6 @@ function CommentTree(comments) {
       roots.push(map[c.comment_id]);
     }
   });
-
 
   roots.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
@@ -39,19 +34,44 @@ function CommentTree(comments) {
   return roots;
 }
 
-router.get('/', async (req, res) => {
+
+router.get("/", async (req, res) => {
   try {
-    const [result] = await wire.query(
-      `SELECT * from comment`
-    );
-
-    const commentTree = CommentTree(result);
-
-    res.json({
-      message: "getallcomment",
-      comment: commentTree
+    const comments = await prisma.comment.findMany({
+      include: {
+        user: { select: { user_id: true, user_name: true, img: true } }
+      },
+      orderBy: { created_at: "asc" }
     });
 
+    const commentTree = CommentTree(comments);
+
+    res.json({ message: "getallcomment", comment: commentTree });
+  } catch (error) {
+    console.error("❌ Fetch error:", error);
+    res.status(500).json({
+      error: error.message,
+      message: "can't fetch comment"
+    });
+  }
+});
+
+
+router.get("/note/:note_id", async (req, res) => {
+  try {
+    const noteId = parseInt(req.params.note_id, 10);
+
+    const comments = await prisma.comment.findMany({
+      where: { note_id: noteId },
+      include: {
+        user: { select: { user_id: true, user_name: true, img: true } }
+      },
+      orderBy: { created_at: "asc" }
+    });
+
+    const commentTree = CommentTree(comments);
+
+    res.json({ message: "getnote", comment: commentTree });
   } catch (error) {
     console.error("❌ Fetch error:", error);
     res.status(500).json({
@@ -61,128 +81,65 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.delete('/:id', async(req,res) => {
-    try{
-      const [result] = await wire.query(
-        'delete from comment where comment_id = ?',[req.params.id]
-      )
-    res.json('delete success');
-    }catch(error){
-        console.error(error);
-        res.status(500).json({
-            error:"can't deleted "
-        })
-    }
-});
 
-
-
-
-router.get('/note/:note_id', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const [result] = await wire.query(
-      `SELECT c.*, u.user_name, u.img
-       FROM comment c
-       JOIN users u ON c.user_id = u.user_id
-       WHERE c.note_id = ?
-       ORDER BY c.created_at ASC`,
-      [req.params.note_id]
-    );
-
-    const commentTree = CommentTree(result);
-
-    res.json({
-      message: "getnote",
-      comment: commentTree
-    });
-
-  } catch (error) {
-    console.error("❌ Fetch error:", error);
-    res.status(500).json({
-      error: error.message,
-      message: "can't fetch note comment"
-    });
-  }
-});
-
-router.put('/', async (req, res) => {
-  try {
-    const { message,comment_id } = req.body;
-    const [result] = await wire.query(
-      `UPDATE comment SET message = ? WHERE comment_id = ?`,[message,comment_id]);
-    res.json({
-      message : "updatesuccess"
-    })
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to update user name" });
-  }
-});
-
-
-
-
-
-router.post('/', async (req, res) => {
-  try {
-    const { user_id,message,blog_id,note_id,parent_comment_id } = req.body;
+    const { user_id, message, blog_id, note_id, parent_comment_id } = req.body;
 
     if (!user_id || !message) {
-      throw new Error('ไม่มี notes หรือ username');
+      return res.status(400).json({ error: "ไม่มี notes หรือ username" });
     }
-    
 
-    const [result] = await wire.query(
-      'INSERT INTO comment (user_id, message, blog_id,note_id,parent_comment_id) VALUES (?, ?, ?, ?, ?)',
-      [user_id, message, blog_id || null,note_id || null ,parent_comment_id || null]
-    );
-
-    res.json({
-        message : "add comment sucessful",
-        comment : result
+    const newComment = await prisma.comment.create({
+      data: {
+        user: { connect: { user_id: user_id } },
+        message,
+        blog: blog_id ? { connect: { blog_id: blog_id } } : undefined,
+        note: note_id ? { connect: { note_id: note_id } } : undefined,
+        parent_comment: parent_comment_id
+          ? { connect: { comment_id: parent_comment_id } }
+          : undefined,
+      },
     });
 
+    res.json({ message: "add comment successful", comment: newComment });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: error.message
-        ,massage :'add notes fail' });
-  }
-});
-
-router.get('/', async (req, res) => {
-  try {
-    const [result] = await wire.query(
-      `SELECT * from comment`
-    );
-
-    const commentTree = CommentTree(result);
-
-    res.json({
-      message: "getallcomment",
-      comment: commentTree
-    });
-
-  } catch (error) {
-    console.error("❌ Fetch error:", error);
     res.status(500).json({
       error: error.message,
-      message: "can't fetch note comment"
+      message: "add comment fail",
     });
   }
 });
 
-router.delete('/:id', async(req,res) => {
-    try{
-      const [result] = await wire.query(
-        'delete from comment where comment_id = ?',[req.params.id]
-      )
-    res.json('delete success');
-    }catch(error){
-        console.error(error);
-        res.status(500).json({
-            error:"can't deleted "
-        })
-    }
-})
 
-module.exports = { router, DBconnect };
+router.put("/", async (req, res) => {
+  try {
+    const { message, comment_id } = req.body;
+
+    await prisma.comment.update({
+      where: { comment_id: comment_id },
+      data: { message },
+    });
+
+    res.json({ message: "updatesuccess" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update comment" });
+  }
+});
+
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const commentId = parseInt(req.params.id, 10);
+    await prisma.comment.delete({ where: { comment_id: commentId } });
+
+    res.json("delete success");
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "can't deleted" });
+  }
+});
+
+module.exports = router;

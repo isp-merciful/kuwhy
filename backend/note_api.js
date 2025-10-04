@@ -1,101 +1,98 @@
-const express = require('express');
+const express = require("express");
+const { PrismaClient } = require("@prisma/client");
+
+const prisma = new PrismaClient();
 const router = express.Router();
 
-let wire = null;
 
-function DBconnect(val){
-    wire = val;
-}
-
-
-router.get('/', async(req,res)=> {
-    try{
-        let result = await wire.query(`select n.note_id,n.message,
-            u.img,u.user_name,n.created_at
-            from note n left join users u ON n.user_id = u.user_id
-            ORDER BY n.note_id DESC;
-
-            `
-        )
-        res.json(result[0])
-    }catch(error) {
-        console.error(error);
-        res.status(500).json({error : 'fetch post fail'});
-    }
+router.get("/", async (req, res) => {
+  try {
+    const notes = await prisma.note.findMany({
+      orderBy: { note_id: "desc" },
+      include: {
+        user: {
+          select: {
+            user_id: true,
+            user_name: true,
+            img: true,
+          },
+        },
+      },
+    });
+    res.json(notes);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "fetch post fail" });
+  }
 });
 
 
-router.get('/:id', async (req, res) => {
-  const noteId = req.params.id;
+router.get("/:id", async (req, res) => {
+  const noteId = parseInt(req.params.id, 10);
   try {
-    const [result] = await wire.query(
-      `SELECT n.note_id, n.message, u.user_id, u.user_name, u.img, n.created_at
-       FROM note n
-       LEFT JOIN users u ON n.user_id = u.user_id
-       WHERE n.note_id = ?`,
-      [noteId]
-    );
+    const note = await prisma.note.findUnique({
+      where: { note_id: noteId },
+      include: {
+        user: {
+          select: {
+            user_id: true,
+            user_name: true,
+            img: true,
+          },
+        },
+      },
+    });
 
-    if (!result[0]) {
+    if (!note) {
       return res.status(404).json({ error: "Note not found" });
     }
 
-    res.json(result[0]);
+    res.json(note);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Fetch note failed" });
   }
 });
 
-
-
-
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const {message, user_id } = req.body; 
-    console.log(req.body)
+    const { message, user_id } = req.body;
+
     if (!message) {
-      throw new Error('ไม่มี notes');
+      return res.status(400).json({ error: "ไม่มี notes" });
     }
     if (!user_id) {
-      return res.status(400).json({ error: 'Missing user_id' });
+      return res.status(400).json({ error: "Missing user_id" });
     }
 
+    const newNote = await prisma.note.create({
+      data: {
+        message,
+        user: { connect: { user_id: user_id } }, // เชื่อมกับ user
+      },
+    });
 
-    const [noteResult] = await wire.query(
-      'INSERT INTO note (message, user_id) VALUES (?, ?)',
-      [message, user_id]
-    );
-
-    console.log('Note added with id:', noteResult.insertId, 'user_id:', user_id);
-
-    res.status(201).json({  
-      message:"add note success",
-      value : noteResult
+    res.status(201).json({
+      message: "add note success",
+      value: newNote,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'add notes fail'});
+    res.status(500).json({ error: "add notes fail" });
   }
 });
 
-
-
-router.delete('/:id', async(req,res) => {
-    try{
-      const [result] = await wire.query(
-        'delete from note where note_id = ?',[req.params.id]
-      )
-    res.json('delete success');
-    }catch(error){
-        console.error(error);
-        res.status(500).json({
-            error:"can't deleted "
-        })
-    }
+router.delete("/:id", async (req, res) => {
+  const noteId = parseInt(req.params.id, 10);
+  try {
+    await prisma.note.delete({
+      where: { note_id: noteId },
+    });
+    res.json("delete success");
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "can't deleted" });
+  }
 });
-module.exports = { router, DBconnect };
 
-
-
-
+module.exports = router;

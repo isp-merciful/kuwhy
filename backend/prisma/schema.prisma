@@ -1,0 +1,112 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Users {
+  user_id   String  @id @db.Char(36)
+  email     String? @db.VarChar(255) @unique
+  password  String? @db.VarChar(255)
+  user_name String? @db.VarChar(255)
+  dp_name   String  @default("annonymous") @db.VarChar(255)
+  gender    Gender
+  img       String  @default("pfp") @db.VarChar(255)
+
+  blogs                  Blog[]
+  notes                  Note[]
+  comments               Comment[]
+  notifications_received Notifications[] @relation("RecipientNotifications")
+  notifications_sent     Notifications[] @relation("SenderNotifications")
+}
+
+enum Gender {
+  Male
+  Female
+  NotSpecified
+}
+
+model Blog {
+  blog_id    Int      @id @default(autoincrement())
+  blog_title String?  @db.VarChar(60)
+  message    String?  @db.VarChar(120)
+  blog_up    Int?
+  blog_down  Int?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt @default(now())
+
+  user_id String?
+  user    Users?  @relation(fields: [user_id], references: [user_id])
+
+  comments      Comment[]
+  notifications Notifications[]
+}
+
+model Note {
+  note_id    Int      @id @default(autoincrement())
+  message    String?  @db.VarChar(60)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user_id String
+  user    Users  @relation(fields: [user_id], references: [user_id])
+
+  comments      Comment[]
+  notifications Notifications[]
+}
+
+model Comment {
+  comment_id Int      @id @default(autoincrement())
+  message    String   @db.VarChar(255)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user_id String
+  user    Users  @relation(fields: [user_id], references: [user_id])
+
+  blog_id Int?
+  blog    Blog? @relation(fields: [blog_id], references: [blog_id])
+
+  note_id Int?
+  note    Note? @relation(fields: [note_id], references: [note_id])
+
+  parent_comment_id Int?
+  parentComment     Comment?  @relation("CommentReplies", fields: [parent_comment_id], references: [comment_id])
+  replies           Comment[] @relation("CommentReplies")
+
+  notifications_as_comment Notifications[] @relation("NotificationComment")
+  notifications_as_parent  Notifications[] @relation("NotificationParentComment")
+}
+
+model Notifications {
+  notification_id Int              @id @default(autoincrement())
+  type            NotificationType
+  is_read         Boolean          @default(false)
+  created_at      DateTime         @default(now())
+
+  recipient_id String
+  recipient    Users  @relation("RecipientNotifications", fields: [recipient_id], references: [user_id])
+
+  sender_id String
+  sender    Users  @relation("SenderNotifications", fields: [sender_id], references: [user_id])
+
+  note_id Int?
+  note    Note? @relation(fields: [note_id], references: [note_id])
+
+  blog_id Int?
+  blog    Blog? @relation(fields: [blog_id], references: [blog_id])
+
+  comment_id Int
+  comment    Comment @relation("NotificationComment", fields: [comment_id], references: [comment_id])
+
+  parent_comment_id Int?
+  parentComment     Comment? @relation("NotificationParentComment", fields: [parent_comment_id], references: [comment_id])
+}
+
+enum NotificationType {
+  comment
+  reply
+}
