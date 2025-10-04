@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-// Helper function: flatten tree to array
+// Helper: flatten tree of comments
 const flattenComments = (comments, level = 0) => {
   let arr = [];
   comments.forEach((c) => {
@@ -29,14 +29,13 @@ export default function AdminPage() {
       const json = await res.json();
 
       let items = [];
-
       if (category === "comment" && json.comment) {
         items = flattenComments(json.comment);
       } else {
         items = Array.isArray(json) ? json : [];
       }
 
-      // Sort by created_at if exists, otherwise by id/uuid
+      // Sort by created_at if exists, else by id/uuid
       items.sort((a, b) => {
         let keyA = a.created_at ?? a.id ?? a.user_id ?? a.note_id ?? a.blog_id;
         let keyB = b.created_at ?? b.id ?? b.user_id ?? b.note_id ?? b.blog_id;
@@ -53,12 +52,33 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  // Delete item
-  const handleDelete = async (id) => {
+  // Delete item by proper id depending on category
+  const handleDelete = async (item) => {
+    let idToDelete;
+    switch (category) {
+      case "comment":
+        idToDelete = item.comment_id;
+        break;
+      case "note":
+        idToDelete = item.note_id;
+        break;
+      case "blog":
+        idToDelete = item.blog_id;
+        break;
+      case "user":
+        idToDelete = item.user_id;
+        break;
+      default:
+        console.error("Unknown category");
+        return;
+    }
+
+    if (!idToDelete) return;
+
     if (!window.confirm("Are you sure you want to delete this item?")) return;
+
     try {
-      const apiUrl = `http://localhost:8000/api/${category}/${id}`;
-      await fetch(apiUrl, { method: "DELETE" });
+      await fetch(`http://localhost:8000/api/${category}/${idToDelete}`, { method: "DELETE" });
       fetchData();
     } catch (err) {
       console.error(err);
@@ -139,9 +159,7 @@ export default function AdminPage() {
                     Children
                   </th>
                 )}
-                <th className="px-4 py-2 border-b border-gray-300 text-center">
-                  Actions
-                </th>
+                <th className="px-4 py-2 border-b border-gray-300 text-center">Actions</th>
               </tr>
             </thead>
 
@@ -183,7 +201,7 @@ export default function AdminPage() {
                           </td>
                         ))}
 
-                      {/* Children column */}
+                      {/* Children column for comments */}
                       {category === "comment" && (
                         <td className="px-4 py-2 border-b border-gray-200 text-center">
                           {Array.isArray(item.children) && item.children.length > 0 ? (
@@ -202,15 +220,7 @@ export default function AdminPage() {
                       {/* Delete column */}
                       <td className="px-4 py-2 border-b border-gray-200 text-center">
                         <button
-                          onClick={() =>
-                            handleDelete(
-                              item.comment_id ||
-                                item.id ||
-                                item.user_id ||
-                                item.note_id ||
-                                item.blog_id
-                            )
-                          }
+                          onClick={() => handleDelete(item)}
                           className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition"
                         >
                           Delete
