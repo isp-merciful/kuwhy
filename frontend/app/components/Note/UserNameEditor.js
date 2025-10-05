@@ -66,7 +66,7 @@ export default function UserNameEditor({
         <input
           type="text"
           maxLength={15}
-          className="text-sm text-gray-700 bg-transparent border-0 border-b border-gray-400 focus:border-b-2 focus:border-blue-500 focus:outline-none transition"
+          className="text-sm text-gray-1000 bg-transparent border-0 border-b border-gray-400 focus:border-b-2 focus:border-blue-500 focus:outline-none transition"
           value={tempName}
           onChange={(e) => setTempName(e.target.value)}
           onBlur={confirmChange}
@@ -79,7 +79,7 @@ export default function UserNameEditor({
       ) : (
         <span
           className={`${
-            isPosted ? "cursor-default text-gray-500" : "cursor-pointer text-gray-600 hover:text-blue-500"
+            isPosted ? "cursor-default text-gray-800" : "cursor-pointer text-gray-600 hover:text-blue-500"
           } flex items-center space-x-1 transition`}
           onClick={handleClick}
         >

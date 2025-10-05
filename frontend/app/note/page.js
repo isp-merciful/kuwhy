@@ -1,12 +1,19 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import NoteBubble from "../components/Note/NoteBubble";
 import NoteContainer from "../components/Note/NoteContainer";
 import { AnimatePresence, motion } from "framer-motion";
 
 export default function NotePage() {
   const [isComposing, setIsComposing] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null; 
   return (
     <main className="relative min-h-screen bg-gradient-to-b from-[#DDF3FF] to-[#E8FFF2] flex flex-col items-center pt-24 overflow-hidden">
       <motion.section

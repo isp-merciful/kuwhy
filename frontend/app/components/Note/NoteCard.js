@@ -4,27 +4,37 @@ export default function NoteCard({ note, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="flex flex-col items-center mx-4 min-w-[230px] cursor-pointer"
+      className="flex flex-col items-center mx-2 min-w-[200px] max-w-[250px] cursor-pointer relative"
     >
-      <span className="mb-1 text-gray-500 text-sm">{note.user_name}</span>
-      <div className="bg-[#EFEFEF] rounded-3xl px-5 py-4 shadow w-full max-w-sm flex flex-col transition-all duration-200">
-        <p className="text-gray-900 text-base break-words">
+      {/* Bubble / Message */}
+      <div className="bg-white rounded-3xl px-5 py-4 shadow-lg w-full flex flex-col transition-all duration-200 hover:shadow-xl relative">
+        <p className="text-gray-800 font-semibold text-base break-words line-clamp-3 h-[60px]">
           {note.message}
         </p>
-      </div>
-      <span className="relative">
-        <span className="absolute -top-2 left-1/2 -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full bg-[#EFEFEF]" />
-        <span className="absolute -top-4 left-1/2 -translate-x-1/2 -translate-x-3 w-2 h-2 rounded-full bg-[#EFEFEF]" />
-      </span>
 
+        {/* Bubble tail: start left-bottom, point to right-bottom */}
+        <span
+          className="absolute -bottom-2 left-5 w-6 h-6 bg-white shadow-sm"
+          style={{
+            clipPath: "polygon(0% 0%, 100% 50%, 0% 100%)",
+            transform: "rotate(190deg)",
+          }}
+        />
+      </div>
+
+      {/* Optional Image */}
       {note.img && (
         <img
           src={note.img}
           alt={note.note_id}
-          className="w-24 h-24 object-cover my-3 rounded-full"
+          className="w-32 h-32 object-cover my-3 rounded-lg"
         />
       )}
-      {!note.img && <div className="h-6" />}
+
+      {/* Username */}
+      <span className="text-gray-900 text-sm font-semibold mt-1">
+        {note.user_name}
+      </span>
     </div>
   );
 }
