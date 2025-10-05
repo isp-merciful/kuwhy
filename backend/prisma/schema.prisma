@@ -49,7 +49,7 @@ model Note {
   note_id    Int      @id @default(autoincrement())
   message    String?  @db.VarChar(60)
   created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  updated_at DateTime @updatedAt @default(now())
 
   user_id String
   user    Users  @relation(fields: [user_id], references: [user_id])
@@ -62,7 +62,7 @@ model Comment {
   comment_id Int      @id @default(autoincrement())
   message    String   @db.VarChar(255)
   created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  updated_at DateTime @updatedAt @default(now())
 
   user_id String
   user    Users  @relation(fields: [user_id], references: [user_id])
