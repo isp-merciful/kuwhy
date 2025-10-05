@@ -8,17 +8,19 @@ export default function useUserId() {
 
   useEffect(() => {
     const generateAnonymousId = () => {
-      const newId = crypto.randomUUID();
-      localStorage.setItem("userId", newId);
-      return newId;
+    let newId = crypto.randomUUID();
+    localStorage.setItem("userId", newId);
+    return newId;
     };
-
+    
     let currentId = localStorage.getItem("userId");
+    if (currentId) currentId = currentId.replace(/"/g, "").trim();
 
     if (session?.user?.id) {
       // case: user login
       const loginId = session.user.id;
 
+      
       // merge anonymous -> user (ไม่เปลี่ยน primary key)
       if (currentId && currentId !== loginId) {
         fetch("http://localhost:8000/api/user/merge", {
