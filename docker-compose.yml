@@ -1,42 +1,46 @@
-version: "3.8"
+version: "3.9"
 
 services:
   db:
-    image: mysql:8.0
-    container_name: mysql_db
+    image: mysql:8
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    container_name: kuwhy-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: myapp
-      MYSQL_USER: appuser
-      MYSQL_PASSWORD: apppass
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: kuwhy
     ports:
-      - "3307:3306"
-    volumes:
-      - db_data:/var/lib/mysql
+      - "3306:3306"
+    networks:
+      - kuwhy
 
   backend:
-    build:
-      context: ./backend
-    container_name: backend
-    restart: always
-    ports:
-      - "8000:8000"
+    build: ./backend
+    container_name: kuwhy-backend
     env_file:
       - ./backend/.env
     depends_on:
       - db
+    environment:
+      DATABASE_URL: "mysql://root:root@db:3306/kuwhy"
+    command: sh -c "npx prisma migrate deploy && node index.js"
+    ports:
+      - "5000:5000"
+    networks:
+      - kuwhy
 
   frontend:
-    build:
-      context: ./frontend
-    container_name: frontend
-    restart: always
-    ports:
-      - "3000:3000"
+    build: ./frontend
     env_file:
       - ./frontend/.env
+    container_name: kuwhy-frontend
     depends_on:
       - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - kuwhy
 
-volumes:
+networks:
+  kuwhy:
+    driver: bridge
