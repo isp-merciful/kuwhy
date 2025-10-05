@@ -1,8 +1,8 @@
 import Link from "next/link";
+import CommentThread from "../../components/comments/CommentThread";
 
-export const dynamic = "force-dynamic"; // always fresh
+export const dynamic = "force-dynamic";
 
-// Deterministic date formatting for SSR + CSR (no locale/calendar mismatch)
 function formatDate(iso) {
   if (!iso) return "";
   try {
@@ -25,26 +25,20 @@ function formatDate(iso) {
 }
 
 async function fetchPost(id) {
-  const res = await fetch(`http://localhost:8000/api/blog/${id}`, {
-    cache: "no-store",
-  });
+  const res = await fetch(`http://localhost:8000/api/blog/${id}`, { cache: "no-store" });
   if (!res.ok) return null;
   const json = await res.json();
   return json?.data ?? json ?? null;
 }
 
 async function fetchAllPosts() {
-  const res = await fetch(`http://localhost:8000/api/blog`, {
-    cache: "no-store",
-  });
+  const res = await fetch(`http://localhost:8000/api/blog`, { cache: "no-store" });
   if (!res.ok) return [];
   return res.json();
 }
 
 export default async function BlogPostPage({ params }) {
   const { id } = params;
-
-  // Fetch current post and list in parallel
   const [post, allPosts] = await Promise.all([fetchPost(id), fetchAllPosts()]);
 
   if (!post) {
@@ -61,7 +55,6 @@ export default async function BlogPostPage({ params }) {
     );
   }
 
-  // Build the "other posts" list (exclude current), recent first, limit to 8
   const otherPosts = (Array.isArray(allPosts) ? allPosts : [])
     .filter((p) => String(p.blog_id) !== String(id))
     .slice(0, 8);
@@ -101,6 +94,16 @@ export default async function BlogPostPage({ params }) {
               </button>
             </div>
           </footer>
+
+          {/* NEW: Generic thread, blog mode.
+              currentUserId: pass the logged-in user's id if you have auth; otherwise null to default to anonymous.
+              allowAnonymous: true lets users toggle anonymous posting on/off. */}
+          <CommentThread
+            kind="blog"
+            entityId={id}
+            currentUserId={null}
+            allowAnonymous={true}
+          />
         </article>
 
         {/* Sidebar: Other posts */}
