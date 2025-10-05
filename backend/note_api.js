@@ -11,7 +11,7 @@ function DBconnect(val){
 router.get('/', async(req,res)=> {
     try{
         let result = await wire.query(`select n.note_id,n.message,
-            u.img,u.user_name,n.created_at
+            u.img,u.user_name,u.user_id,n.created_at
             from note n left join users u ON n.user_id = u.user_id
             ORDER BY n.note_id DESC;
 
@@ -47,7 +47,21 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+router.get("/user/:uuid", async (req, res) => {
+  try {
+    const { uuid } = req.params;
+    const [rows] = await wire.query(
+      "SELECT * FROM note WHERE user_id = ? LIMIT 1",
+      [uuid]
+    );
 
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("Fetch note error:", error);
+    res.status(500).json({ error: "Failed to fetch note" });
+  }
+});
 
 
 router.post('/', async (req, res) => {
@@ -60,8 +74,6 @@ router.post('/', async (req, res) => {
     if (!user_id) {
       return res.status(400).json({ error: 'Missing user_id' });
     }
-
-
     const [noteResult] = await wire.query(
       'INSERT INTO note (message, user_id) VALUES (?, ?)',
       [message, user_id]
