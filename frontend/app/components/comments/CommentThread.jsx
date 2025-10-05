@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-// Deterministic date formatting to avoid SSR/CSR mismatch
 function formatDate(iso) {
   if (!iso) return "";
   try {
@@ -19,8 +18,7 @@ function formatDate(iso) {
   } catch {
     const d = new Date(iso);
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} `
-         + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
   }
 }
 
@@ -31,11 +29,7 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
   return (
     <li className="rounded-lg border border-gray-200 p-4">
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-        <img
-          src={node.img || "/images/pfp.png"}
-          alt=""
-          className="h-8 w-8 rounded-full object-cover"
-        />
+        <img src={node.img || "/images/pfp.png"} alt="" className="h-8 w-8 rounded-full object-cover" />
         <span className="font-medium">{node.user_name ?? "Anonymous"}</span>
         <span className="text-gray-400">·</span>
         <time title={`Created: ${formatDate(node.created_at)}`}>
@@ -45,10 +39,7 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
           new Date(node.updated_at).getTime() !== new Date(node.created_at).getTime() && (
             <span className="text-gray-400">(edited)</span>
           )}
-        <button
-          onClick={() => onReply(node.comment_id)}
-          className="ml-auto text-xs text-blue-600 hover:underline"
-        >
+        <button onClick={() => onReply(node.comment_id)} className="ml-auto text-xs text-blue-600 hover:underline">
           Reply
         </button>
       </div>
@@ -71,19 +62,8 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
             className="w-full min-h-[70px] rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <div className="mt-2 flex gap-2">
-            <button
-              type="submit"
-              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
-            >
-              Reply
-            </button>
-            <button
-              type="button"
-              onClick={() => onReply(null)}
-              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
-            >
-              Cancel
-            </button>
+            <button type="submit" className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50">Reply</button>
+            <button type="button" onClick={() => onReply(null)} className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50">Cancel</button>
           </div>
         </form>
       )}
@@ -107,12 +87,11 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
   );
 }
 
-/**
- * Props:
+/** Props:
  *  - kind: "blog" | "note"
  *  - entityId: string | number
- *  - currentUserId?: string | null   (logged-in user's id, if any)
- *  - allowAnonymous?: boolean        (default true)
+ *  - currentUserId?: string | null
+ *  - allowAnonymous?: boolean (default true)
  */
 export default function CommentThread({
   kind,
@@ -146,9 +125,7 @@ export default function CommentThread({
     }
   }
 
-  useEffect(() => {
-    load();
-  }, [listURL]);
+  useEffect(() => { load(); }, [listURL]);
 
   async function postComment({ message, parent_comment_id = null }) {
     const body = {
@@ -157,7 +134,6 @@ export default function CommentThread({
       blog_id: kind === "blog" ? Number(entityId) : null,
       note_id: kind === "note" ? Number(entityId) : null,
     };
-    // Only attach user_id if not anonymous and we have one
     if (!postAnon && currentUserId) body.user_id = currentUserId;
 
     const res = await fetch("http://localhost:8000/api/comment", {
@@ -167,7 +143,7 @@ export default function CommentThread({
     });
 
     if (!res.ok) {
-      let msg = "Failed to post comment";
+      let msg = "Failed to add comment";
       try {
         const data = await res.json();
         if (data?.error || data?.message) msg = data.error || data.message;

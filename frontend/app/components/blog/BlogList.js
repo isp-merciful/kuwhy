@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default function BlogList({ initialBlogs = [] }) {
   const [blogs, setBlogs] = useState(initialBlogs);
-
+  
   useEffect(() => {
     (async () => {
       try {

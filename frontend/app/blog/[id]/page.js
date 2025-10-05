@@ -1,8 +1,10 @@
 import Link from "next/link";
+import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 
 export const dynamic = "force-dynamic";
 
+// Hydration-safe date formatting
 function formatDate(iso) {
   if (!iso) return "";
   try {
@@ -84,24 +86,20 @@ export default async function BlogPostPage({ params }) {
             <p className="whitespace-pre-wrap">{post.message}</p>
           </section>
 
+          {/* Likes / Dislikes */}
           <footer className="mt-6 flex items-center gap-4 text-sm text-gray-700">
-            <div className="flex items-center gap-2">
-              <button className="rounded-md border px-3 py-1 hover:bg-gray-50" disabled>
-                👍 {post.blog_up ?? 0}
-              </button>
-              <button className="rounded-md border px-3 py-1 hover:bg-gray-50" disabled>
-                👎 {post.blog_down ?? 0}
-              </button>
-            </div>
+            <LikeButtons
+              blogId={post.blog_id}
+              initialUp={post.blog_up ?? 0}
+              initialDown={post.blog_down ?? 0}
+            />
           </footer>
 
-          {/* NEW: Generic thread, blog mode.
-              currentUserId: pass the logged-in user's id if you have auth; otherwise null to default to anonymous.
-              allowAnonymous: true lets users toggle anonymous posting on/off. */}
+          {/* Comments (generic thread, blog mode) */}
           <CommentThread
             kind="blog"
             entityId={id}
-            currentUserId={null}
+            currentUserId={null}     // pass real id if you have auth
             allowAnonymous={true}
           />
         </article>
