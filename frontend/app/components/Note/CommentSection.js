@@ -118,7 +118,31 @@ export default function CommentSection({ noteId, userId }) {
       });
 
       if (!res.ok) throw new Error("Failed to post comment");
-      await res.json();
+      const commentData = await res.json(); 
+
+      const newCommentId = commentData?.comment?.insertId; // ✅ ดึง insertId
+      if (!newCommentId) {
+        console.error("❌ No insertId returned from comment API");
+        return;
+      }
+
+      // 👉 ส่ง noti ต่อ
+      try {
+        await fetch("http://localhost:8000/api/noti", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender_id: userId,
+            note_id: noteId,
+            comment_id: newCommentId, // ใช้ insertId ที่เพิ่งได้มา
+            parent_comment_id: parentId,
+          }),
+        });
+        console.log("📩 Notification sent");
+      } catch (err) {
+        console.error("❌ Failed to send notification:", err);
+      }
+
 
       // reload comments
       const refresh = await fetch(`http://localhost:8000/api/comment/note/${noteId}`);

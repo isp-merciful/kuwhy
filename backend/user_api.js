@@ -27,7 +27,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const gender = "ไม่ระบุ";
+    const gender = "Not Specified";
     const img = "/images/pfp.png";
 
     await wire.query(
@@ -58,6 +58,27 @@ router.get('/', async(req,res) =>{
         console.error(error);
         res.status(500).json({error : 'fetch user fail'});
     }
+});
+
+
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await wire.query(
+      'SELECT * FROM users WHERE user_id = ?',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
 });
 
 router.put('/:userId', async (req, res) => {
@@ -99,6 +120,38 @@ router.delete('/:id', async(req,res) => {
     }
 });
 
+router.post('/merge', async (req, res) => {
+  try {
+    const { user_id, anonymous_id, user_name, email, image, role } = req.body;
 
+    if (!user_id || !anonymous_id) {
+      return res.status(400).json({ error: "Missing user_id or anonymous_id" });
+    }
+
+    // ใช้ INSERT ... ON DUPLICATE KEY UPDATE
+    await wire.query(
+      `
+      INSERT INTO users (user_id, user_name, email, img, role)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+        user_name = VALUES(user_name),
+        img = VALUES(img),
+        role = VALUES(role)
+      `,
+      [user_id, user_name, email, image, role]
+    );
+
+    // optional: ลบ anonymous user หลัง merge
+    await wire.query(
+      "DELETE FROM users WHERE user_id = ? AND user_id != ?",
+      [anonymous_id, user_id]
+    );
+
+    res.json({ message: "User merged successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Merge failed" });
+  }
+});
 
 module.exports = { router, DBconnect };
