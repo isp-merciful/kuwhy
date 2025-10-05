@@ -8,6 +8,7 @@ const { router: blogRouter, DBconnect: setblogDB } = require("./blog_api");
 const { router: commentRouter, DBconnect: setcommentDB } = require("./comment_api");
 const { router: noteRouter, DBconnect: setnoteDB } = require("./note_api");
 const { router: userRouter, DBconnect: setuserDB } = require("./user_api");
+const { router: notiRouter, DBconnect: setnotiDB } = require("./notification_api");
 
 
 const app = express();
@@ -37,11 +38,12 @@ async function init() {
   setcommentDB(wire);
   setnoteDB(wire);
   setuserDB(wire);
+  setnotiDB(wire);
   app.use("/api/blog", blogRouter);
   app.use("/api/comment", commentRouter);
   app.use("/api/note", noteRouter);
   app.use("/api/user", userRouter);
-
+  app.use("/api/noti",notiRouter);
 
   app.listen(8000, () => {
     console.log("Server running on port 8000");
