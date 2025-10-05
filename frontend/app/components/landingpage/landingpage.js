@@ -77,9 +77,9 @@ export default function LandingPage() {
                 <a href="#share-ways" className="inline-flex items-center justify-center rounded-full bg-white/90 px-6 py-3 text-black hover:bg-white transition">
                   Get Started
                 </a>
-                <a href="/login" className="inline-flex items-center justify-center rounded-full border border-white/70 px-6 py-3 text-white hover:bg-white/10 transition">
+                {/* <a href="/login" className="inline-flex items-center justify-center rounded-full border border-white/70 px-6 py-3 text-white hover:bg-white/10 transition">
                   Log in
-                </a>
+                </a> */}
               </div>
             </div>
             
@@ -185,13 +185,13 @@ export default function LandingPage() {
               </div>
 
               {/* Groups & Events */}
-              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+              {/* <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
                 <div className="w-16 h-16 mb-6 flex items-center justify-center">
                   <img src="/images/event.png" alt="Groups & Events" className="w-16 h-16" />
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 mb-4">Groups & Events</h3>
                 <p className="text-lg text-gray-600 leading-relaxed">Join or create study groups, activities, and parties.</p>
-              </div>
+              </div> */}
 
               {/* Blogs & Q&A */}
               <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
@@ -203,13 +203,13 @@ export default function LandingPage() {
               </div>
 
               {/* File Sharing */}
-              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+              {/* <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
                 <div className="w-16 h-16 mb-6 flex items-center justify-center">
                   <img src="/images/file.png" alt="File Sharing" className="w-16 h-16" />
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 mb-4">File Sharing</h3>
                 <p className="text-lg text-gray-600 leading-relaxed">Upload and download project files for collaboration.</p>
-              </div>
+              </div> */}
 
               {/* Notifications */}
               <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
@@ -221,13 +221,13 @@ export default function LandingPage() {
               </div>
 
               {/* Report System */}
-              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
+              {/* <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
                 <div className="w-16 h-16 mb-6 flex items-center justify-center">
                   <img src="/images/report.png" alt="Report System" className="w-16 h-16" />
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 mb-4">Report System</h3>
                 <p className="text-lg text-gray-600 leading-relaxed">Keep the community safe with reporting and admin moderation.</p>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

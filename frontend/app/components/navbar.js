@@ -5,10 +5,12 @@ import NotificationBell from "./notification/NotificationBell";
 import useUserId from "./Note/useUserId";
 import { useEffect, useState } from "react";
 
+
 export default function Navbar() {
   const { data: session, status } = useSession();
   const userId = useUserId(); // UUID หรือ session.user.id
   const [mounted, setMounted] = useState(false);
+  const [showShareDropdown, setShowShareDropdown] = useState(false);
 
   // รอจน client render
   useEffect(() => {
@@ -50,12 +52,43 @@ export default function Navbar() {
               >
                 Home
               </a>
-              <a
+                            {/* Share Dropdown */}
+                <li className="relative">
+                  <button 
+                    className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition"
+                    onMouseEnter={() => setShowShareDropdown(true)}
+                    onMouseLeave={() => setShowShareDropdown(false)}
+                  >
+                    Features
+                  </button>
+                  {showShareDropdown && (
+                    <div 
+                      className="absolute top-full left-0 bg-white border border-gray-200 rounded-md shadow-lg py-2 min-w-[120px]"
+                      onMouseEnter={() => setShowShareDropdown(true)}
+                      onMouseLeave={() => setShowShareDropdown(false)}
+                    >
+                      <a 
+                        href="/note" 
+                        className="block px-4 py-2 text-black font-sans text-sm hover:bg-gray-100 transition"
+                      >
+                        Note
+                      </a>
+                      <a 
+                        href="/blog" 
+                        className="block px-4 py-2 text-black font-sans text-sm hover:bg-gray-100 transition"
+                      >
+                        Blog
+                      </a>
+                    </div>
+                  )}
+                </li>
+            
+              {/* <a
                 className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition"
                 href="#"
               >
                 Project
-              </a>
+              </a> */}
               <a
                 className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition"
                 href="#"
