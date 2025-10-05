@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 const personIcons = ["/images/avatar1.png", "/images/avatar2.png", "/images/avatar3.png"];
 
-export default function Avatar({ center = true, size = 20 }) {
+export default function Avatar({ center = true, size = 150 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
@@ -13,13 +13,13 @@ export default function Avatar({ center = true, size = 20 }) {
     return () => clearInterval(interval);
   }, []);
 
-  const sizeClass = `w-${size} h-${size}`;
   return (
     <div className={center ? "mt-1 flex justify-center w-full" : "mt-1"}>
       <img
         src={personIcons[currentIndex]}
         alt="person"
-        className={`${sizeClass} rounded-full object-cover border border-gray-300`}
+        style={{ width: `${size}px`, height: `${size}px` }}
+        className="rounded-full object-cover border border-gray-300"
       />
     </div>
   );

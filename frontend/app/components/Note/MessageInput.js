@@ -31,7 +31,6 @@ export default function MessageInput({
       <div
         onClick={() => {
           if (onBubbleClick) onBubbleClick();
-          else if (isPosted) setShowPopup(true);
         }}
         className={`relative rounded-3xl px-5 py-3 shadow-md max-w-xl w-auto flex flex-col items-center justify-center transition-all duration-200 cursor-pointer
           ${isPosted ? "bg-green-100" : isCompose ? "bg-[#2FA2FF]" : "bg-white"}`}

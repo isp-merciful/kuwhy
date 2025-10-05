@@ -1,12 +1,10 @@
 "use client";
-import { Navbar } from "../components/navbar";
 import Avatar from "../components/Note/Avatar";
 import BlogList from "../components/blog/BlogList";
 
 export default function BlogPage() {
   return (
     <div className="min-h-screen bg-white">
-      <Navbar />
       <section className="relative isolate overflow-hidden py-12 bg-gradient-to-b from-[#DDF3FF] to-[#E8FFF2] min-h-screen">
         <div className="max-w-5xl mx-auto px-4">
           <h2 className="text-2xl font-bold mb-6">Blog Q&A</h2>

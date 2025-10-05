@@ -12,6 +12,8 @@ export default function Navbar() {
   useEffect(() => {
     if (userId) {
       console.log("Current UUID:", userId);
+      console.log("Type of user_id:", typeof userId);
+      console.log("Length:", userId.length);
     }
   }, [userId]);
 
