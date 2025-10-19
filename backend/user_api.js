@@ -28,6 +28,7 @@ router.post("/register", async (req, res) => {
 
 
 
+
     const hash = await bcrypt.hash(password, 10);
     const newUser = await prisma.users.create({
       data: {
@@ -71,6 +72,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
+
 router.get('/', async (req, res) => {
   try {
     const users = await prisma.users.findMany();
@@ -90,6 +92,7 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ error: 'fetch user fail' });
   }
 });
+
 
 
 
@@ -143,7 +146,45 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+router.post('/merge', async (req, res) => {
+  try {
+    const { user_id, anonymous_id, user_name, email, image, role } = req.body;
 
+    if (!user_id || !anonymous_id) {
+      return res.status(400).json({ error: "Missing user_id or anonymous_id" });
+    }
+
+    // 🧩 อัปเดตหรือสร้าง user ตัวจริง
+    await prisma.users.upsert({
+      where: { user_id },
+      update: {
+        user_name,
+        img: image,
+        role
+      },
+      create: {
+        user_id,
+        user_name,
+        email,
+        img: image,
+        role
+      }
+    });
+
+    // 🧹 ลบ anonymous user ถ้ามี
+    await prisma.users.deleteMany({
+      where: {
+        user_id: anonymous_id,
+        NOT: { user_id } // ป้องกันไม่ให้ลบตัวจริง
+      }
+    });
+
+    res.json({ message: "User merged successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Merge failed", detail: error.message });
+  }
+});
 
 
 module.exports = router;

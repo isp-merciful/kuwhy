@@ -1,3 +1,4 @@
+
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 
@@ -11,6 +12,7 @@ router.post("/", async (req, res) => {
 
     let recipientId = null;
     let type = "comment";
+
 
     if (parent_comment_id) {
       const parentComment = await prisma.comment.findUnique({

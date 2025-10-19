@@ -5,12 +5,13 @@ const prisma = new PrismaClient();
 const router = express.Router();
 
 
+
 router.get("/", async (req, res) => {
   try {
     const notes = await prisma.note.findMany({
       orderBy: { note_id: "desc" },
       include: {
-        user: {
+        users: {
           select: {
             user_id: true,
             user_name: true,
@@ -24,6 +25,7 @@ router.get("/", async (req, res) => {
     console.error(error);
     res.status(500).json({ error: "fetch post fail" });
   }
+
 });
 
 
@@ -33,7 +35,7 @@ router.get("/:id", async (req, res) => {
     const note = await prisma.note.findUnique({
       where: { note_id: noteId },
       include: {
-        user: {
+        users: {
           select: {
             user_id: true,
             user_name: true,
@@ -54,7 +56,9 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+
 router.post("/", async (req, res) => {
+
   try {
     const { message, user_id } = req.body;
 
@@ -68,7 +72,7 @@ router.post("/", async (req, res) => {
     const newNote = await prisma.note.create({
       data: {
         message,
-        user: { connect: { user_id: user_id } }, // เชื่อมกับ user
+        users: { connect: { user_id: user_id } }, // เชื่อมกับ user
       },
     });
 

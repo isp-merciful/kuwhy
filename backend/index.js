@@ -2,7 +2,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 const cors = require("cors");
-
 const blogRouter = require("./blog_api");
 const commentRouter = require("./comment_api");
 const noteRouter = require("./note_api");
@@ -31,3 +30,4 @@ const port = process.env.PORT || 8000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+

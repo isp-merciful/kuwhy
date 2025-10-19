@@ -39,7 +39,7 @@ router.get("/", async (req, res) => {
   try {
     const comments = await prisma.comment.findMany({
       include: {
-        user: { select: { user_id: true, user_name: true, img: true } }
+        users: { select: { user_id: true, user_name: true, img: true } }
       },
       orderBy: { created_at: "asc" }
     });
@@ -64,7 +64,7 @@ router.get("/note/:note_id", async (req, res) => {
     const comments = await prisma.comment.findMany({
       where: { note_id: noteId },
       include: {
-        user: { select: { user_id: true, user_name: true, img: true } }
+        users: { select: { user_id: true, user_name: true, img: true } }
       },
       orderBy: { created_at: "asc" }
     });
@@ -92,7 +92,7 @@ router.post("/", async (req, res) => {
 
     const newComment = await prisma.comment.create({
       data: {
-        user: { connect: { user_id: user_id } },
+        users: { connect: { user_id: user_id } },
         message,
         blog: blog_id ? { connect: { blog_id: blog_id } } : undefined,
         note: note_id ? { connect: { note_id: note_id } } : undefined,

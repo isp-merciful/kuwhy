@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
     const result = await prisma.blog.findMany({
       orderBy: { blog_id: 'desc' },
       include: {
-        user: {
+        users: {
           select: {
             img: true,
             user_name: true,

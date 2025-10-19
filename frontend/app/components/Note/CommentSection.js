@@ -37,7 +37,7 @@ function Comment({ comment, onReply }) {
               onClick={() => setShowReplyBox(!showReplyBox)}
               className="text-blue-500 text-xs font-medium mt-1"
             >
-              ตอบกลับ
+              Reply
             </button>
           </div>
 
@@ -47,14 +47,14 @@ function Comment({ comment, onReply }) {
                 type="text"
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                placeholder="เขียนคำตอบ..."
+                placeholder="Write a reply..."
                 className="flex-1 border rounded-full px-3 py-1 text-sm"
               />
               <button
                 onClick={handleReplySubmit}
                 className="px-3 py-1 bg-blue-500 text-white rounded-full text-sm"
               >
-                ส่ง
+                Send
               </button>
             </div>
           )}
@@ -75,7 +75,7 @@ export default function CommentSection({ noteId, userId }) {
   const [newComment, setNewComment] = useState("");
   const containerRef = useRef(null);
   if (!userId) {
-    console.warn("userId ยังไม่มีค่า");
+    console.warn("userId is not available");
     return null; 
   }
 
@@ -100,7 +100,6 @@ export default function CommentSection({ noteId, userId }) {
 
   // add new comment or reply
   const handleSubmit = async (message, parentId = null) => {
-     console.log("userId inside handleSubmit:", userId);
     if (!message.trim() || !userId) return;
 
     try {
@@ -118,7 +117,30 @@ export default function CommentSection({ noteId, userId }) {
       });
 
       if (!res.ok) throw new Error("Failed to post comment");
-      await res.json();
+      const commentData = await res.json(); 
+
+      const newCommentId = commentData?.comment?.insertId;
+      if (!newCommentId) {
+        console.error("❌ No insertId returned from comment API");
+        return;
+      }
+
+      // send notification
+      try {
+        await fetch("http://localhost:8000/api/noti", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender_id: userId,
+            note_id: noteId,
+            comment_id: newCommentId,
+            parent_comment_id: parentId,
+          }),
+        });
+        console.log("📩 Notification sent");
+      } catch (err) {
+        console.error("❌ Failed to send notification:", err);
+      }
 
       // reload comments
       const refresh = await fetch(`http://localhost:8000/api/comment/note/${noteId}`);
@@ -126,7 +148,7 @@ export default function CommentSection({ noteId, userId }) {
       const tree = Array.isArray(freshData.comment) ? freshData.comment : [];
       setComments(tree);
 
-      // scroll only new root comment
+      // scroll to new root comment
       if (!parentId && containerRef.current) {
         containerRef.current.scrollTop = containerRef.current.scrollHeight;
       }
@@ -144,12 +166,11 @@ export default function CommentSection({ noteId, userId }) {
       >
         {comments.length === 0 && (
           <p className="text-gray-400 text-sm text-center">
-            ยังไม่มีคอมเม้น
+            No comments yet
           </p>
         )}
 
         {comments.map((c) => {
-          // show root comment first, children are handled recursively
           if (!c.parent_comment_id) {
             return <Comment key={c.comment_id} comment={c} onReply={handleSubmit} />;
           }
@@ -163,7 +184,7 @@ export default function CommentSection({ noteId, userId }) {
           type="text"
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          placeholder="เขียนความคิดเห็น..."
+          placeholder="Write a comment..."
           className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <button
@@ -173,7 +194,7 @@ export default function CommentSection({ noteId, userId }) {
           }}
           className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition"
         >
-          ส่ง
+          Send
         </button>
       </div>
     </div>
