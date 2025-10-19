@@ -82,55 +82,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post("/oauth/upsert", async (req, res) => {
-  try {
-    const { provider, providerId, email, name, image } = req.body;
-    if (!provider || !providerId) return res.status(400).json({ error: "Missing provider data" });
-
-   
-    let user;
-    if (email) {
-      user = await prisma.users.findUnique({ where: { email } });
-    }
-
-    if (!user) {
-      const user_id = uuidv4();
-      user = await prisma.users.create({
-        data: {
-          user_id,
-          email: email || null,
-          user_name: name || "oauth-user",
-          dp_name: name || "oauth-user",
-          password: "", 
-          gender: "NotSpecified",
-          img: image || "/images/pfp.png"
-        }
-      });
-    } else {
- 
-      user = await prisma.users.update({
-        where: { user_id: user.user_id },
-        data: {
-          user_name: name || user.user_name,
-          img: image || user.img
-        }
-      });
-    }
-
-   
-    res.json({
-      id: user.user_id,
-      user_id: user.user_id,
-      name: user.user_name,
-      email: user.email,
-      image: user.img
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "OAuth upsert failed" });
-  }
-});
-
 
 router.put('/:userId', async (req, res) => {
   try {
