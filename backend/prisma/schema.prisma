@@ -1,112 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model account {
+  id                String  @id @db.Char(36)
+  userId            String  @db.Char(36)
+  type              String? @db.VarChar(255)
+  provider          String? @db.VarChar(255)
+  providerAccountId String? @db.VarChar(255)
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String? @db.VarChar(255)
+  scope             String? @db.VarChar(255)
+  id_token          String? @db.Text
+  session_state     String? @db.Text
+  user              user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "account_ibfk_1")
+
+  @@unique([provider, providerAccountId], map: "provider")
+  @@index([userId], map: "userId")
 }
 
-model Users {
-  user_id   String  @id @db.Char(36)
-  email     String? @db.VarChar(255) @unique
-  password  String? @db.VarChar(255)
-  user_name String? @db.VarChar(255)
-  dp_name   String  @default("annonymous") @db.VarChar(255)
-  gender    Gender
-  img       String  @default("pfp") @db.VarChar(255)
+model blog {
+  blog_id       Int             @id @default(autoincrement())
+  blog_title    String?         @db.VarChar(60)
+  message       String?         @db.VarChar(120)
+  blog_up       Int?
+  blog_down     Int?
+  user_id       String?         @db.Char(36)
+  created_at    DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?       @default(now()) @db.Timestamp(0)
+  users         users?          @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "blog_ibfk_1")
+  comment       comment[]
+  notifications notifications[]
 
-  blogs                  Blog[]
-  notes                  Note[]
-  comments               Comment[]
-  notifications_received Notifications[] @relation("RecipientNotifications")
-  notifications_sent     Notifications[] @relation("SenderNotifications")
+  @@index([user_id], map: "user_id")
 }
 
-enum Gender {
+model comment {
+  comment_id                                             Int             @id @default(autoincrement())
+  user_id                                                String          @db.Char(36)
+  blog_id                                                Int?
+  note_id                                                Int?
+  parent_comment_id                                      Int?
+  message                                                String          @db.VarChar(255)
+  created_at                                             DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at                                             DateTime?       @default(now()) @db.Timestamp(0)
+  users                                                  users           @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "comment_ibfk_1")
+  blog                                                   blog?           @relation(fields: [blog_id], references: [blog_id], onDelete: Cascade, onUpdate: NoAction, map: "comment_ibfk_2")
+  note                                                   note?           @relation(fields: [note_id], references: [note_id], onDelete: Cascade, onUpdate: NoAction, map: "comment_ibfk_3")
+  comment                                                comment?        @relation("commentTocomment", fields: [parent_comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "comment_ibfk_4")
+  other_comment                                          comment[]       @relation("commentTocomment")
+  notifications_notifications_comment_idTocomment        notifications[] @relation("notifications_comment_idTocomment")
+  notifications_notifications_parent_comment_idTocomment notifications[] @relation("notifications_parent_comment_idTocomment")
+
+  @@index([blog_id], map: "blog_id")
+  @@index([note_id], map: "note_id")
+  @@index([parent_comment_id], map: "parent_comment_id")
+  @@index([user_id], map: "user_id")
+}
+
+model note {
+  note_id       Int             @id @default(autoincrement())
+  message       String?         @db.VarChar(60)
+  user_id       String          @db.Char(36)
+  created_at    DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?       @default(now()) @db.Timestamp(0)
+  comment       comment[]
+  users         users           @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "note_ibfk_1")
+  notifications notifications[]
+
+  @@index([user_id], map: "user_id")
+}
+
+model notifications {
+  notification_id                                  Int                @id @default(autoincrement())
+  recipient_id                                     String             @db.Char(36)
+  sender_id                                        String             @db.Char(36)
+  note_id                                          Int?
+  blog_id                                          Int?
+  comment_id                                       Int
+  parent_comment_id                                Int?
+  type                                             notifications_type
+  is_read                                          Boolean?           @default(false)
+  created_at                                       DateTime?          @default(now()) @db.Timestamp(0)
+  note                                             note?              @relation(fields: [note_id], references: [note_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_1")
+  blog                                             blog?              @relation(fields: [blog_id], references: [blog_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_2")
+  comment_notifications_comment_idTocomment        comment            @relation("notifications_comment_idTocomment", fields: [comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_3")
+  comment_notifications_parent_comment_idTocomment comment?           @relation("notifications_parent_comment_idTocomment", fields: [parent_comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_4")
+
+  @@index([blog_id], map: "blog_id")
+  @@index([comment_id], map: "comment_id")
+  @@index([note_id], map: "note_id")
+  @@index([parent_comment_id], map: "parent_comment_id")
+}
+
+model session {
+  id           String    @id @db.Char(36)
+  sessionToken String?   @unique(map: "sessionToken") @db.VarChar(255)
+  userId       String?   @db.Char(36)
+  expires      DateTime? @db.DateTime(0)
+  user         user?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "session_ibfk_1")
+
+  @@index([userId], map: "userId")
+}
+
+model user {
+  id            String    @id @db.Char(36)
+  name          String?   @db.VarChar(255)
+  email         String?   @unique(map: "email") @db.VarChar(255)
+  emailVerified DateTime? @db.DateTime(0)
+  image         String?   @db.VarChar(255)
+  account       account[]
+  session       session[]
+}
+
+model users {
+  user_id    String       @id @db.Char(36)
+  user_name  String       @default("anonymous") @db.VarChar(255)
+  gender     users_gender
+  img        String?      @default("pfp") @db.VarChar(255)
+  role       users_role   @default(anonymous)
+  email      String?      @unique(map: "email") @db.VarChar(255)
+  password   String?      @db.VarChar(255)
+  created_at DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at DateTime?    @default(now()) @db.Timestamp(0)
+  blog       blog[]
+  comment    comment[]
+  note       note[]
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model verificationtoken {
+  identifier String?   @db.VarChar(255)
+  token      String?   @unique(map: "token") @db.VarChar(255)
+  expires    DateTime? @db.DateTime(0)
+
+  @@unique([identifier, token], map: "identifier")
+  @@ignore
+}
+
+enum users_gender {
   Male
   Female
-  NotSpecified
+  Not_Specified @map("Not Specified")
 }
 
-model Blog {
-  blog_id    Int      @id @default(autoincrement())
-  blog_title String?  @db.VarChar(60)
-  message    String?  @db.VarChar(120)
-  blog_up    Int?
-  blog_down  Int?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt @default(now())
-
-  user_id String?
-  user    Users?  @relation(fields: [user_id], references: [user_id])
-
-  comments      Comment[]
-  notifications Notifications[]
+enum users_role {
+  member
+  admin
+  anonymous
 }
 
-model Note {
-  note_id    Int      @id @default(autoincrement())
-  message    String?  @db.VarChar(60)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt @default(now())
-
-  user_id String
-  user    Users  @relation(fields: [user_id], references: [user_id])
-
-  comments      Comment[]
-  notifications Notifications[]
-}
-
-model Comment {
-  comment_id Int      @id @default(autoincrement())
-  message    String   @db.VarChar(255)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt @default(now())
-
-  user_id String
-  user    Users  @relation(fields: [user_id], references: [user_id])
-
-  blog_id Int?
-  blog    Blog? @relation(fields: [blog_id], references: [blog_id])
-
-  note_id Int?
-  note    Note? @relation(fields: [note_id], references: [note_id])
-
-  parent_comment_id Int?
-  parentComment     Comment?  @relation("CommentReplies", fields: [parent_comment_id], references: [comment_id])
-  replies           Comment[] @relation("CommentReplies")
-
-  notifications_as_comment Notifications[] @relation("NotificationComment")
-  notifications_as_parent  Notifications[] @relation("NotificationParentComment")
-}
-
-model Notifications {
-  notification_id Int              @id @default(autoincrement())
-  type            NotificationType
-  is_read         Boolean          @default(false)
-  created_at      DateTime         @default(now())
-
-  recipient_id String
-  recipient    Users  @relation("RecipientNotifications", fields: [recipient_id], references: [user_id])
-
-  sender_id String
-  sender    Users  @relation("SenderNotifications", fields: [sender_id], references: [user_id])
-
-  note_id Int?
-  note    Note? @relation(fields: [note_id], references: [note_id])
-
-  blog_id Int?
-  blog    Blog? @relation(fields: [blog_id], references: [blog_id])
-
-  comment_id Int
-  comment    Comment @relation("NotificationComment", fields: [comment_id], references: [comment_id])
-
-  parent_comment_id Int?
-  parentComment     Comment? @relation("NotificationParentComment", fields: [parent_comment_id], references: [comment_id])
-}
-
-enum NotificationType {
+enum notifications_type {
   comment
   reply
 }

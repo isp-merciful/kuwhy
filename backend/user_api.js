@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require("uuid");
 
 router.post("/register", async (req, res) => {
   try {
-    const { user_id, user_name, email, d_name, password } = req.body;
+    const { user_id, user_name, email, password } = req.body;
 
     if (!user_id || !password) {
       return res.status(400).json({ error: "Missing user_id or password" });
@@ -17,8 +17,8 @@ router.post("/register", async (req, res) => {
     if (existing) {
       return res.status(409).json({ message: "User already exists", user: existing });
     }
-    const existing_mail = await prisma.users.findMany({ where: { email } });
-    if (existing_mail.length > 0) {
+    const existing_mail = await prisma.users.findUnique({ where: { email } });
+    if (existing) {
       return res.status(409).json({ message: "Email already exists", user: existing_mail });
     }
     const existing_usrname = await prisma.users.findMany({ where: { user_name } });
@@ -34,9 +34,8 @@ router.post("/register", async (req, res) => {
         user_id,
         email,
         user_name: user_name || "anonymous",
-        dp_name: d_name || "anonymous",
         password: hash,
-        gender: "NotSpecified",
+        gender: "Not_Specified",
         img: "/images/pfp.png"
       }
     });
@@ -81,6 +80,20 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'fetch user fail' });
   }
 });
+
+router.get('/:id', async (req, res) => {
+  try {
+    const users = await prisma.users.findMany({where: {user_id:req.params.id}});
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'fetch user fail' });
+  }
+});
+
+
+
+
 
 
 router.put('/:userId', async (req, res) => {
