@@ -48,6 +48,48 @@ The platform provides KU students with a **central hub** to:
 
 ## 📂 Documentation and Presentations
 
+## Getstarted
+### 🧩 Prerequisites
+- [Docker](https://www.docker.com/)
+- [Docker Compose](https://docs.docker.com/compose/)
+- [Node.js v18+](https://nodejs.org/)
+- [Git](https://git-scm.com/)
+
+### ⚙️ Get Started in 3 Steps
+```bash
+# 1. Clone the repository
+git clone https://github.com/ISPBANANA/FLEARN.git
+cd FLEARN
+
+# 2. Start all services with Docker
+docker compose up -d
+
+# 3. Access the application
+# Frontend: http://localhost:[FRONTEND_PORT]
+# Backend: http://localhost:[API_PORT]
+```
+
+💡 Tip:
+Replace [FRONTEND_PORT] and [API_PORT] with your actual port numbers from .env file.
+
+## Environment Configuration
+Before running the app, create a .env file in the project root
+# Backend server port
+PORT=3000
+
+# Database connection
+DATABASE_URL="mysql://root:yourpassword@localhost:yourport/yourdatabase"
+
+# Frontend settings (optional)
+FRONTEND_PORT=5173
+
+# JWT or API secrets (if needed)
+JWT_SECRET="your-secret-key"
+
+## Docker Compose Example
+- db container port and .env database_url must same
+- backend container port must same as .envport
+
 **📖 Documentation**
 -  [Project Document (Google Docs)](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)  
 
@@ -60,6 +102,8 @@ The platform provides KU students with a **central hub** to:
 **Iteration 3**
 -  [Iteration 3 Presentation](https://youtu.be/1fFkATymeag?si=36GwJlWetsgoUnSg)
 ---
+
+
 
 ## 👥 Team – Merciful Group  
 
