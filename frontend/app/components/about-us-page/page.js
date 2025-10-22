@@ -59,19 +59,19 @@ export default function AboutUsPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               <div className="text-center">
-                <div className="text-4xl font-bold text-blue-600 mb-2">500+</div>
+                <div className="text-4xl font-bold text-blue-600 mb-2">50+</div>
                 <div className="text-gray-600">Active Students</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-green-600 mb-2">1,200+</div>
+                <div className="text-4xl font-bold text-green-600 mb-2">120+</div>
                 <div className="text-gray-600">Notes Shared</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-teal-600 mb-2">50+</div>
+                <div className="text-4xl font-bold text-teal-600 mb-2">25+</div>
                 <div className="text-gray-600">Blog Posts</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-orange-600 mb-2">15+</div>
+                <div className="text-4xl font-bold text-orange-600 mb-2">8+</div>
                 <div className="text-gray-600">Faculties</div>
               </div>
             </div>
