@@ -18,7 +18,9 @@ function formatDate(iso) {
   } catch {
     const d = new Date(iso);
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(
+      d.getUTCHours()
+    )}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
   }
 }
 
@@ -35,10 +37,12 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
         <time title={`Created: ${formatDate(node.created_at)}`}>
           {node.created_at ? formatDate(node.created_at) : ""}
         </time>
-        {node.updated_at &&
-          new Date(node.updated_at).getTime() !== new Date(node.created_at).getTime() && (
+        {node.updated_at && (
+          <>
+            <span className="text-gray-400">·</span>
             <span className="text-gray-400">(edited)</span>
-          )}
+          </>
+        )}
         <button onClick={() => onReply(node.comment_id)} className="ml-auto text-xs text-blue-600 hover:underline">
           Reply
         </button>
@@ -51,17 +55,19 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
           onSubmit={(e) => {
             e.preventDefault();
             if (!text.trim()) return;
-            onSubmitReply(node.comment_id, text.trim(), () => setText(""));
+            onSubmitReply(node.comment_id, text.trim(), () => {
+              setText("");
+            });
           }}
-          className="mt-3"
+          className="mt-3 space-y-2"
         >
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Write a reply…"
             className="w-full min-h-[70px] rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Write a reply…"
           />
-          <div className="mt-2 flex gap-2">
+          <div className="flex gap-2">
             <button type="submit" className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50">Reply</button>
             <button type="button" onClick={() => onReply(null)} className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50">Cancel</button>
           </div>
@@ -97,13 +103,28 @@ export default function CommentThread({
   kind,
   entityId,
   currentUserId = null,
-  allowAnonymous = true,
+  allowAnonymous = true
 }) {
   const [items, setItems] = useState([]);
+  const [derivedUserId, setDerivedUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rootText, setRootText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [postAnon, setPostAnon] = useState(allowAnonymous);
+
+  useEffect(() => {
+    if (currentUserId) { setDerivedUserId(currentUserId); return; }
+    try {
+      let id = localStorage.getItem('userId');
+      if (id && id.startsWith('"') && id.endsWith('"')) {
+        id = JSON.parse(id);
+        localStorage.setItem('userId', id);
+      }
+      setDerivedUserId(id || null);
+    } catch {
+      setDerivedUserId(null);
+    }
+  }, [currentUserId]);
 
   const listURL = useMemo(
     () => `http://localhost:8000/api/comment/${kind}/${entityId}`,
@@ -114,28 +135,19 @@ export default function CommentThread({
     setLoading(true);
     try {
       const res = await fetch(listURL, { cache: "no-store" });
-      const json = await res.json();
-      const list = Array.isArray(json?.comment) ? json.comment : Array.isArray(json) ? json : [];
-      setItems(list);
-    } catch (e) {
-      console.error("Failed to load comments", e);
-      setItems([]);
+      if (!res.ok) throw new Error("Failed to load comments");
+      const data = await res.json();
+      setItems(data?.comment ?? []);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { load(); }, [listURL]);
+  useEffect(() => {
+    load();
+  }, [listURL]);
 
-  async function postComment({ message, parent_comment_id = null }) {
-    const body = {
-      message,
-      parent_comment_id,
-      blog_id: kind === "blog" ? Number(entityId) : null,
-      note_id: kind === "note" ? Number(entityId) : null,
-    };
-    if (!postAnon && currentUserId) body.user_id = currentUserId;
-
+  async function postComment(body) {
     const res = await fetch("http://localhost:8000/api/comment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -156,36 +168,51 @@ export default function CommentThread({
     e.preventDefault();
     const text = rootText.trim();
     if (!text) return;
-    try {
-      await postComment({ message: text });
-      setRootText("");
-      await load();
-    } catch (err) {
-      alert(err.message);
-      console.error(err);
+
+    const body = {
+      message: text,
+      blog_id: kind === "blog" ? Number(entityId) : null,
+      note_id: kind === "note" ? Number(entityId) : null,
+    };
+    if (postAnon) {
+      body.isAnonymous = true;
+    } else if (derivedUserId) {
+      body.user_id = derivedUserId;
+    } else {
+      body.isAnonymous = true; // fallback
     }
+
+    await postComment(body);
+    setRootText("");
+    load();
   }
 
-  async function submitReply(parentId, text, clear) {
-    try {
-      await postComment({ message: text, parent_comment_id: parentId });
-      clear?.();
-      setReplyingTo(null);
-      await load();
-    } catch (err) {
-      alert(err.message);
-      console.error(err);
+  async function submitReply(parentId, text) {
+    const body = {
+      message: text,
+      parent_comment_id: parentId,
+      blog_id: kind === "blog" ? Number(entityId) : null,
+      note_id: kind === "note" ? Number(entityId) : null,
+    };
+    if (postAnon) {
+      body.isAnonymous = true;
+    } else if (derivedUserId) {
+      body.user_id = derivedUserId;
+    } else {
+      body.isAnonymous = true;
     }
+
+    await postComment(body);
+    setReplyingTo(null);
+    load();
   }
 
   return (
-    <section className="mt-8" aria-labelledby="comments-title">
-      <h2 id="comments-title" className="text-lg font-semibold">
-        Comments {items?.length ? `(${items.length})` : ""}
-      </h2>
+    <section className="mt-10">
+      <h3 className="text-lg font-semibold">Comments</h3>
 
-      {/* Root composer */}
-      <form onSubmit={submitRoot} className="mt-4 space-y-3">
+      {/* New root comment */}
+      <form onSubmit={submitRoot} className="mt-3 space-y-2 rounded-xl border border-gray-200 p-4">
         <label className="block text-sm font-medium text-gray-700">
           Add a comment {allowAnonymous && "(you can post anonymously)"}
         </label>
@@ -203,20 +230,20 @@ export default function CommentThread({
                 checked={postAnon}
                 onChange={(e) => setPostAnon(e.target.checked)}
               />
-              Post as anonymous
+              Post anonymously
             </label>
           )}
           <button
             type="submit"
+            className="rounded-md border px-4 py-2 text-sm hover:bg-gray-50"
             disabled={!rootText.trim()}
-            className="rounded-md border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
           >
-            Post comment
+            Post
           </button>
         </div>
       </form>
 
-      {/* List */}
+      {/* Existing thread */}
       {loading ? (
         <p className="mt-6 text-sm text-gray-500">Loading comments…</p>
       ) : items?.length ? (

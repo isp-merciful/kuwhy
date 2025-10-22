@@ -11,9 +11,10 @@ export default function useLocalStorage(key, initialValue) {
 
   // โหลดค่าจาก localStorage หลัง client mount เท่านั้น
   useEffect(() => {
+    if (typeof window === "undefined") return; // ป้องกัน SSR
     try {
       const saved = localStorage.getItem(key);
-      if (saved !== null) {
+      if (saved !== null && saved !== "undefined") {
         setValue(JSON.parse(saved));
       }
     } catch (error) {
@@ -23,6 +24,7 @@ export default function useLocalStorage(key, initialValue) {
 
   // บันทึกค่าใหม่เข้า localStorage ทุกครั้งที่เปลี่ยน
   useEffect(() => {
+    if (typeof window === "undefined") return; // ป้องกัน SSR
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {

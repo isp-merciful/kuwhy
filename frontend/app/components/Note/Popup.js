@@ -14,8 +14,8 @@ export default function Popup({
 }) {
   if (!showPopup) return null;
 
-  const authorId = localStorage.getItem("userId");
-
+  const userId = localStorage.getItem("userId");
+  
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/10 backdrop-blur-sm z-50">
       <div className="relative bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-xl overflow-hidden">
@@ -39,7 +39,7 @@ export default function Popup({
         {/* Comment Section */}
         <div className="p-4 flex-1 overflow-y-auto">
           {noteId && (
-            <CommentSection noteId={noteId} authorId={authorId} />
+            <CommentSection noteId={noteId} userId={userId} />
           )}
         </div>
       </div>
