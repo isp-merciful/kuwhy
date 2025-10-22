@@ -224,8 +224,8 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Notes & Polls */}
             <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
-              <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mb-6">
-                <img src="/images/chat.png" alt="Notes & Polls" className="w-8 h-8" />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/chat.png" alt="Notes & Polls" className="w-15 h-15" />
               </div>
               <h3 className="text-2xl font-light text-gray-900 mb-4">Notes & Polls</h3>
               <p className="text-gray-600 leading-relaxed mb-6">
@@ -241,8 +241,8 @@ export default function LandingPage() {
 
             {/* Blogs & Q&A */}
             <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
-              <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mb-6">
-                <img src="/images/qa.png" alt="Blogs & Q&A" className="w-8 h-8" />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/qa.png" alt="Blogs & Q&A" className="w-15 h-15" />
               </div>
               <h3 className="text-2xl font-light text-gray-900 mb-4">Blogs & Q&A</h3>
               <p className="text-gray-600 leading-relaxed mb-6">
@@ -258,8 +258,8 @@ export default function LandingPage() {
 
             {/* Notifications */}
             <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
-              <div className="w-16 h-16 bg-green-700 rounded-2xl flex items-center justify-center mb-6">
-                <img src="/images/notification.png" alt="Notifications" className="w-8 h-8" />
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/notification.png" alt="Notifications" className="w-15 h-15" />
               </div>
               <h3 className="text-2xl font-light text-gray-900 mb-4">Smart Notifications</h3>
               <p className="text-gray-600 leading-relaxed mb-6">
