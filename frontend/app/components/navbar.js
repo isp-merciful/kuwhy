@@ -91,7 +91,7 @@ export default function Navbar() {
               </a> */}
               <a
                 className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition"
-                href="#"
+                href="/about"
               >
                 About us
               </a>
