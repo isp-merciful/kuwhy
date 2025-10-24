@@ -57,6 +57,8 @@ The platform provides KU students with a **central hub** to:
 **Iteration 2**
 -  [Iteration 2 Presentation](https://youtu.be/FUl6rNU6EiE?si=ku89KkIwvy0TvFfR)  
 
+**Iteration 3**
+-  [Iteration 3 Presentation](https://youtu.be/1fFkATymeag?si=36GwJlWetsgoUnSg)
 ---
 
 ## 👥 Team – Merciful Group  
