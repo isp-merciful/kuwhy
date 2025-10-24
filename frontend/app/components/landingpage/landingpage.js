@@ -198,7 +198,7 @@ export default function LandingPage() {
               <div className="text-gray-600">Notes Shared</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-light text-blue-400 mb-2">15+</div>
+              <div className="text-4xl font-light text-blue-400 mb-2">25+</div>
               <div className="text-gray-600">Blog Posts</div>
             </div>
             <div className="text-center">
