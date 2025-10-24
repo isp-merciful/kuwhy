@@ -4,7 +4,7 @@ services:
     container_name: kuwhy-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: ispgraveyard
     ports:
       - "3307:3306"   
@@ -24,7 +24,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "npx prisma generate && npx prisma migrate deploy && node index.js"
+    command: sh -c "npx prisma generate && npx prisma db push && npx prisma studio && npm run dev"
     ports:
       - "8000:8000"
       - "5555:5555"

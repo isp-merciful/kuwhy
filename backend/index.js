@@ -19,7 +19,7 @@ app.use(cors({
 
 
 app.use("/api/blog", blogRouter);
-app.use("/api/notification", notificationRouter);
+app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/note", noteRouter);
 app.use("/api/user", userRouter);

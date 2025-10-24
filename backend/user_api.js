@@ -185,5 +185,49 @@ router.post('/merge', async (req, res) => {
   }
 });
 
+router.post('/', async (req, res) => {
+  try {
+    const { user_id, user_name } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ error: "Missing user_id" });
+    }
+
+    // ตรวจสอบว่าผู้ใช้มีอยู่แล้วหรือไม่
+    const existing = await prisma.users.findUnique({
+      where: { user_id: user_id }
+    });
+
+    if (existing) {
+      return res.json({
+        message: "User already exists",
+        user: existing
+      });
+    }
+
+    const gender = "Not_Specified";
+    const img = "/images/pfp.png";
+
+    // สร้างผู้ใช้ใหม่
+    const newUser = await prisma.users.create({
+      data: {
+        user_id,
+        user_name: user_name || "anonymous",
+        gender,
+        img
+      }
+    });
+
+    res.json({
+      message: "User registered successfully",
+      user: newUser
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Database insert failed" });
+  }
+});
+
 
 module.exports = router;
