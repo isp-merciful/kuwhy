@@ -3,7 +3,6 @@ const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const bcrypt = require("bcrypt");
-const { v4: uuidv4 } = require("uuid");
 
 router.post("/register", async (req, res) => {
   try {
