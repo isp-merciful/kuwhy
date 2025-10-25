@@ -1,4 +1,4 @@
-export default function LandingPage() {
+export default function AboutUsPage() {
   return (
     <main className="w-full">
       {/* Apple-Style Hero Section */}
