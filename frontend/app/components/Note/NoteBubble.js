@@ -41,7 +41,7 @@ export default function NoteBubble() {
 
     async function fetchNote() {
       try {
-        const res = await fetch(`http://localhost:8000/api/note/${userId}`);
+        const res = await fetch(`http://localhost:8000/api/note/user/${userId}`);
         if (res.ok) {
           const data = await res.json();
           setNoteId(data.note_id);

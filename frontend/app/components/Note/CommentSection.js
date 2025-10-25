@@ -119,7 +119,7 @@ export default function CommentSection({ noteId, userId }) {
       if (!res.ok) throw new Error("Failed to post comment");
       const commentData = await res.json(); 
 
-      const newCommentId = commentData?.comment?.insertId;
+      const newCommentId = commentData?.comment?.comment_id;
       if (!newCommentId) {
         console.error("❌ No insertId returned from comment API");
         return;

@@ -17,23 +17,24 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
     container_name: kuwhy-backend
     env_file:
       - ./backend/.env
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "npx prisma generate && npx prisma db push && npx prisma studio && npm run dev"
     ports:
       - "8000:8000"
-      - "5555:5555"
     networks:
       - kuwhy
     restart: on-failure
 
   frontend:
-    build: ./frontend
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
     container_name: kuwhy-frontend
     env_file:
       - ./frontend/.env
@@ -41,6 +42,22 @@ services:
       - backend
     ports:
       - "3000:3000"
+    networks:
+      - kuwhy
+    restart: on-failure
+
+  studio:
+    image: node:18-alpine
+    container_name: kuwhy-studio
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    command: sh -c "npx prisma studio"
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "5555:5555"
     networks:
       - kuwhy
     restart: on-failure
