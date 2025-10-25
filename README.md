@@ -5,16 +5,17 @@
 ---
 
 ## 📌 Table of Contents
-- [Features](#features-at-a-glance)
+- [Features at a Glance](#features-at-a-glance)
 - [Profile & Settings](#profile--settings)
 - [Project Objective](#project-objective)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
-- [Team](#team--merciful-group)
+- [Team – Merciful Group](#team--merciful-group)
 - [Documentation & Presentations](#documentation--presentations)
 - [Getting Started](#getting-started)
 - [Contribution Guidelines](#contribution-guidelines)
 - [License & Acknowledgements](#license--acknowledgements)
+
 
 ## 🚀 Features at a Glance
 
