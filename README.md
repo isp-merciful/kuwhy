@@ -5,6 +5,7 @@
 ---
 
 ## 📌 Table of Contents
+> Click any topic to jump to the section
 - [Features at a Glance](#features-at-a-glance)
 - [Profile & Settings](#profile--settings)
 - [Project Objective](#project-objective)
@@ -17,11 +18,13 @@
 - [License & Acknowledgements](#license--acknowledgements)
 
 
+
 ## 🚀 Features at a Glance
 
 ### ✏️ Casual Notes & Polls
 - Share quick updates or polls  
-- Supports anonymous posting
+- Anonymous posting supported  
+*(Perfect for quick campus communication)*
 
 ### 👥 Groups & Events
 - Create, join, and manage study groups  
@@ -50,6 +53,7 @@
 - View and edit personal information  
 - Change profile picture and password  
 - Manage preferences and account settings
+
   
 ### 🛠️ Admin Panel
 - Moderate content  
