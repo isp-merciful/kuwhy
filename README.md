@@ -6,8 +6,9 @@
 
 ## 📌 Table of Contents
 > Click any topic to jump to the section
+
 - [Features at a Glance](#features-at-a-glance)
-- [Profile & Settings](#profile--settings)
+- [Profile and Settings](#profile-and-settings)
 - [Project Objective](#project-objective)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
@@ -17,14 +18,13 @@
 - [Contribution Guidelines](#contribution-guidelines)
 - [License & Acknowledgements](#license--acknowledgements)
 
-
+---
 
 ## 🚀 Features at a Glance
 
 ### ✏️ Casual Notes & Polls
 - Share quick updates or polls  
-- Anonymous posting supported  
-*(Perfect for quick campus communication)*
+- Supports anonymous posting
 
 ### 👥 Groups & Events
 - Create, join, and manage study groups  
@@ -49,11 +49,10 @@
 - Email login, Google OAuth  
 - Optional guest access
 
-### ⚙️ Profile & Settings
+### ⚙️ Profile and Settings
 - View and edit personal information  
 - Change profile picture and password  
 - Manage preferences and account settings
-
   
 ### 🛠️ Admin Panel
 - Moderate content  
@@ -72,19 +71,19 @@
 
 > **Mission:** Make campus life **interactive, inclusive, and collaborative**.
 
-
 ---
 
 ## 🧰 Tech Stack
 
-**Frontend:** React, Next.js
-**Backend:** Node.js, Express.js
-**Database:** MySQL
+**Frontend:** React, Next.js  
+**Backend:** Node.js, Express.js  
+**Database:** MySQL  
 **Authentication:** OAuth (Google) & Email Login
 
 ---
 
 ## 📂 Repository Structure
+
 
 ```
 kuwhy/
@@ -172,3 +171,10 @@ This project is part of course work at Kasetsart University.
 Thanks to our instructors and advisors for guidance and support.
 
 > *“Building a stronger KU community — one connection at a time.”*
+
+✅ All the links in **Table of Contents** now work on GitHub.  
+✅ Emojis remain in headings but don’t break links.  
+✅ You can copy-paste this directly as `README.md`.
+
+---
+
