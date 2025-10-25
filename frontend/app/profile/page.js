@@ -14,22 +14,44 @@ export default function ProfilePage() {
     bio: '',
     location: '',
     website: '',
-    phone: ''
+    phone: '',
+    password: ''
   });
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
+  // Fetch user profile data
+  const fetchUserProfile = async () => {
+    try {
+      setIsLoadingProfile(true);
+      const response = await fetch('/api/profile');
+      
+      if (response.ok) {
+        const data = await response.json();
+        setFormData({
+          name: data.user.user_name || '',
+          email: data.user.email || '',
+          bio: '',
+          location: '',
+          website: '',
+          phone: '',
+          password: ''
+        });
+      } else {
+        console.error('Failed to fetch profile:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
     if (session?.user) {
-      setFormData({
-        name: session.user.name || '',
-        email: session.user.email || '',
-        bio: '',
-        location: '',
-        website: '',
-        phone: ''
-      });
+      fetchUserProfile();
     }
   }, [session]);
 
@@ -72,6 +94,7 @@ export default function ProfilePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setSuccessMessage('');
+    setErrors({});
     
     if (!validateForm()) {
       return;
@@ -80,34 +103,52 @@ export default function ProfilePage() {
     setIsLoading(true);
     
     try {
-      // Here you would typically make an API call to update the user profile
-      // For now, we'll just simulate the save
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setSuccessMessage('Profile updated successfully!');
-      setIsEditing(false);
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(''), 3000);
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          bio: formData.bio,
+          location: formData.location,
+          website: formData.website,
+          phone: formData.phone,
+          password: formData.password || undefined // Only send if provided
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccessMessage('Profile updated successfully!');
+        setIsEditing(false);
+        
+        // Clear password field after successful save
+        setFormData(prev => ({ ...prev, password: '' }));
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        // Handle API errors
+        if (data.error) {
+          setErrors({ general: data.error });
+        } else {
+          setErrors({ general: 'Failed to update profile. Please try again.' });
+        }
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
+      setErrors({ general: 'An unexpected error occurred. Please try again.' });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCancel = () => {
-    // Reset form data to original values
-    if (session?.user) {
-      setFormData({
-        name: session.user.name || '',
-        email: session.user.email || '',
-        bio: '',
-        location: '',
-        website: '',
-        phone: ''
-      });
-    }
+    // Reset form data by refetching from server
+    fetchUserProfile();
     setErrors({});
     setIsEditing(false);
   };
@@ -126,10 +167,13 @@ export default function ProfilePage() {
     }
   };
 
-  if (!mounted || status === 'loading') {
+  if (!mounted || status === 'loading' || isLoadingProfile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
       </div>
     );
   }
@@ -156,14 +200,34 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
-          <p className="text-gray-600 mt-2">Manage your account settings and preferences</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
+              <p className="text-gray-600 mt-2">Manage your account settings and preferences</p>
+            </div>
+            <a
+              href="/"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Dashboard
+            </a>
+          </div>
         </div>
 
         {/* Success Message */}
         {successMessage && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-green-800">{successMessage}</p>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {errors.general && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800">{errors.general}</p>
           </div>
         )}
 
@@ -396,6 +460,27 @@ export default function ProfilePage() {
                     <p className="text-gray-900 py-3">{formData.phone || 'Not provided'}</p>
                   )}
                 </div>
+
+                {/* Password Field (only show when editing) */}
+                {isEditing && (
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                      New Password (optional)
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="Leave blank to keep current password"
+                    />
+                    <p className="mt-1 text-sm text-gray-500">
+                      Leave blank to keep your current password
+                    </p>
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 {isEditing && (
