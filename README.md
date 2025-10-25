@@ -171,9 +171,5 @@ Thanks to our instructors and advisors for guidance and support.
 
 > *“Building a stronger KU community — one connection at a time.”*
 
-✅ All the links in **Table of Contents** now work on GitHub.  
-✅ Emojis remain in headings but don’t break links.  
-✅ You can copy-paste this directly as `README.md`.
-
 ---
 
