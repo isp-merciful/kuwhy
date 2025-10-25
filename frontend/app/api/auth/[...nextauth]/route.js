@@ -1,7 +1,6 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 
@@ -9,7 +8,6 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
 export const authOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -25,11 +23,18 @@ export const authOptions = {
       },
       async authorize(credentials) {
         try {
+          console.log("Auth attempt with credentials:", { 
+            email: credentials.email, 
+            isRegister: credentials.isRegister,
+            hasPassword: !!credentials.password 
+          });
+
           if (credentials.isRegister === "true") {
             // Registration logic
             const { user_name, email, password } = credentials;
             
             if (!email || !password) {
+              console.error("Registration failed: Missing email or password");
               throw new Error("Missing email or password");
             }
 
@@ -38,6 +43,7 @@ export const authOptions = {
               where: { email } 
             });
             if (existingEmail) {
+              console.error("Registration failed: Email already exists");
               throw new Error("Email already exists");
             }
 
@@ -57,6 +63,7 @@ export const authOptions = {
               }
             });
 
+            console.log("User registered successfully:", newUser.user_id);
             return {
               id: newUser.user_id,
               name: newUser.user_name,
@@ -68,6 +75,7 @@ export const authOptions = {
             const { email, password } = credentials;
             
             if (!email || !password) {
+              console.error("Login failed: Missing credentials");
               throw new Error("Missing credentials");
             }
 
@@ -77,14 +85,17 @@ export const authOptions = {
             });
             
             if (!user) {
+              console.error("Login failed: User not found for email:", email);
               throw new Error("User not found");
             }
 
             const isValidPassword = await bcrypt.compare(password, user.password);
             if (!isValidPassword) {
+              console.error("Login failed: Invalid password for user:", user.user_id);
               throw new Error("Invalid password");
             }
 
+            console.log("User logged in successfully:", user.user_id);
             return {
               id: user.user_id,
               name: user.user_name,
@@ -93,7 +104,7 @@ export const authOptions = {
             };
           }
         } catch (error) {
-          console.error("Auth error:", error);
+          console.error("Auth error:", error.message);
           return null;
         }
       }

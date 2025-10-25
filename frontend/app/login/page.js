@@ -83,6 +83,12 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
+      console.log('Attempting to sign in with:', {
+        email: formData.email,
+        authMode,
+        isRegister: authMode === 'register' ? 'true' : 'false'
+      });
+
       const result = await signIn('credentials', {
         password: formData.password,
         email: formData.email,
@@ -91,14 +97,22 @@ export default function LoginPage() {
         redirect: false
       });
       
+      console.log('Sign in result:', result);
+      
       if (result?.error) {
+        console.error('Sign in error:', result.error);
         setAuthError(result.error);
       } else if (result?.ok) {
+        console.log('Sign in successful, redirecting...');
         // Success - redirect will happen automatically
         window.location.href = '/';
+      } else {
+        console.error('Unexpected sign in result:', result);
+        setAuthError('Authentication failed. Please try again.');
       }
     } catch (error) {
-      setAuthError('An unexpected error occurred');
+      console.error('Sign in exception:', error);
+      setAuthError('An unexpected error occurred: ' + error.message);
     } finally {
       setIsLoading(false);
     }

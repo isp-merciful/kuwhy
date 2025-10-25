@@ -53,3 +53,30 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+//
+// 🧩 Application Models
+//
+model users {
+  user_id    String       @id @db.Char(36)
+  user_name  String       @default("anonymous") @db.VarChar(255)
+  gender     users_gender
+  img        String?      @default("pfp") @db.VarChar(255)
+  role       users_role   @default(anonymous)
+  email      String?      @unique(map: "email") @db.VarChar(255)
+  password   String?      @db.VarChar(255)
+  created_at DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at DateTime?    @default(now()) @db.Timestamp(0)
+}
+
+enum users_gender {
+  Male
+  Female
+  Not_Specified
+}
+
+enum users_role {
+  admin
+  user
+  anonymous
+}
