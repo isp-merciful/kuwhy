@@ -7,16 +7,15 @@
 ## 📌 Table of Contents
 > Click any topic to jump to the section
 
-- [Features at a Glance](#features-at-a-glance)
-- [Profile and Settings](#profile-and-settings)
-- [Project Objective](#project-objective)
-- [Tech Stack](#tech-stack)
-- [Repository Structure](#repository-structure)
-- [Team – Merciful Group](#team--merciful-group)
-- [Documentation & Presentations](#documentation--presentations)
-- [Getting Started](#getting-started)
-- [Contribution Guidelines](#contribution-guidelines)
-- [License & Acknowledgements](#license--acknowledgements)
+- [Features at a Glance](#-features-at-a-glance)
+- [Project Objective](#-project-objective)
+- [Tech Stack](#-tech-stack)
+- [Repository Structure](#-repository-structure)
+- [Team – Merciful Group](#-team--merciful-group)
+- [Documentation & Presentations](#-documentation--presentations)
+- [Getting Started](#-getting-started)
+- [Contribution Guidelines](#-contribution-guidelines)
+- [License & Acknowledgements](#-license--acknowledgements)
 
 ---
 
