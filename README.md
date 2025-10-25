@@ -1,32 +1,72 @@
 # 🌐 KUWHY – Group 13 “Merciful"
 
-**KUWHY** is an interactive web platform designed to connect Kasetsart University (KU) students across faculties. It enables sharing ideas, collaborating on projects, organizing events, and building a vibrant campus community.
+> **KUWHY** is a web platform for Kasetsart University students to connect across faculties, collaborate on projects, share ideas, and organize events — all in one central hub.
 
 ---
 
-## 🚀 Key Features
+## 📌 Table of Contents
+- [Features](#features-at-a-glance)
+- [Profile & Settings](#profile--settings)
+- [Project Objective](#project-objective)
+- [Tech Stack](#tech-stack)
+- [Repository Structure](#repository-structure)
+- [Team](#team--merciful-group)
+- [Documentation & Presentations](#documentation--presentations)
+- [Getting Started](#getting-started)
+- [Contribution Guidelines](#contribution-guidelines)
+- [License & Acknowledgements](#license--acknowledgements)
 
-* **Casual Notes & Polls** – Share quick updates or polls; anonymous posting supported.
-* **Groups & Events** – Create, join, and manage study groups and campus events.
-* **Blogs & Q&A** – Write articles, ask questions, and interact through comments.
-* **Smart Feed** – Personalized content with filters and infinite scroll.
-* **File Sharing** – Collaborate by uploading and downloading project files.
-* **Notifications** – Get updates for replies, comments, and group activity.
-* **Authentication** – Email login, Google OAuth, and optional guest access.
-* **Admin Panel** – Moderate content, manage users, and review reports.
+## 🚀 Features at a Glance
+
+### ✏️ Casual Notes & Polls
+- Share quick updates or polls  
+- Supports anonymous posting
+
+### 👥 Groups & Events
+- Create, join, and manage study groups  
+- Organize campus events seamlessly
+
+### 📚 Blogs & Q&A
+- Write articles or ask questions  
+- Interact with peers via comments
+
+### 📰 Smart Feed
+- Personalized content  
+- Infinite scroll and filters
+
+### 📂 File Sharing
+- Upload and download project files  
+- Simplify team collaboration
+
+### 🔔 Notifications
+- Receive updates for replies, comments, and group activity
+
+### 🔑 Authentication
+- Email login, Google OAuth  
+- Optional guest access
+
+### ⚙️ Profile & Settings
+- View and edit personal information  
+- Change profile picture and password  
+- Manage preferences and account settings
+  
+### 🛠️ Admin Panel
+- Moderate content  
+- Manage users and review reports
 
 ---
 
 ## 🎯 Project Objective
 
-KUWHY provides a **central hub for KU students** to:
+**KUWHY** aims to provide a **central hub for KU students** to:
 
-* Connect and collaborate across faculties
-* Share casual and academic content
-* Organize and participate in campus activities
-* Access important announcements and project resources
+1. Connect and collaborate across faculties  
+2. Share casual and academic content  
+3. Organize and participate in campus activities  
+4. Access important announcements and resources
 
-Our goal is to make campus life **more interactive, inclusive, and collaborative**.
+> **Mission:** Make campus life **interactive, inclusive, and collaborative**.
+
 
 ---
 
