@@ -55,7 +55,7 @@ export default function NoteBubble() {
 
     async function registerUser() {
       try {
-        await fetch("http://localhost:8000/api/user", {
+        await fetch("http://localhost:8000/api/user/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_id: userId, user_name: "anonymous" }),

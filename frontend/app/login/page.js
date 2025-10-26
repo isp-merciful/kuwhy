@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
@@ -13,13 +13,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // สำหรับ register
+  const [register_name, setRegisterName] = useState("");
+  const [register_password, setRegisterPassword] = useState("");
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerError, setRegisterError] = useState("");
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) return null;
 
-  const handleCredentialLogin = async (e: React.FormEvent) => {
+  // ✅ Credential Login Handler
+  const handleCredentialLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -37,16 +44,50 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
 
-      // เก็บข้อมูล user ไว้ใน localStorage
-      localStorage.setItem("user", JSON.stringify(data));
-      alert("Login successful!");
-
-      // redirect ไปหน้าอื่น เช่น dashboard
-      window.location.href = "/dashboard";
-    } catch (err: any) {
-      setError(err.message);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(data));
+        alert("Login successful!");
+        window.location.href = "/dashboard";
+      }
+    } catch (err) {
+      setError(err.message || "An error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ Register Handler
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setRegisterLoading(true);
+    setRegisterError("");
+
+    try {
+      const res = await fetch("http://localhost:8000/api/user/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+              "user_id" : "u1-8855-99de",
+              "user_name" : "naaBBtBs%%dfs",
+              "email":"kasdfymail.coaadm",
+              "password" : "bankwongclas",
+              "login_name" : "kuytok"
+          }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
+
+      alert("Registration successful! You can now log in.");
+      setRegisterName("");
+      setRegisterPassword("");
+    } catch (err) {
+      setRegisterError(err.message || "An error occurred");
+    } finally {
+      setRegisterLoading(false);
     }
   };
 
@@ -65,24 +106,11 @@ export default function LoginPage() {
               Welcome to KUWHY
             </h1>
             <p className="text-gray-500 dark:text-gray-300 mb-6">
-              Sign in with Google or use your KUWHY credentials
+              Sign in with your KUWHY credentials or Google account
             </p>
 
-            {/* ปุ่ม Google Sign-In */}
-            <button
-              onClick={() => signIn("google")}
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border border-black text-black font-semibold rounded-lg shadow-md hover:bg-gray-100 transition mb-4"
-            >
-              <img
-                src="/images/google-icon.svg"
-                alt="Google"
-                className="w-6 h-6"
-              />
-              Sign in with Google
-            </button>
-
-            {/* ช่องกรอก credential login */}
-            <form onSubmit={handleCredentialLogin} className="space-y-3 text-left">
+            {/* ✅ Credential Login (Moved to the top) */}
+            <form onSubmit={handleCredentialLogin} className="space-y-3 text-left mb-6">
               <input
                 type="text"
                 placeholder="Username"
@@ -105,7 +133,51 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition disabled:opacity-60"
               >
-                {loading ? "Logging in..." : "Login with Credentials"}
+                {loading ? "Logging in..." : "Login"}
+              </button>
+            </form>
+
+            {/* ✅ OAuth Login (Google) */}
+            <button
+              onClick={() => signIn("google")}
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border border-black text-black font-semibold rounded-lg shadow-md hover:bg-gray-100 transition mb-6"
+            >
+              <img
+                src="/images/google-icon.svg"
+                alt="Google"
+                className="w-6 h-6"
+              />
+              Sign in with Google
+            </button>
+
+            {/* ✅ Register Section */}
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mt-8 mb-3">
+              Don’t have an account? Register below
+            </h2>
+            <form onSubmit={handleRegister} className="space-y-3 text-left">
+              <input
+                type="text"
+                placeholder="New Username"
+                value={register_name}
+                onChange={(e) => setRegisterName(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+              <input
+                type="password"
+                placeholder="New Password"
+                value={register_password}
+                onChange={(e) => setRegisterPassword(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+              />
+              {registerError && (
+                <p className="text-red-500 text-sm text-center">{registerError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={registerLoading}
+                className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition disabled:opacity-60"
+              >
+                {registerLoading ? "Registering..." : "Register"}
               </button>
             </form>
           </>

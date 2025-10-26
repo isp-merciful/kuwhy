@@ -1,45 +1,66 @@
-version: "3.9"
-
 services:
   db:
-    image: mysql:8
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    image: mysql:8.0
     container_name: kuwhy-db
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: kuwhy
+      MYSQL_DATABASE: ispgraveyard
     ports:
-      - "3306:3306"
+      - "3307:3306"   
     networks:
       - kuwhy
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
     container_name: kuwhy-backend
     env_file:
       - ./backend/.env
     depends_on:
-      - db
-    environment:
-      DATABASE_URL: "mysql://root:root@db:3306/kuwhy"
-    command: sh -c "npx prisma migrate deploy && node index.js"
+      db:
+        condition: service_healthy
     ports:
-      - "5000:5000"
+      - "8000:8000"
     networks:
       - kuwhy
+    restart: on-failure
 
   frontend:
-    build: ./frontend
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+    container_name: kuwhy-frontend
     env_file:
       - ./frontend/.env
-    container_name: kuwhy-frontend
     depends_on:
       - backend
     ports:
       - "3000:3000"
     networks:
       - kuwhy
+    restart: on-failure
+
+  studio:
+    image: node:18-alpine
+    container_name: kuwhy-studio
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    command: sh -c "npx prisma studio"
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "5555:5555"
+    networks:
+      - kuwhy
+    restart: on-failure
 
 networks:
   kuwhy:

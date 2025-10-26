@@ -58,6 +58,25 @@ router.get("/:id", async (req, res) => {
 });
 
 
+router.get("/user/:id", async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const note = await prisma.note.findMany({
+      where: { user_id: userId }
+    });
+
+    if (!note) {
+      return res.status(404).json({ error: "Note not found" });
+    }
+
+    res.json(note[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Fetch note failed" });
+  }
+});
+
+
 router.post("/", async (req, res) => {
 
   try {
