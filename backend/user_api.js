@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { prisma } = require('../lib/prisma.cjs');
+const { prisma } = require('./lib/prisma.cjs');
 const bcrypt = require("bcrypt");
 
 router.post("/register", async (req, res) => {

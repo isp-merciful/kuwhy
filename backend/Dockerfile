@@ -1,23 +1,31 @@
+# backend/Dockerfile
 FROM node:20-alpine AS base
-WORKDIR /app/backend
 
-# dependencies
+# 1) ติดตั้ง deps
+WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci
 
-# copy schema (อยู่ที่ /app/prisma)
+# 2) คัดลอก schema + source
 WORKDIR /app
 COPY prisma ./prisma
-
-# copy source
 COPY backend ./backend
 
-# generate prisma client ด้วย schema กลาง
+# 3) generate Prisma Client (ต้องมี devDeps/cli)
 WORKDIR /app/backend
 RUN npx prisma generate --schema ../prisma/schema.prisma
 
-# ลดขนาด image (optional)
-RUN npm prune --omit=dev
+# ---------- stage สำหรับ migrate (เก็บ devDeps ไว้) ----------
+FROM base AS migrator
+# ไม่มี prune -> ยังมี prisma CLI ใช้ migrate ได้
+ENV NODE_ENV=production
+WORKDIR /app/backend
+# คำสั่งจริงจะส่งมาจาก docker-compose (command:)
 
-EXPOSE 4000
-CMD sh -c "npx prisma migrate deploy --schema ../prisma/schema.prisma && node index.js"
+# ---------- stage สำหรับ backend runtime (trim devDeps) ----------
+FROM base AS backend
+WORKDIR /app/backend
+RUN npm prune --omit=dev
+ENV NODE_ENV=production
+EXPOSE 8000
+CMD ["node", "index.js"]

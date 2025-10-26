@@ -1,31 +1,43 @@
 version: "3.9"
+
 services:
   db:
     image: mysql:8.0
     container_name: kuwhy-db
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: kuwhy
-      MYSQL_USER: app
-      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-kuwhy}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app}
     ports:
-      - "3306:3306"
+      - "3307:3306"  # ภายนอกใช้ 3307; ภายใน network ยังเป็น 3306
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 30
+    restart: unless-stopped
 
   migrate:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      target: migrator
     container_name: kuwhy-migrate
     environment:
-      DATABASE_URL: mysql://app:app@db:3306/kuwhy
-    command: sh -c "npx prisma migrate deploy --schema ../prisma/schema.prisma && echo 'Migrations applied' && sleep 2"
+      DATABASE_URL: ${DATABASE_URL:-mysql://app:app@db:3306/kuwhy}
+      NODE_ENV: production
+    # รอให้ db:3306 connect ได้ (ลองทุก 2s สูงสุด ~2 นาที) แล้วค่อย db push
+    command: >
+      sh -c "node -e \"let i=0; (function r(){
+        require('net').createConnection(3306,'db')
+          .on('connect',()=>process.exit(0))
+          .on('error',()=>{ if(i++<60){ setTimeout(r,2000) } else process.exit(1) })
+      })();\" &&
+      npx prisma db push --force-reset --schema ../prisma/schema.prisma &&
+      echo '✔ Prisma schema synced (dev)'"
     depends_on:
       db:
         condition: service_healthy
@@ -34,17 +46,20 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      target: backend        # <<< ใช้ stage backend (trim devDeps แล้ว)
     container_name: kuwhy-backend
     environment:
-      DATABASE_URL: mysql://app:app@db:3306/kuwhy
+      DATABASE_URL: ${DATABASE_URL:-mysql://app:app@db:3306/kuwhy}
       NODE_ENV: production
+      PORT: 8000
     ports:
-      - "4000:4000"
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    restart: unless-stopped
 
   frontend:
     build:
@@ -52,12 +67,13 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: kuwhy-frontend
     environment:
-      DATABASE_URL: mysql://app:app@db:3306/kuwhy
-      NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: your_long_random_secret
-      GOOGLE_CLIENT_ID: your_google_client_id
-      GOOGLE_CLIENT_SECRET: your_google_client_secret
+      DATABASE_URL: ${DATABASE_URL:-mysql://app:app@db:3306/kuwhy}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       NODE_ENV: production
+      PORT: 3000
     ports:
       - "3000:3000"
     depends_on:
@@ -65,6 +81,21 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    restart: unless-stopped
+  studio:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: migrator
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-mysql://app:app@db:3306/kuwhy}
+    command: >
+      sh -c "npx prisma studio --schema ../prisma/schema.prisma --port 5555 --browser none"
+    ports:
+      - "5555:5555"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   db_data:

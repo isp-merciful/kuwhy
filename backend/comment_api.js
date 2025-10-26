@@ -1,5 +1,5 @@
 const express = require("express");
-const { prisma } = require('../lib/prisma.cjs');
+const { prisma } = require('./lib/prisma.cjs');
 const router = express.Router();
 
 function CommentTree(comments) {
