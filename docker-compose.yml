@@ -1,67 +1,70 @@
+version: "3.9"
 services:
   db:
     image: mysql:8.0
     container_name: kuwhy-db
-    restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: ispgraveyard
+      MYSQL_DATABASE: kuwhy
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
     ports:
-      - "3307:3306"   
-    networks:
-      - kuwhy
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
-  backend:
+  migrate:
     build:
-      context: ./backend
-    container_name: kuwhy-backend
-    env_file:
-      - ./backend/.env
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: kuwhy-migrate
+    environment:
+      DATABASE_URL: mysql://app:app@db:3306/kuwhy
+    command: sh -c "npx prisma migrate deploy --schema ../prisma/schema.prisma && echo 'Migrations applied' && sleep 2"
     depends_on:
       db:
         condition: service_healthy
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: kuwhy-backend
+    environment:
+      DATABASE_URL: mysql://app:app@db:3306/kuwhy
+      NODE_ENV: production
     ports:
-      - "8000:8000"
-    networks:
-      - kuwhy
-    restart: on-failure
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   frontend:
     build:
       context: .
-      dockerfile: ./frontend/Dockerfile
+      dockerfile: frontend/Dockerfile
     container_name: kuwhy-frontend
-    env_file:
-      - ./frontend/.env
-    depends_on:
-      - backend
+    environment:
+      DATABASE_URL: mysql://app:app@db:3306/kuwhy
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: your_long_random_secret
+      GOOGLE_CLIENT_ID: your_google_client_id
+      GOOGLE_CLIENT_SECRET: your_google_client_secret
+      NODE_ENV: production
     ports:
       - "3000:3000"
-    networks:
-      - kuwhy
-    restart: on-failure
-
-  studio:
-    image: node:18-alpine
-    container_name: kuwhy-studio
-    working_dir: /app
-    volumes:
-      - ./backend:/app
-    command: sh -c "npx prisma studio"
     depends_on:
-      backend:
-        condition: service_started
-    ports:
-      - "5555:5555"
-    networks:
-      - kuwhy
-    restart: on-failure
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
-networks:
-  kuwhy:
-    driver: bridge
+volumes:
+  db_data:
