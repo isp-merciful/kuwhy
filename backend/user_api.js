@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require("uuid");
 
 router.post("/register", async (req, res) => {
   try {
-    const { user_id, user_name, email, password } = req.body;
+    const { user_id, user_name, email, password,login_name } = req.body;
 
     if (!user_id || !password) {
       return res.status(400).json({ error: "Missing user_id or password" });
@@ -21,10 +21,13 @@ router.post("/register", async (req, res) => {
     if (existing) {
       return res.status(409).json({ message: "Email already exists", user: existing_mail });
     }
-    const existing_usrname = await prisma.users.findMany({ where: { user_name } });
+    const existing_usrname = await prisma.users.findMany({ where: { login_name } });
     if (existing_usrname.length > 0) {
       return res.status(409).json({ message: "Username already exists", user: existing_usrname });
     }
+
+
+
 
 
 
@@ -36,6 +39,7 @@ router.post("/register", async (req, res) => {
         email,
         user_name: user_name || "anonymous",
         password: hash,
+        login_name: login_name,
         gender: "Not_Specified",
         img: "/images/pfp.png"
       }
@@ -50,11 +54,11 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-    const { user_id, password } = req.body;
-    if (!user_id || !password) return res.status(400).json({ error: "Missing credentials" });
+    const { login_name, password } = req.body;
+    if (!login_name || !password) return res.status(400).json({ error: "Missing credentials" });
 
-    const user = await prisma.users.findUnique({ where: { user_id } });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const user = await prisma.users.findFirst({ where: { login_name } });
+    if (!user) return res.status(404).json({ error: "Username not found" });
 
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(401).json({ error: "Invalid password" });
@@ -63,6 +67,7 @@ router.post("/login", async (req, res) => {
       id: user.user_id,
       user_id: user.user_id,
       name: user.user_name,
+      login_name : user.login_name,
       email: user.email,
       image: user.img
     });

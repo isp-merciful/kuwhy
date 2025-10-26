@@ -67,6 +67,8 @@ model comment {
 
 model note {
   note_id       Int             @id @default(autoincrement())
+  max_party     Int             @default(0)
+  crr_party     Int             @default(0)
   message       String?         @db.VarChar(60)
   user_id       String          @db.Char(36)
   created_at    DateTime?       @default(now()) @db.Timestamp(0)
@@ -123,6 +125,8 @@ model user {
 model users {
   user_id    String       @id @db.Char(36)
   user_name  String       @default("anonymous") @db.VarChar(255)
+  login_name String?      @db.VarChar(255)
+  party_id   Int          @default(0)
   gender     users_gender
   img        String?      @default("pfp") @db.VarChar(255)
   role       users_role   @default(anonymous)

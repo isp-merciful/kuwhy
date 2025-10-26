@@ -1,5 +1,5 @@
 const express = require("express");
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, users_role } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -20,10 +20,11 @@ router.get("/", async (req, res) => {
         },
       },
     });
+
     res.json(notes);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "fetch post fail" });
+    res.status(500).json({ error: "fetch post fail" }); 
   }
 
 });
@@ -60,7 +61,7 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
 
   try {
-    const { message, user_id } = req.body;
+    const { message, user_id,max_party } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: "ไม่มี notes" });
@@ -68,11 +69,17 @@ router.post("/", async (req, res) => {
     if (!user_id) {
       return res.status(400).json({ error: "Missing user_id" });
     }
+    let crr_party = 0;
+    if (max_party){
+      crr_party = 1;
+    }
 
     const newNote = await prisma.note.create({
       data: {
         message,
-        users: { connect: { user_id: user_id } }, // เชื่อมกับ user
+        users: { connect: { user_id: user_id } },
+        max_party,
+        crr_party,
       },
     });
 
@@ -98,5 +105,40 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ error: "can't deleted" });
   }
 });
+
+router.post("/join", async (req, res) => {
+
+    try {
+    const newPartyMember = await prisma.party_members.create({
+      data: {
+        note_id: note_id,
+        user_id: user_id,
+      },
+    });
+
+      const updatedNote = await prisma.note.update({
+        where: { note_id: note_id },
+        data: {
+          crr_party: {
+            increment: 1, 
+          },
+        },
+      });
+      const assign = await prisma.users.update({
+        where: { user_id: user_id },
+        data:{party_id:{
+          note_id}}
+      });
+    res.json({
+      success: true,
+      message: 'Added new party member and incremented party count.',
+      data: updatedNote,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to add new party member and increment party count.' });
+  }
+});
+
 
 module.exports = router;
