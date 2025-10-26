@@ -123,6 +123,7 @@ model user {
 model users {
   user_id    String       @id @db.Char(36)
   user_name  String       @default("anonymous") @db.VarChar(255)
+  login_name String?      @db.VarChar(255)
   gender     users_gender
   img        String?      @default("pfp") @db.VarChar(255)
   role       users_role   @default(anonymous)
