@@ -114,20 +114,26 @@ model note {
 }
 
 model notifications {
-  notification_id                                  Int                @id @default(autoincrement())
-  recipient_id                                     String             @db.Char(36)
-  sender_id                                        String             @db.Char(36)
-  note_id                                          Int?
-  blog_id                                          Int?
-  comment_id                                       Int
-  parent_comment_id                                Int?
-  type                                             notifications_type
-  is_read                                          Boolean?           @default(false)
-  created_at                                       DateTime?          @default(now()) @db.Timestamp(0)
-  note                                             note?              @relation(fields: [note_id], references: [note_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_1")
-  blog                                             blog?              @relation(fields: [blog_id], references: [blog_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_2")
-  comment_notifications_comment_idTocomment        comment            @relation("notifications_comment_idTocomment", fields: [comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_3")
-  comment_notifications_parent_comment_idTocomment comment?           @relation("notifications_parent_comment_idTocomment", fields: [parent_comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_4")
+  notification_id   Int       @id @default(autoincrement())
+  recipient_id      String    @db.Char(36)
+  sender_id         String    @db.Char(36)
+  note_id           Int?
+  blog_id           Int?
+  comment_id        Int
+  parent_comment_id Int?
+  type              notifications_type
+  is_read           Boolean?  @default(false)
+  created_at        DateTime? @default(now()) @db.Timestamp(0)
+
+  // ของเดิม (ไม่แตะ)
+  note  note? @relation(fields: [note_id], references: [note_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_1")
+  blog  blog? @relation(fields: [blog_id], references: [blog_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_2")
+  comment_notifications_comment_idTocomment        comment  @relation("notifications_comment_idTocomment", fields: [comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_3")
+  comment_notifications_parent_comment_idTocomment comment? @relation("notifications_parent_comment_idTocomment", fields: [parent_comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_4")
+
+  // ✅ เพิ่ม 2 relation นี้ (ชื่อต้องตรงกับที่ FE include เรียก)
+  sender    users @relation("NotificationsSender",    fields: [sender_id],    references: [user_id])
+  recipient users @relation("NotificationsRecipient", fields: [recipient_id], references: [user_id])
 
   @@index([blog_id], map: "blog_id")
   @@index([comment_id], map: "comment_id")
@@ -139,7 +145,7 @@ model users {
   user_id    String       @id @db.Char(36)
   user_name  String       @default("anonymous") @db.VarChar(255)
   login_name String?      @db.VarChar(255)
-  gender     users_gender
+  gender     users_gender @default(Not_Specified)
   img        String?      @default("pfp") @db.VarChar(255)
   role       users_role   @default(anonymous)
   email      String?      @unique(map: "email") @db.VarChar(255)
@@ -149,6 +155,9 @@ model users {
   blog       blog[]
   comment    comment[]
   note       note[]
+
+  sent_notifications     notifications[] @relation("NotificationsSender")
+  received_notifications notifications[] @relation("NotificationsRecipient")
 }
 
 enum users_gender {

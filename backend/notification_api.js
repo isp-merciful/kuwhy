@@ -72,13 +72,18 @@ router.get("/:userId", async (req, res) => {
     const notifications = await prisma.notifications.findMany({
       where: { recipient_id: userId },
       orderBy: { created_at: 'desc' },
-      include: { sender: { select: { user_name: true } } }
+      include: {
+        sender: { select: { user_name: true, img: true } }, // ✅ ใช้ได้แล้ว
+        // ถ้าต้องการข้อมูลอื่น เพิ่ม note/blog/comment relation ได้
+        // note: true, blog: true
+      }
     });
 
     const result = notifications.map(n => ({
       notification_id: n.notification_id,
       sender_id: n.sender_id,
-      sender_name: n.sender.user_name,
+      sender_name: n.sender?.user_name ?? 'Someone',
+      sender_img: n.sender?.img ?? null,
       note_id: n.note_id,
       comment_id: n.comment_id,
       parent_comment_id: n.parent_comment_id,
@@ -86,7 +91,7 @@ router.get("/:userId", async (req, res) => {
       created_at: n.created_at
     }));
 
-    res.json({ notifications: result || [] });
+    res.json({ notifications: result });
   } catch (err) {
     console.error("❌ Error fetching notifications:", err);
     res.status(500).json({ error: "โหลด noti ล้มเหลว" });
