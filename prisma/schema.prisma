@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Char(36)
+  name          String?
+  email         String?   @unique @db.VarChar(191)
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  @@map("user")
+}
+
+model Account {
+  id                 String  @id @default(uuid()) @db.Char(36)
+  userId             String  @db.Char(36)
+  type               String
+  provider           String  @db.VarChar(191)
+  providerAccountId  String  @db.VarChar(191)
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("account")
+}
+
+model Session {
+  id            String   @id @default(uuid()) @db.Char(36)
+  sessionToken  String   @unique @db.VarChar(191)
+  userId        String   @db.Char(36)
+  expires       DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model VerificationToken {
+  identifier String  @db.VarChar(191)
+  token      String  @unique @db.VarChar(191)
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtoken")
+}
+
+
+///////////////////////////////////////////////////////////
+model blog {
+  blog_id       Int             @id @default(autoincrement())
+  blog_title    String?         @db.VarChar(60)
+  message       String?         @db.VarChar(120)
+  blog_up       Int?
+  blog_down     Int?
+  user_id       String?         @db.Char(36)
+  created_at    DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?       @default(now()) @db.Timestamp(0)
+  users         users?          @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "blog_ibfk_1")
+  comment       comment[]
+  notifications notifications[]
+
+  @@index([user_id], map: "user_id")
+}
+
+model comment {
+  comment_id                                             Int             @id @default(autoincrement())
+  user_id                                                String          @db.Char(36)
+  blog_id                                                Int?
+  note_id                                                Int?
+  parent_comment_id                                      Int?
+  message                                                String          @db.VarChar(255)
+  created_at                                             DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at                                             DateTime?       @default(now()) @db.Timestamp(0)
+  users                                                  users           @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "comment_ibfk_1")
+  blog                                                   blog?           @relation(fields: [blog_id], references: [blog_id], onDelete: Cascade, onUpdate: NoAction, map: "comment_ibfk_2")
+  note                                                   note?           @relation(fields: [note_id], references: [note_id], onDelete: Cascade, onUpdate: NoAction, map: "comment_ibfk_3")
+  comment                                                comment?        @relation("commentTocomment", fields: [parent_comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "comment_ibfk_4")
+  other_comment                                          comment[]       @relation("commentTocomment")
+  notifications_notifications_comment_idTocomment        notifications[] @relation("notifications_comment_idTocomment")
+  notifications_notifications_parent_comment_idTocomment notifications[] @relation("notifications_parent_comment_idTocomment")
+
+  @@index([blog_id], map: "blog_id")
+  @@index([note_id], map: "note_id")
+  @@index([parent_comment_id], map: "parent_comment_id")
+  @@index([user_id], map: "user_id")
+}
+
+model note {
+  note_id       Int             @id @default(autoincrement())
+  max_party     Int             @default(0)
+  crr_party     Int             @default(0)
+  message       String?         @db.VarChar(60)
+  user_id       String          @db.Char(36)
+  created_at    DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?       @default(now()) @db.Timestamp(0)
+  comment       comment[]
+  users         users           @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "note_ibfk_1")
+  notifications notifications[]
+  party_messages party_messages[] @relation("NotePartyMessages")
+  @@index([user_id], map: "user_id")
+}
+
+model notifications {
+  notification_id                                  Int                @id @default(autoincrement())
+  recipient_id                                     String             @db.Char(36)
+  sender_id                                        String             @db.Char(36)
+  note_id                                          Int?
+  blog_id                                          Int?
+  comment_id                                       Int
+  parent_comment_id                                Int?
+  type                                             notifications_type
+  is_read                                          Boolean?           @default(false)
+  created_at                                       DateTime?          @default(now()) @db.Timestamp(0)
+
+  // relations to note/blog/comment (เดิม)
+  note                                             note?              @relation(fields: [note_id], references: [note_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_1")
+  blog                                             blog?              @relation(fields: [blog_id], references: [blog_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_2")
+  comment_notifications_comment_idTocomment        comment            @relation("notifications_comment_idTocomment", fields: [comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_3")
+  comment_notifications_parent_comment_idTocomment comment?           @relation("notifications_parent_comment_idTocomment", fields: [parent_comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_4")
+
+  // NEW: relations to users (sender/recipient)
+  sender                                           users              @relation("notifications_sender", fields: [sender_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_5")
+  recipient                                        users              @relation("notifications_recipient", fields: [recipient_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_6")
+
+  @@index([blog_id], map: "blog_id")
+  @@index([comment_id], map: "comment_id")
+  @@index([note_id], map: "note_id")
+  @@index([parent_comment_id], map: "parent_comment_id")
+  @@index([sender_id], map: "sender_id")
+  @@index([recipient_id], map: "recipient_id")
+}
+
+
+
+model users {
+  user_id    String       @id @db.Char(36)
+  user_name  String       @default("anonymous") @db.VarChar(255)
+  login_name String?      @db.VarChar(255)
+  party_id   Int          @default(0)
+  gender     users_gender @default(Not_Specified)
+  img        String?      @default("pfp") @db.VarChar(255)
+  role       users_role   @default(anonymous)
+  email      String?      @unique(map: "email") @db.VarChar(255)
+  password   String?      @db.VarChar(255)
+  created_at DateTime?    @default(now()) @db.Timestamp(0)
+  updated_at DateTime?    @default(now()) @db.Timestamp(0)
+  blog       blog[]
+  comment    comment[]
+  note       note[]
+  party_messages party_messages[] @relation("UserPartyMessages")
+  // NEW: back-relations for notifications
+  notifications_sent     notifications[] @relation("notifications_sender")
+  notifications_received notifications[] @relation("notifications_recipient")
+}
+
+
+
+model party_members {
+  id       Int    @id @default(autoincrement())
+  note_id  Int
+  user_id  String
+  @@unique([note_id, user_id])
+}
+
+model party_messages {
+  message_id Int      @id @default(autoincrement())
+  note_id    Int
+  user_id    String
+  content    String   @db.Text
+  created_at DateTime @default(now())
+
+  // relations (ตั้งชื่อ relation ชัดเจน)
+  note  note  @relation("NotePartyMessages", fields: [note_id], references: [note_id], onDelete: Cascade)
+  user  users @relation("UserPartyMessages", fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([note_id, created_at], map: "idx_party_messages_note_time")
+}
+
+
+enum users_gender {
+  Male
+  Female
+  Not_Specified @map("Not Specified")
+}
+
+enum users_role {
+  member
+  admin
+  anonymous
+}
+
+enum notifications_type {
+  comment
+  reply
+}

@@ -1,239 +1,312 @@
 export default function LandingPage() {
   return (
     <main className="w-full">
-      {/* Hero Section */}
-        <section className="relative isolate pt-[36px] min-h-[450px]">
-        <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-            {/* Straight rectangle background */}
-            <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 1440 691"
-            className="h-full w-full"
-            preserveAspectRatio="none"
-            >
-            <rect width="1440" height="1440" fill="url(#paint0_linear_276_801)" fillOpacity="0.5" />
-            <defs>
-                <linearGradient id="paint0_linear_276_801" x1="365.5" y1="-138.5" x2="1092" y2="981.5" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#00C9FF" />
-                <stop offset="1" stopColor="#92FE9D" />
-                </linearGradient>
-            </defs>
-            </svg>
+      {/* Apple-Style Hero Section */}
+      <section className="relative bg-black min-h-screen flex items-center">
+        {/* Apple-style gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-green-50 to-blue-100"></div>
         
-        {/* <div className="absolute bottom-0 w-full h-40"> */}
-            
-            {/* Blur overlay at bottom */}
-            {/* <div className="absolute bottom-0 w-full h-40 bg-gradient-to-t from-white via-white/80 to-transparent backdrop-blur-none"></div> */}
-            
-            {/* Glass image*/}
-            {/* <img 
-                src="/images/glass.png" 
-                alt="grass effect" 
-                className="w-full h-auto object-cover"
-            />
-        </div> */}
-
-          {/* Gradient blob below the rectangle */}
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1405" className="absolute left-[-39px] top-[389px] w-[1515px] h-[931px] shrink-0 rotate-180 -z-10" preserveAspectRatio="none">
-            <g filter="url(#filter0_f_282_482)">
-              <path d="M480.835 354.629C960.227 593.014 748.353 -142.005 1476 679.925C1463.16 908.377 741.932 1437.29 536.479 1000.25C331.026 563.216 172.655 1112 20.7056 679.925C-131.244 247.853 1.44421 116.245 480.835 354.629Z" fill="url(#paint0_linear_282_482)" fillOpacity="0.35"/>
-            </g>
-            <defs>
-              <filter id="filter0_f_282_482" x="-275.839" y="0.161133" width="1988.68" height="1404.68" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                <feFlood floodOpacity="0" result="BackgroundImageFix"/>
-                <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-                <feGaussianBlur stdDeviation="118.419" result="effect1_foregroundBlur_282_482"/>
-              </filter>
-              <linearGradient id="paint0_linear_282_482" x1="1476" y1="703.836" x2="-49.1315" y2="492.188" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#92FE9D"/>
-                <stop offset="1" stopColor="#00C9FF"/>
-              </linearGradient>
-            </defs>
-          </svg>
+        {/* Subtle geometric shapes */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-green-400/5 rounded-full blur-3xl"></div>
         </div>
 
-        {/* Image on Hero Section */}
-        <div className="absolute bottom-0 right-0 w-full h-full flex justify-end items-end">
-        <img
-            src="/images/students.png"
-            alt="Graduates celebrating"
-            className="h-auto w-[60%] object-contain object-right-bottom"
-        />
-        </div>
-
-
-
-        <div className="relative z-20 mx-auto w-full pl-6 pr-0">
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-            <div className="-mt-1">
-              <h1 className="text-[40px] font-extrabold tracking-[6px] text-white" style={{ textShadow: '0 4px 4px rgba(0,0,0,0.25)' }}>
-                Connect, Ask, Share at Kasetsart University
+        {/* Hero Content */}
+        <div className="relative z-10 mx-auto max-w-6xl px-6 text-center">
+          <div className="space-y-12">
+            {/* Apple-style headline */}
+            <div className="space-y-6">
+              <h1 className="text-7xl md:text-8xl font-bold text-gray-900 mb-6 leading-tight">
+              <span className="bg-gradient-to-r from-blue-600 via-green-600 to-teal-600 bg-clip-text text-transparent animate-pulse">KU WHY</span>
               </h1>
-              <p className="mt-6 max-w-xl text-base leading-7 text-white/90">
-                KU WHY makes it effortless to write notes, post thoughts, and spark
-                meaningful conversations across campus.
+              <p className="text-2xl md:text-3xl font-light text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                Connect, ask, share at Kasetsart University
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href="#share-ways" className="inline-flex items-center justify-center rounded-full bg-white/90 px-6 py-3 text-black hover:bg-white transition">
-                  Get Started
-                </a>
-                {/* <a href="/login" className="inline-flex items-center justify-center rounded-full border border-white/70 px-6 py-3 text-white hover:bg-white/10 transition">
-                  Log in
-                </a> */}
-              </div>
             </div>
             
+            {/* Apple-style description */}
+            <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
+              Write notes, post thoughts, and spark meaningful conversations across campus. 
+              Built by students, for students.
+            </p>
+            
+            {/* Apple-style buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <a href="#share-ways" className="inline-flex items-center justify-center rounded-full bg-white text-black px-8 py-4 text-lg font-medium hover:bg-gray-100 transition-all duration-300">
+                Get Started
+              </a>
+              <a href="/about" className="inline-flex items-center justify-center rounded-full border border-gray-600 text-black px-8 py-4 text-lg font-medium hover:bg-white/5 transition-all duration-300">
+                Learn More
+                <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
+
+            {/* Apple-style stats */}
+            <div className="pt-8 border-t border-gray-800">
+              <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-12 text-gray-400">
+                <div className="text-center">
+                  <div className="text-2xl font-light text-gray-600">50+</div>
+                  <div className="text-sm">Active Students</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-light text-gray-600">120+</div>
+                  <div className="text-sm">Notes Shared</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-light text-gray-600">8+</div>
+                  <div className="text-sm">Faculties</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Apple-style scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          <div className="w-6 h-10 border-2 border-gray-600 rounded-full flex justify-center">
+            <div className="w-1 h-3 bg-gray-600 rounded-full mt-2 animate-bounce"></div>
           </div>
         </div>
       </section>
 
-      {/* Two Ways to Share */}
-      <section id="share-ways" className="relative isolate overflow-hidden py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-8 sm:mb-12">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+      {/* Apple-Style Two Ways to Share */}
+      <section id="share-ways" className="py-24 bg-white">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-5xl font-thin text-gray-900 mb-6">
               Two ways to share
             </h2>
-            <p className="mt-3 max-w-2xl text-gray-600">
+            <p className="text-xl text-gray-600 font-light max-w-2xl mx-auto">
               Choose how you want to express yourself—quick notes or longer blog posts.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 p-6 shadow-sm transition hover:shadow-md bg-white">
-              <div className="flex items-start gap-4">
-                <div className="h-12 w-12 shrink-0 rounded-full bg-black/90 text-white flex items-center justify-center text-lg font-bold">N</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Apple-style Notes Card */}
+            <div className="group bg-gray-50 rounded-3xl p-12 hover:bg-gray-100 transition-all duration-500">
+              <div className="space-y-6">
+                <div className="w-16 h-16 bg-blue-300 rounded-2xl flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">N</span>
+                </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Notes</h3>
-                  <p className="mt-1 text-gray-600">
+                  <h3 className="text-3xl font-light text-gray-900 mb-4">Notes</h3>
+                  <p className="text-lg text-gray-600 leading-relaxed">
                     Share short thoughts, questions, or updates in real time. Perfect for
                     quick ideas and casual conversations.
                   </p>
                 </div>
-              </div>
-              <div className="mt-4">
-                <a href="/note" className="text-sm font-medium text-black hover:underline">Start a note →</a>
+                <a href="/note" className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                  Start a note
+                  <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 p-6 shadow-sm transition hover:shadow-md bg-white">
-              <div className="flex items-start gap-4">
-                <div className="h-12 w-12 shrink-0 rounded-full bg-black/90 text-white flex items-center justify-center text-lg font-bold">B</div>
+            {/* Apple-style Blog Card */}
+            <div className="group bg-gray-50 rounded-3xl p-12 hover:bg-gray-100 transition-all duration-500">
+              <div className="space-y-6">
+                <div className="w-16 h-16 bg-blue-300 rounded-2xl flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">B</span>
+                </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Blog posts</h3>
-                  <p className="mt-1 text-gray-600">
+                  <h3 className="text-3xl font-light text-gray-900 mb-4">Blog posts</h3>
+                  <p className="text-lg text-gray-600 leading-relaxed">
                     Write longer articles with structure and media. Ideal for guides,
                     reflections, and community highlights.
                   </p>
                 </div>
-              </div>
-              <div className="mt-4">
-                <a href="/blog" className="text-sm font-medium text-black hover:underline">Write a post →</a>
+                <a href="/note" className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                  Write a post
+                  <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* About Us Section */}
-      <section className="py-16 sm:py-20 bg-white">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="bg-white rounded-2xl shadow-lg p-8 sm:p-12">
-            <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-              {/* Left side - 3D Illustration */}
-              <div className="flex justify-center lg:justify-start">
-                <img 
-                  src="/images/feature3d.png" 
-                  alt="KU WHY Features - 3D Illustration" 
-                  className="w-full max-w-md h-auto object-contain"
-                />
-              </div>
+      {/* Apple-Style About Us Section */}
+      <section className="py-24 bg-gray-50">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            {/* Left side - Image */}
+            <div className="flex justify-center lg:justify-start">
+              <img 
+                src="/images/feature3d.png" 
+                alt="KU WHY Features" 
+                className="w-full max-w-md h-auto object-contain"
+              />
+            </div>
 
-              {/* Right side - Text content */}
+            {/* Right side - Content */}
+            <div className="space-y-8">
               <div className="space-y-6">
-                <div className="text-blue-600 font-semibold text-sm uppercase tracking-wider">
-                  ABOUT US
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-                  Our Features
+                <h2 className="text-5xl font-thin text-gray-900">
+                  Built for KU
                 </h2>
-                <p className="text-lg text-gray-600 leading-relaxed">
+                <p className="text-xl text-gray-600 font-light leading-relaxed">
                   KU WHY is a hub for Kasetsart University students to connect and share. 
-                  <span className="font-semibold"> Post quick notes</span> or polls that vanish in 24h, 
-                  join study groups, ask <span className="font-semibold">lasting questions</span>, 
-                  <span className="font-semibold"> share files</span>, stay updated, and help keep the 
-                  community safe with our reporting system.
+                  Post quick notes or polls that vanish in 24h, join study groups, ask lasting questions, 
+                  share files, stay updated, and help keep the community safe.
                 </p>
               </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600">Student-driven platform</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600">Community-focused features</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600">Innovation-first approach</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 sm:py-20 bg-white">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="overflow-x-auto">
-            <div className="flex gap-6 pb-4" style={{ width: 'max-content' }}>
-              {/* Casual Notes & Polls */}
-              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
-                <div className="w-16 h-16 mb-6 flex items-center justify-center">
-                  <img src="/images/chat.png" alt="Notes & Polls" className="w-16 h-16" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">Casual Notes & Polls</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">Share quick posts or polls that disappear in 24 hours (anonymous option available).</p>
-              </div>
-
-              {/* Groups & Events */}
-              {/* <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
-                <div className="w-16 h-16 mb-6 flex items-center justify-center">
-                  <img src="/images/event.png" alt="Groups & Events" className="w-16 h-16" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">Groups & Events</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">Join or create study groups, activities, and parties.</p>
-              </div> */}
-
-              {/* Blogs & Q&A */}
-              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
-                <div className="w-16 h-16 mb-6 flex items-center justify-center">
-                  <img src="/images/qa.png" alt="Blogs & Q&A" className="w-16 h-16" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">Blogs & Q&A</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">Ask questions, share experiences, get lasting replies.</p>
-              </div>
-
-              {/* File Sharing */}
-              {/* <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
-                <div className="w-16 h-16 mb-6 flex items-center justify-center">
-                  <img src="/images/file.png" alt="File Sharing" className="w-16 h-16" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">File Sharing</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">Upload and download project files for collaboration.</p>
-              </div> */}
-
-              {/* Notifications */}
-              <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
-                <div className="w-16 h-16 mb-6 flex items-center justify-center">
-                  <img src="/images/notification.png" alt="Notifications" className="w-16 h-16" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">Notifications</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">Stay updated when someone replies, comments, or invites you to a group.</p>
-              </div>
-
-              {/* Report System */}
-              {/* <div className="bg-white rounded-2xl shadow-lg p-8 w-[450px] flex-shrink-0">
-                <div className="w-16 h-16 mb-6 flex items-center justify-center">
-                  <img src="/images/report.png" alt="Report System" className="w-16 h-16" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">Report System</h3>
-                <p className="text-lg text-gray-600 leading-relaxed">Keep the community safe with reporting and admin moderation.</p>
-              </div> */}
+      {/* Apple-Style Statistics Section */}
+      <section className="py-24 bg-white">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-5xl font-thin text-gray-900 mb-6">
+              Join the KU community
+            </h2>
+            <p className="text-xl text-gray-600 font-light max-w-2xl mx-auto">
+              Students are connecting and sharing on KU WHY
+            </p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="text-4xl font-light text-blue-400 mb-2">50+</div>
+              <div className="text-gray-600">Active Students</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-light text-blue-400 mb-2">120+</div>
+              <div className="text-gray-600">Notes Shared</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-light text-blue-400 mb-2">25+</div>
+              <div className="text-gray-600">Blog Posts</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-light text-blue-400 mb-2">8+</div>
+              <div className="text-gray-600">Faculties</div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Apple-Style Features Section */}
+      <section className="py-24 bg-gray-50">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-5xl font-thin text-gray-900 mb-6">
+              Everything you need
+            </h2>
+            <p className="text-xl text-gray-600 font-light max-w-2xl mx-auto">
+              Powerful features designed specifically for the KU community
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Notes & Polls */}
+            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/chat.png" alt="Notes & Polls" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Notes & Polls</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Share quick posts or polls that disappear in 24 hours (anonymous option available).
+              </p>
+              <a href="/note" className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Try Notes
+                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
+
+            {/* Blogs & Q&A */}
+            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/qa.png" alt="Blogs & Q&A" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Blogs & Q&A</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Ask questions, share experiences, get lasting replies.
+              </p>
+              <a href="/blog" className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Start Writing
+                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
+
+            {/* Notifications */}
+            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/notification.png" alt="Notifications" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Smart Notifications</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Stay updated when someone replies, comments, or invites you to a group.
+              </p>
+              <span className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Always Connected
+                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5l-5 5-5-5h5" />
+                </svg>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Apple-Style CTA Section */}
+      <section className="py-24 bg-gradient-to-br from-slate-50 via-green-50 to-blue-100">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="text-center">
+            <h3 className="text-5xl font-thin text-gray-900 mb-6">Ready to connect?</h3>
+            <p className="text-xl text-gray-700 font-light max-w-3xl mx-auto mb-12 leading-relaxed">
+              Join Kasetsart University students who are sharing, learning, and growing together on KU WHY.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a
+                href="/note"
+                className="inline-flex items-center justify-center rounded-full bg-blue-600 text-white px-8 py-4 text-lg font-medium hover:bg-blue-700 transition-all duration-300">
+                Get Started
+              </a>
+              <a href="/about"
+                className="inline-flex items-center justify-center rounded-full border border-blue-400 text-blue-700 px-8 py-4 text-lg font-medium hover:bg-blue-100/50 transition-all duration-300">
+                Learn More
+                <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </main>
   );
 }
-
-

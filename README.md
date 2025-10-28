@@ -1,69 +1,175 @@
-# 🌐 KUWHY? – Group 13: Merciful  
+# 🌐 KUWHY – Group 13 “Merciful"
 
-KUWHY? is a **web platform for Kasetsart University students** to connect across faculties, share ideas, ask questions, and organize events.  
-Our goal is to make campus life more **interactive, engaging, and inclusive**.  
-
----
-
-## 🚀 Features  
-
-- **Casual Notes & Polls** – Share quick posts or polls that vanish in 24h. Anonymous posting supported.
-- **Groups & Events** – Create or join study groups and activities *(login required)*.  
-- **Blogs & Q&A** – Write blogs, ask questions, and engage through comments.  
-- **Smart Feed** – Browse posts with filters and infinite scroll.  
-- **File Sharing** – Upload and download project files for collaboration.  
-- **Notifications** – Stay updated on replies, comments, and group requests.  
-- **Authentication** – Sign in via email or OAuth; guests get limited access.  
-- **Admin Panel** – Moderate reports, remove content, and manage users.  
+> **KUWHY** is a web platform for Kasetsart University students to connect across faculties, collaborate on projects, share ideas, and organize events — all in one central hub.
 
 ---
 
-## 🎯 Project Objective  
+## 📌 Table of Contents
+> Click any topic to jump to the section
 
-The platform provides KU students with a **central hub** to:  
-- Connect with peers outside their faculty  
-- Share both casual and academic ideas  
-- Organize and join activities or events  
-- Access important university announcements  
+- [Features at a Glance](#-features-at-a-glance)
+- [Project Objective](#-project-objective)
+- [Tech Stack](#-tech-stack)
+- [Repository Structure](#-repository-structure)
+- [Team – Merciful Group](#-team--merciful-group)
+- [Documentation & Presentations](#-documentation--presentations)
+- [Getting Started](#-getting-started)
+- [Contribution Guidelines](#-contribution-guidelines)
+- [License & Acknowledgements](#-license--acknowledgements)
 
 ---
 
-## 🧑‍💻 Tech Stack  
+## 🚀 Features at a Glance
 
-**Frontend**
-- React
-- Next.js
+### ✏️ Casual Notes & Polls
+- Share quick updates or polls  
+- Supports anonymous posting
+
+### 👥 Groups & Events
+- Create, join, and manage study groups  
+- Organize campus events seamlessly
+
+### 📚 Blogs & Q&A
+- Write articles or ask questions  
+- Interact with peers via comments
+
+### 📰 Smart Feed
+- Personalized content  
+- Infinite scroll and filters
+
+### 📂 File Sharing
+- Upload and download project files  
+- Simplify team collaboration
+
+### 🔔 Notifications
+- Receive updates for replies, comments, and group activity
+
+### 🔑 Authentication
+- Email login, Google OAuth  
+- Optional guest access
+
+### ⚙️ Profile and Settings
+- View and edit personal information  
+- Change profile picture and password  
+- Manage preferences and account settings
   
-**Backend**
-- Node.js
-- Express
-  
-**Database**
-- MySQL
-  
-**Authentication**
-- OAuth (Google) & Email login  
+### 🛠️ Admin Panel
+- Moderate content  
+- Manage users and review reports
 
 ---
 
-## 📂 Documentation and Presentations
+## 🎯 Project Objective
 
-**📖 Documentation**
--  [Project Document (Google Docs)](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)  
+**KUWHY** aims to provide a **central hub for KU students** to:
 
-**Iteration 1**
--  [Iteration 1 Presentation](https://www.youtube.com/watch?v=-kIwVKTTAkA)
+1. Connect and collaborate across faculties  
+2. Share casual and academic content  
+3. Organize and participate in campus activities  
+4. Access important announcements and resources
 
-**Iteration 2**
--  [Iteration 2 Presentation](https://youtu.be/FUl6rNU6EiE?si=ku89KkIwvy0TvFfR)  
+> **Mission:** Make campus life **interactive, inclusive, and collaborative**.
 
 ---
 
-## 👥 Team – Merciful Group  
+## 🧰 Tech Stack
 
-| Name  | Student ID  |
-|------|------|
-| Danita Frikaow | 6410545461 |
-| Thanabordee Bundisakul | 6510545489 |
-| Chitiwat Phajan | 6710545539 |
-| Piyawat Wiriyayothin | 6710545717 |
+**Frontend:** React, Next.js  
+**Backend:** Node.js, Express.js  
+**Database:** MySQL  
+**Authentication:** OAuth (Google) & Email Login
+
+---
+
+## 📂 Repository Structure
+
+
+```
+kuwhy/
+├── frontend/      # Next.js UI components and pages
+├── backend/       # Express API server
+├── public/        # Static assets (images, icons)
+├── docs/          # Project documentation & diagrams
+└── README.md
+```
+
+---
+
+## 👥 Team – Merciful Group
+
+| Name                   | Role               | Student ID |
+| ---------------------- | ------------------ | ---------- |
+| Danita Frikaow         | UI/UX Designer     | 6410545461 |
+| Thanabordee Bundisakul | Frontend Developer | 6510545489 |
+| Chitiwat Phajan        | Project Manager    | 6710545539 |
+| Piyawat Wiriyayothin   | Backend Developer  | 6710545717 |
+
+---
+
+## 📖 Documentation & Presentations
+
+* [Project Document](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)
+* [Iteration 1 Presentation](https://www.youtube.com/watch?v=-kIwVKTTAkA)
+* [Iteration 2 Presentation](https://youtu.be/FUl6rNU6EiE?si=ku89KkIwvy0TvFfR)
+* [Iteration 3 Presentation](https://youtu.be/1fFkATymeag?si=36GwJlWetsgoUnSg)
+
+---
+
+## 💻 Getting Started
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/isp-merciful/kuwhy.git
+```
+
+2. **Install dependencies**
+
+* Frontend:
+
+```bash
+cd kuwhy/frontend && npm install
+```
+
+* Backend:
+
+```bash
+cd kuwhy/backend && npm install
+```
+
+3. **Configure environment**
+   Create a `.env` file for backend settings (DB credentials, OAuth keys).
+
+4. **Run the application**
+
+```bash
+# Run frontend
+npm run dev
+
+# Run backend
+npm start
+```
+
+5. Visit `http://localhost:3000` in your browser.
+
+---
+
+## 📝 Contribution Guidelines
+
+We follow a structured Git workflow:
+
+* **Branch naming:** `type/scope/short-description` (e.g., `feat/frontend/login-page`)
+* **Commit messages:** `type(scope): subject` (e.g., `feat(frontend): implement login page`)
+* Pull Requests should include descriptions, checklists, and reference related issues.
+
+---
+
+## 🎉 License & Acknowledgements
+
+This project is part of course work at Kasetsart University.
+Thanks to our instructors and advisors for guidance and support.
+
+> *“Building a stronger KU community — one connection at a time.”*
+
+---
+

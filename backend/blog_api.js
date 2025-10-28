@@ -1,93 +1,59 @@
 const express = require('express');
 const router = express.Router();
+const { prisma } = require('./lib/prisma.cjs');
 
-let wire = null;
-function DBconnect(val){ wire = val; }
-
-/* ------------ CRUD ------------ */
 
 router.post('/', async (req, res) => {
   try {
     const { user_id, blog_title, message } = req.body;
-    const [result] = await wire.query(
-      'INSERT INTO blog (user_id, blog_title, message) VALUES (?, ?, ?)',
-      [user_id, blog_title, message]
-    );
-    res.json({ message: 'inserted', insertedId: result.insertId });
+
+    const result = await prisma.blog.create({
+      data: {
+        user_id,
+        blog_title,
+        message,
+      },
+    });
+
+    res.json({
+      message: 'inserted',
+      insertedId: result.blog_id,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Database insert failed' });
   }
 });
 
+
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await wire.query(
-      `SELECT 
-         b.blog_id,
-         b.blog_title,
-         b.message,
-         b.blog_up,
-         b.blog_down,
-         u.img,
-         u.user_name,
-         b.created_at
-       FROM blog b
-       LEFT JOIN users u ON b.user_id = u.user_id
-       ORDER BY b.blog_id DESC`
-    );
-    res.json(rows);
+    const result = await prisma.blog.findMany({
+      orderBy: { blog_id: 'desc' },
+      include: {
+        users: {
+          select: {
+            img: true,
+            user_name: true,
+          },
+        },
+      },
+    });
+
+
+    const blogs = result.map(b => ({
+      blog_id: b.blog_id,
+      blog_title: b.blog_title,
+      message: b.message,
+      img: b.user?.img,
+      user_name: b.user?.user_name,
+      created_at: b.created_at,
+    }));
+
+    res.json(blogs);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'fetch post fail' });
-  }
-});
-
-router.get('/:id', async (req, res) => {
-  try {
-    const [rows] = await wire.query(
-      `SELECT 
-         b.blog_id,
-         b.user_id,
-         b.blog_title,
-         b.message,
-         b.blog_up,
-         b.blog_down,
-         u.img,
-         u.user_name,
-         b.created_at
-       FROM blog b
-       LEFT JOIN users u ON b.user_id = u.user_id
-       WHERE b.blog_id = ?
-       LIMIT 1`,
-      [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ message: 'Not found' });
-    res.json({ data: rows[0] });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'fetch post by id failed' });
-  }
-});
-
-router.put('/', async (req, res) => {
-  try {
-    const { message, blog_id } = req.body;
-    await wire.query('UPDATE blog SET message = ? WHERE blog_id = ?', [message, blog_id]);
-    res.json({ message: 'updatesuccess' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update blog' });
-  }
-});
-
-router.delete('/:id', async (req, res) => {
-  try {
-    await wire.query('DELETE FROM blog WHERE blog_id = ?', [req.params.id]);
-    res.json('delete success');
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "can't deleted blog" });
   }
 });
 
@@ -142,3 +108,34 @@ router.post('/:id/vote-simple', async (req, res) => {
 
 module.exports = { router, DBconnect };
 
+router.put('/', async (req, res) => {
+  try {
+    const { message, blog_id } = req.body;
+
+    await prisma.blog.update({
+      where: { blog_id: blog_id },
+      data: { message },
+    });
+
+    res.json({ message: 'updatesuccess' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update blog" });
+  }
+});
+
+
+router.delete('/:id', async (req, res) => {
+  try {
+    await prisma.blog.delete({
+      where: { blog_id: Number(req.params.id) },
+    });
+
+    res.json('delete success');
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "can't deleted blog" });
+  }
+});
+
+module.exports = router;
