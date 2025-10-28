@@ -1,10 +1,12 @@
-"use client"; 
+"use client";
 
 import { useEffect, useState } from "react";
 import NoteList from "./NoteList";
 import Popup from "./Popup";
+import useUserId from "./useUserId";
 
 export default function NoteContainer() {
+  const userId = useUserId();
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,10 +17,18 @@ export default function NoteContainer() {
   useEffect(() => {
     async function fetchNotes() {
       try {
-        const res = await fetch("http://localhost:8000/api/note", { cache: "no-store" });
+        const res = await fetch("http://localhost:8000/api/note", {
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
         const data = await res.json();
-        setNotes(data);
+
+        const flattened = (data || []).map((n) => ({
+          ...n,
+          user_name: n.users?.user_name ?? "anonymous",
+          img: n.users?.img ?? null,
+        }));
+        setNotes(flattened);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -28,7 +38,7 @@ export default function NoteContainer() {
     fetchNotes();
   }, []);
 
-  if (loading) return <p></p>;
+  if (loading) return <p />;
   if (error) return <p className="text-red-600">error: {error}</p>;
 
   return (
@@ -43,7 +53,6 @@ export default function NoteContainer() {
         }}
       />
 
-      {/* Popup Overlay */}
       {showPopup && selectedNote && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
           <Popup
@@ -53,6 +62,10 @@ export default function NoteContainer() {
             text={selectedNote.message}
             name={selectedNote.user_name}
             isPosted={true}
+            maxParty={selectedNote.max_party || 0}
+            currParty={selectedNote.crr_party || 0}
+            ownerId={selectedNote.user_id}
+            viewerUserId={userId}
           />
         </div>
       )}

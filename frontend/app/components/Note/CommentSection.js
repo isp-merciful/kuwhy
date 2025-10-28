@@ -137,7 +137,10 @@ export default function CommentSection({ noteId, userId }) {
             parent_comment_id: parentId,
           }),
         });
-        console.log("📩 Notification sent");
+        console.log("📩 Notification sent",{sender_id: userId,
+            note_id: noteId,
+            comment_id: newCommentId,
+            parent_comment_id: parentId,});
       } catch (err) {
         console.error("❌ Failed to send notification:", err);
       }

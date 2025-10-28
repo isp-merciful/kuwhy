@@ -7,25 +7,60 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model account {
-  id                String  @id @db.Char(36)
-  userId            String  @db.Char(36)
-  type              String? @db.VarChar(255)
-  provider          String? @db.VarChar(255)
-  providerAccountId String? @db.VarChar(255)
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String? @db.VarChar(255)
-  scope             String? @db.VarChar(255)
-  id_token          String? @db.Text
-  session_state     String? @db.Text
-  user              user    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "account_ibfk_1")
+model User {
+  id            String    @id @default(uuid()) @db.Char(36)
+  name          String?
+  email         String?   @unique @db.VarChar(191)
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
 
-  @@unique([provider, providerAccountId], map: "provider")
-  @@index([userId], map: "userId")
+  @@map("user")
 }
 
+model Account {
+  id                 String  @id @default(uuid()) @db.Char(36)
+  userId             String  @db.Char(36)
+  type               String
+  provider           String  @db.VarChar(191)
+  providerAccountId  String  @db.VarChar(191)
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("account")
+}
+
+model Session {
+  id            String   @id @default(uuid()) @db.Char(36)
+  sessionToken  String   @unique @db.VarChar(191)
+  userId        String   @db.Char(36)
+  expires       DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model VerificationToken {
+  identifier String  @db.VarChar(191)
+  token      String  @unique @db.VarChar(191)
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtoken")
+}
+
+
+///////////////////////////////////////////////////////////
 model blog {
   blog_id       Int             @id @default(autoincrement())
   blog_title    String?         @db.VarChar(60)
@@ -76,7 +111,7 @@ model note {
   comment       comment[]
   users         users           @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "note_ibfk_1")
   notifications notifications[]
-
+  party_messages party_messages[] @relation("NotePartyMessages")
   @@index([user_id], map: "user_id")
 }
 
@@ -91,43 +126,33 @@ model notifications {
   type                                             notifications_type
   is_read                                          Boolean?           @default(false)
   created_at                                       DateTime?          @default(now()) @db.Timestamp(0)
+
+  // relations to note/blog/comment (เดิม)
   note                                             note?              @relation(fields: [note_id], references: [note_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_1")
   blog                                             blog?              @relation(fields: [blog_id], references: [blog_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_2")
   comment_notifications_comment_idTocomment        comment            @relation("notifications_comment_idTocomment", fields: [comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_3")
   comment_notifications_parent_comment_idTocomment comment?           @relation("notifications_parent_comment_idTocomment", fields: [parent_comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_4")
 
+  // NEW: relations to users (sender/recipient)
+  sender                                           users              @relation("notifications_sender", fields: [sender_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_5")
+  recipient                                        users              @relation("notifications_recipient", fields: [recipient_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_6")
+
   @@index([blog_id], map: "blog_id")
   @@index([comment_id], map: "comment_id")
   @@index([note_id], map: "note_id")
   @@index([parent_comment_id], map: "parent_comment_id")
+  @@index([sender_id], map: "sender_id")
+  @@index([recipient_id], map: "recipient_id")
 }
 
-model session {
-  id           String    @id @db.Char(36)
-  sessionToken String?   @unique(map: "sessionToken") @db.VarChar(255)
-  userId       String?   @db.Char(36)
-  expires      DateTime? @db.DateTime(0)
-  user         user?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "session_ibfk_1")
 
-  @@index([userId], map: "userId")
-}
-
-model user {
-  id            String    @id @db.Char(36)
-  name          String?   @db.VarChar(255)
-  email         String?   @unique(map: "email") @db.VarChar(255)
-  emailVerified DateTime? @db.DateTime(0)
-  image         String?   @db.VarChar(255)
-  account       account[]
-  session       session[]
-}
 
 model users {
   user_id    String       @id @db.Char(36)
   user_name  String       @default("anonymous") @db.VarChar(255)
   login_name String?      @db.VarChar(255)
   party_id   Int          @default(0)
-  gender     users_gender
+  gender     users_gender @default(Not_Specified)
   img        String?      @default("pfp") @db.VarChar(255)
   role       users_role   @default(anonymous)
   email      String?      @unique(map: "email") @db.VarChar(255)
@@ -137,17 +162,35 @@ model users {
   blog       blog[]
   comment    comment[]
   note       note[]
+  party_messages party_messages[] @relation("UserPartyMessages")
+  // NEW: back-relations for notifications
+  notifications_sent     notifications[] @relation("notifications_sender")
+  notifications_received notifications[] @relation("notifications_recipient")
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model verificationtoken {
-  identifier String?   @db.VarChar(255)
-  token      String?   @unique(map: "token") @db.VarChar(255)
-  expires    DateTime? @db.DateTime(0)
 
-  @@unique([identifier, token], map: "identifier")
-  @@ignore
+
+model party_members {
+  id       Int    @id @default(autoincrement())
+  note_id  Int
+  user_id  String
+  @@unique([note_id, user_id])
 }
+
+model party_messages {
+  message_id Int      @id @default(autoincrement())
+  note_id    Int
+  user_id    String
+  content    String   @db.Text
+  created_at DateTime @default(now())
+
+  // relations (ตั้งชื่อ relation ชัดเจน)
+  note  note  @relation("NotePartyMessages", fields: [note_id], references: [note_id], onDelete: Cascade)
+  user  users @relation("UserPartyMessages", fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([note_id, created_at], map: "idx_party_messages_note_time")
+}
+
 
 enum users_gender {
   Male

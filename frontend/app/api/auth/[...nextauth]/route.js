@@ -1,10 +1,9 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../../../lib/prisma";
 
-// สร้าง PrismaClient ตรงนี้
-const prisma = new PrismaClient();
+export const runtime = "nodejs";
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
@@ -15,18 +14,14 @@ export const authOptions = {
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
-  session: {
-    strategy: "database",
-  },
+  session: { strategy: "database" },
   callbacks: {
     async session({ session, user }) {
-      session.user.id = user.id;
+      if (session?.user) session.user.id = user.id;
       return session;
     },
   },
 };
 
 const handler = NextAuth(authOptions);
-
-// ต้อง export GET/POST สำหรับ App Router
 export { handler as GET, handler as POST };

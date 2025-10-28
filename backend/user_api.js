@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const { prisma } = require('./lib/prisma.cjs');
 const bcrypt = require("bcrypt");
 
 router.post("/register", async (req, res) => {
@@ -88,8 +87,14 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const users = await prisma.users.findMany({where: {user_id:req.params.id}});
-    res.json(users);
+    const user = await prisma.users.findUnique({
+      where: { user_id: req.params.id },
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // ป้องกัน cache
+    res.set('Cache-Control', 'no-store');
+    res.json(user); // <= ไม่ใช่ array แล้ว
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'fetch user fail' });

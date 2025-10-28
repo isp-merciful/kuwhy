@@ -7,7 +7,7 @@
   "description": "",
 
   "main": "index.js",
-
+  "prisma": { "schema": "../prisma/schema.prisma" },
   "scripts": {
 
     "dev": "nodemon server.js",
