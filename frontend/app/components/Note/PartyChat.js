@@ -27,9 +27,10 @@ function Bubble({ mine, name, img, text, time }) {
         <div
           className={[
             // จำกัดกว้าง “ครึ่งนึงนิด ๆ” ของ viewport แชท
-            "max-w-[55%]",
-            // ตัดคำทุกกรณี + เคารพ \n
-            "break-words whitespace-normal",
+            "max-w-[70%]",
+            // ตัดคำทุรณี + เคารพ \n
+            "w-fit",
+            "whitespace-normal break-keep",
             // ฟอง
             "px-4 py-2 rounded-2xl leading-relaxed",
             mine ? "bg-blue-500 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm",
@@ -174,7 +175,7 @@ export default function PartyChat({ noteId, userId }) {
       text.trim() && !pending ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-300"
     }`}
           >
-    ส่ง
+    เกย์
         </button>
       </div> 
     </div>
