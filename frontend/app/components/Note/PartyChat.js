@@ -33,6 +33,7 @@ function Bubble({ mine, name, img, text, time }) {
             "whitespace-normal break-keep",
             // ฟอง
             "px-4 py-2 rounded-2xl leading-relaxed",
+            "text-center",
             mine ? "bg-blue-500 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm",
           ].join(" ")}
         >
@@ -175,7 +176,7 @@ export default function PartyChat({ noteId, userId }) {
       text.trim() && !pending ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-300"
     }`}
           >
-    เกย์
+    เกย์222
         </button>
       </div> 
     </div>
