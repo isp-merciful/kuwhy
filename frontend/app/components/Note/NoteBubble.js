@@ -213,7 +213,7 @@ export default function NoteBubble() {
         // โพสต์เอง → ไม่ใช่ joined
         setJoinedMemberOnly(false);
 
-        alert("เพิ่มโน้ตสำเร็จ!");
+        // alert("เพิ่มโน้ตสำเร็จ!");
       } else {
         alert(result?.error || "ไม่สามารถโพสต์ได้");
       }
@@ -549,7 +549,7 @@ export default function NoteBubble() {
                 transition={{ delay: 0.15 }}
                 className="text-gray-500 text-sm mt-3 text-center max-w-sm"
               >
-                เปิดปาร์ตี้ได้ 2–20 คน (นับตัวเองด้วย) 
+                Party can be held with 2–20 people (including yourself).
               </motion.p>
             )}
 
