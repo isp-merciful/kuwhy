@@ -29,7 +29,7 @@ function Bubble({ mine, name, img, text, time }) {
             // จำกัดกว้าง “ครึ่งนึงนิด ๆ” ของ viewport แชท
             "max-w-[55%]",
             // ตัดคำทุกกรณี + เคารพ \n
-            "break-words break-all whitespace-pre-wrap",
+            "break-words whitespace-normal",
             // ฟอง
             "px-4 py-2 rounded-2xl leading-relaxed",
             mine ? "bg-blue-500 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm",
@@ -141,30 +141,42 @@ export default function PartyChat({ noteId, userId }) {
       </div>
 
       {/* composer */}
-      <div className="mt-2 pt-2 border-t flex gap-2 sticky bottom-0 bg-white z-10">
-        <textarea
-          rows={1}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          placeholder="Aa"
-          className="flex-1 border rounded-2xl px-4 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 whitespace-pre-wrap"
-        />
-        <button
-          onClick={send}
-          disabled={pending || !text.trim()}
-          className={`px-4 py-2 rounded-full text-white transition ${
-            text.trim() && !pending ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-300"
-          }`}
-        >
-          ส่ง
+<div className="mt-2 pt-2 border-t flex gap-2 sticky bottom-0 bg-white z-10">
+  <input
+    type="text"
+    value={text}
+    onChange={(e) => {
+      // ตัด \n, \r ออกกันทุกเคส (รวมถึงตอน paste)
+      const noNewline = e.target.value.replace(/[\r\n]+/g, " ");
+      setText(noNewline);
+    }}
+    onKeyDown={(e) => {
+      // Enter เพื่อส่ง, กัน Shift+Enter ไม่ให้เกิดบรรทัดใหม่
+      if (e.key === "Enter") {
+        e.preventDefault();
+        send();
+      }
+    }}
+    onPaste={(e) => {
+      // กันข้อความหลายบรรทัดตอน paste
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData("text");
+      const oneLine = pasted.replace(/[\r\n]+/g, " ");
+      setText((prev) => (prev + " " + oneLine).trim());
+    }}
+    placeholder="Aa"
+    className="flex-1 border rounded-2xl px-4 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+  />
+    <button
+    onClick={send}
+    disabled={pending || !text.trim()}
+    className={`px-4 py-2 rounded-full text-white transition ${
+      text.trim() && !pending ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-300"
+    }`}
+          >
+    ส่ง
         </button>
-      </div>
+      </div> 
     </div>
   );
 }
