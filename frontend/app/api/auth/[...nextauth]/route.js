@@ -1,27 +1,50 @@
+// app/api/auth/[...nextauth]/route.js
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import Credentials from "next-auth/providers/credentials";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "../../../../lib/prisma";
+import { prisma } from "../../../../lib/prisma"; // ⬅️ ปรับ path ให้ตรงโปรเจกต์
 import bcrypt from "bcrypt";
 
 export const runtime = "nodejs";
 
+// สร้าง/ซิงก์แถวในตาราง users ให้มี user_id = user.id (ของ NextAuth) เสมอ
+async function ensureUsersRowFromNextAuthUser(user) {
+  if (!user?.id) return;
+
+  const exists = await prisma.users.findUnique({ where: { user_id: user.id } });
+
+  if (!exists) {
+    await prisma.users.create({
+      data: {
+        user_id: user.id,
+        login_name: user.email ?? `user_${user.id.slice(0, 8)}`,
+        user_name: user.name ?? "anonymous",
+        password: "", // Google ไม่มีรหัสผ่าน
+        img: user.image ?? "/images/pfp.png",
+        gender: "Not_Specified",
+        role: "member", // Google ครั้งแรก → member
+      },
+    });
+  } else if (exists.role === "anonymous") {
+    // อัปเกรดจาก anonymous → member เมื่อมีการ sign-in จริง
+    await prisma.users.update({
+      where: { user_id: exists.user_id },
+      data: { role: "member" },
+    });
+  }
+}
+
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
 
-    // ✅ เพิ่ม CredentialsProvider
-    Credentials({
+  providers: [
+    CredentialsProvider({
       name: "Credentials",
       credentials: {
-        login_name: { label: "login_name", type: "text" },
-        user_name: { label: "user_name", type: "text" }, // ใช้เฉพาะ register
-        password: { label: "password", type: "password" },
+        login_name: { label: "Username", type: "text", placeholder: "your_username" },
+        user_name: { label: "Display name", type: "text" }, // ใช้เฉพาะตอนสมัคร
+        password: { label: "Password", type: "password" },
         isRegister: { label: "isRegister", type: "text" }, // 'true' | 'false'
       },
       async authorize(credentials) {
@@ -30,141 +53,141 @@ export const authOptions = {
         const user_name = (credentials?.user_name || "").trim();
         const password = credentials?.password || "";
 
-        if (!login_name || !password) {
-          throw new Error("Missing credentials");
-        }
-
-        // helper: ensure User (ของ NextAuth) มี record คู่กับ users.user_id
-        async function upsertNextAuthUser({ user_id, name, image }) {
-          // email ไม่จำเป็น (ปล่อย null ก็ได้) แต่บางระบบอยากให้ไม่เป็น null
-          const pseudoEmail = `${login_name}@local.invalid`; // ไม่ถูกใช้ส่งเมล แค่กัน unique
-          const ua = await prisma.user.upsert({
-            where: { id: user_id },
-            update: {
-              name: name ?? undefined,
-              image: image ?? undefined,
-              // email ควรคงเดิมถ้ามีจาก Google แล้ว
-            },
-            create: {
-              id: user_id,
-              name: name || "anonymous",
-              email: pseudoEmail,
-              image: image || null,
-            },
-          });
-          return ua;
-        }
+        if (!login_name || !password) throw new Error("Missing credentials");
 
         if (isRegister) {
-          // สมัครใหม่
-          // ตรวจซ้ำ login_name
-          const dup = await prisma.users.findFirst({ where: { login_name } });
-          if (dup) {
-            throw new Error("Username already exists");
-          }
+          // กันชื่อซ้ำ
+          const dup = await prisma.users.findUnique({ where: { login_name } });
+          if (dup) throw new Error("Username already exists");
 
-          // สร้าง user_id server-side
-          const user_id =
-            (globalThis.crypto?.randomUUID && crypto.randomUUID()) ||
-            `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
+          // hash
           const hash = await bcrypt.hash(password, 10);
 
-          const newUser = await prisma.users.create({
+          // gen user_id (ตารางคุณใช้ CHAR(36))
+          const { randomUUID } = await import("crypto");
+          const user_id = randomUUID();
+
+          // สร้างในตาราง users (role = member)
+          const created = await prisma.users.create({
             data: {
               user_id,
-              user_name: user_name || "anonymous",
               login_name,
+              user_name: user_name || "anonymous",
               password: hash,
               gender: "Not_Specified",
               img: "/images/pfp.png",
+              role: "member",
             },
           });
 
-          // ensure ผู้ใช้มีเรคคอร์ดในตาราง User (ของ NextAuth) เพื่อใช้ session แบบ database
-          const naUser = await upsertNextAuthUser({
-            user_id: newUser.user_id,
-            name: newUser.user_name,
-            image: newUser.img,
+          // ensure NextAuth.User (id เท่ากับ users.user_id)
+          await prisma.user.upsert({
+            where: { id: created.user_id },
+            update: {
+              name: created.user_name,
+              image: created.img,
+              email: `${created.login_name}@local.invalid`,
+            },
+            create: {
+              id: created.user_id,
+              name: created.user_name,
+              image: created.img,
+              email: `${created.login_name}@local.invalid`,
+            },
           });
 
-          // ส่ง user ที่ NextAuth เข้าใจ (ต้องมี id ของตาราง User)
+          // คืนข้อมูลสำหรับ JWT
           return {
-            id: naUser.id,
-            name: naUser.name,
-            email: naUser.email,
-            image: naUser.image,
-            // เพิ่ม props เผื่ออยากใช้งานต่อใน callback
-            login_name: newUser.login_name,
-            user_id: newUser.user_id,
+            id: created.user_id,
+            name: created.user_name,
+            email: `${created.login_name}@local.invalid`,
+            image: created.img,
+            login_name: created.login_name,
+            role: created.role,
           };
         }
 
-        // ล็อกอิน
-        const existing = await prisma.users.findFirst({ where: { login_name } });
-        if (!existing) {
-          throw new Error("Username not found");
-        }
+        // ===== LOGIN =====
+        const user = await prisma.users.findUnique({ where: { login_name } });
+        if (!user || !user.password) throw new Error("Invalid username or password");
 
-        const ok = await bcrypt.compare(password, existing.password);
-        if (!ok) {
-          throw new Error("Invalid password");
-        }
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) throw new Error("Invalid username or password");
 
-        const naUser = await upsertNextAuthUser({
-          user_id: existing.user_id,
-          name: existing.user_name,
-          image: existing.img,
+        // ensure NextAuth.User มี row คู่กัน (กรณี users มีอยู่ก่อน)
+        await prisma.user.upsert({
+          where: { id: user.user_id },
+          update: {
+            name: user.user_name,
+            image: user.img ?? undefined,
+            email: user.email ?? `${user.login_name}@local.invalid`,
+          },
+          create: {
+            id: user.user_id,
+            name: user.user_name,
+            image: user.img ?? null,
+            email: user.email ?? `${user.login_name}@local.invalid`,
+          },
         });
 
         return {
-          id: naUser.id,
-          name: naUser.name,
-          email: naUser.email,
-          image: naUser.image,
-          login_name: existing.login_name,
-          user_id: existing.user_id,
+          id: user.user_id,
+          name: user.user_name ?? null,
+          email: user.email ?? `${user.login_name}@local.invalid`,
+          image: user.img ?? null,
+          login_name: user.login_name,
+          role: user.role,
         };
       },
     }),
+
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
   ],
 
-  secret: process.env.NEXTAUTH_SECRET,
-
-  // คุณตั้งไว้เป็น database → เก็บ session ลงตาราง Session ของ NextAuth
-  session: { strategy: "database" },
+  // ใช้ JWT เพื่อให้ middleware/บริการอื่นๆ ตรวจได้ง่าย
+  session: { strategy: "jwt" },
 
   callbacks: {
-    // เพิ่มข้อมูลจากตาราง users ของคุณเข้าไปใน session.user ทุกครั้งที่โหลด session
-    async session({ session, user }) {
-      // user ที่นี่คือเรคคอร์ดจากตาราง User (ของ NextAuth Adapter)
-      if (session?.user && user?.id) {
-        // ดึงข้อมูลโปรไฟล์จริงจากตาราง users ของคุณ ด้วย user_id = user.id
-        // (เราเก็บให้เท่ากันไว้ด้านบน)
-        try {
-          const profile = await prisma.users.findUnique({
-            where: { user_id: user.id },
-            select: { user_id: true, user_name: true, login_name: true, img: true },
-          });
+    // เรียกทุกครั้งที่ sign-in (ทั้ง Google และ Credentials)
+    async signIn({ user }) {
+      try {
+        await ensureUsersRowFromNextAuthUser(user);
+      } catch (e) {
+        console.error("ensureUsersRowFromNextAuthUser error:", e);
+      }
+      return true;
+    },
 
-          // set id (จากตาราง User ของ NextAuth)
-          session.user.id = user.id;
+    async jwt({ token, user }) {
+      // ตอน sign-in จะมี user → อัดค่าลง token
+      if (user) {
+        token.id = user.id; // users.user_id / NextAuth.User.id
+        token.login_name = user.login_name ?? token.login_name;
+        token.name = user.name ?? token.name;
+        token.picture = user.image ?? token.picture;
+        token.role = user.role ?? token.role;
+      }
+      return token;
+    },
 
-          // ถ้ามีโปรไฟล์ฝั่งคุณ → แนบเพิ่ม
-          if (profile) {
-            session.user.user_id = profile.user_id;
-            session.user.name = profile.user_name ?? session.user.name;
-            session.user.login_name = profile.login_name ?? session.user.login_name;
-            session.user.image = profile.img ?? session.user.image;
-          }
-        } catch {
-          // fallback อย่างน้อยคง id เดิมไว้
-          session.user.id = user.id;
-        }
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.login_name = token.login_name;
+        session.user.name = token.name ?? session.user.name;
+        session.user.image = token.picture ?? session.user.image;
+        session.user.role = token.role || "member";
       }
       return session;
     },
   },
+
+  // (เลือกใส่) ถ้ามีหน้า login ของคุณเองที่ /login
+  // pages: { signIn: "/login" },
+  pages: { signIn: "/login" },
 };
 
 const handler = NextAuth(authOptions);

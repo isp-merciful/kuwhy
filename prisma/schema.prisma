@@ -150,7 +150,7 @@ model notifications {
 model users {
   user_id    String       @id @db.Char(36)
   user_name  String       @default("anonymous") @db.VarChar(255)
-  login_name String?      @db.VarChar(255)
+  login_name String       @unique @db.VarChar(191)
   party_id   Int          @default(0)
   gender     users_gender @default(Not_Specified)
   img        String?      @default("pfp") @db.VarChar(255)
