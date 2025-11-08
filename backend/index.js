@@ -8,6 +8,7 @@ const noteRouter = require("./note_api");
 const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
+const { requireMember, requireAdmin } = require("./auth_mw");
 
 const app = express();
 app.use(bodyParser.json());
@@ -15,16 +16,17 @@ app.use(bodyParser.json());
 app.use(cors({
   origin: "http://localhost:3000", 
   methods: ["GET", "POST","PUT","DELETE"],        
-  credentials: true
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
 
-app.use("/api/blog", blogRouter);
+app.use("/api/blog",requireMember, blogRouter);
 app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/note", noteRouter);
 app.use("/api/user", userRouter);
-app.use("/api/chat", partyChatApi);
+app.use("/api/chat",requireMember, partyChatApi);
 
 const port = process.env.PORT || 8000;
 

@@ -1,7 +1,7 @@
 // backend/note_api.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
-
+const { optionalAuth, requireMember } = require("./auth_mw");
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -101,7 +101,7 @@ router.get("/:id", async (req, res) => {
  * - บังคับ max_party: 0 หรือ [2..20]
  * - ถ้าเป็นปาร์ตี้ → crr_party = 1 (นับคนโพสต์)
  * ========================================= */
-router.post("/", async (req, res) => {
+router.post("/",optionalAuth, async (req, res) => {
   try {
     const { message, user_id } = req.body;
     let { max_party } = req.body;
@@ -172,7 +172,7 @@ router.delete("/:id", async (req, res) => {
  * - กันซ้ำ: ถ้าเป็นสมาชิกอยู่แล้ว → 200 success + message
  * - ทำในธุรกรรมเดียว ลด race
  * ========================================= */
-router.post("/join", async (req, res) => {
+router.post("/join",requireMember, async (req, res) => {
   try {
     const { note_id, user_id } = req.body;
 
@@ -252,7 +252,7 @@ router.post("/join", async (req, res) => {
 });
 
 
-router.post("/leave", async (req, res) => {
+router.post("/leave",requireMember, async (req, res) => {
   try {
     const { note_id, user_id } = req.body;
     if (!note_id || !user_id) {
@@ -306,7 +306,7 @@ router.post("/leave", async (req, res) => {
 });
 
 
-router.get("/party/is-member", async (req, res) => {
+router.get("/party/is-member",requireMember, async (req, res) => {
   try {
     const note_id = Number(req.query.note_id);
     const user_id = String(req.query.user_id || "");
