@@ -27,9 +27,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  if (req.nextUrl.pathname.startsWith('/settings')) {
+    if (!token) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('callbackUrl', req.nextUrl.pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/blog/:path*", "/party/:path*", "/admin/:path*"],
+  matcher: ["/blog/:path*", "/party/:path*", "/admin/:path*",'/settings/:path*'],
 };
