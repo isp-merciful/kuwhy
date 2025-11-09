@@ -1,47 +1,46 @@
 const express = require("express");
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 const { prisma } = require('./lib/prisma.cjs');
 
-
-router.put('/:userId/setting', async (req, res) => {
+router.put('/', async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { full_name,email,bio,location,website,phone } = req.body;
-
-
-
-
+    const { id: userId } = req.params;
+    const { full_name, email, bio, location, website, phone } = req.body;
 
     if (!userId) {
-      return res.status(400).json({ error: "Missing name or userId" });
+      return res.status(400).json({ error: "Missing userId" });
     }
 
     const updates = {};
+    if (full_name !== undefined) updates.full_name = full_name;
+    if (email !== undefined) updates.email = email;
+    if (bio !== undefined) updates.bio = bio;
+    if (location !== undefined) updates.location = location;
+    if (website !== undefined) updates.website = website;
+    if (phone !== undefined) updates.phone = phone;
 
-    if (req.body.full_name !== undefined) updates.full_name = req.body.full_name;
-    if (req.body.email !== undefined) updates.email = req.body.email;
-    if (req.body.bio !== undefined) updates.bio = req.body.bio;
-    if (req.body.location !== undefined) updates.location = req.body.location;
-    if (req.body.website !== undefined) updates.website = req.body.website;
-    if (req.body.phone !== undefined) updates.phone = req.body.phone;
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "No fields provided for update" });
+    }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
+    const updatedUser = await prisma.users.update({
+      where: { user_id: userId },
       data: updates,
     });
 
-    res.json({ message: "Name updated successfully", user_name: updatedUser.user_name });
+    res.json({
+      message: "User settings updated successfully",
+      user: updatedUser,
+    });
+
   } catch (err) {
     if (err.code === 'P2025') { // Prisma error: record not found
       return res.status(404).json({ error: "User not found" });
     }
 
     console.error(err);
-    res.status(500).json({ error: "Failed to update user name" });
+    res.status(500).json({ error: "Failed to update user settings" });
   }
 });
-
-
-
 
 module.exports = router;

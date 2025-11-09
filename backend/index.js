@@ -8,6 +8,7 @@ const noteRouter = require("./note_api");
 const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
+const usersettingapi = require("./user_setting_api");
 
 const app = express();
 app.use(bodyParser.json());
