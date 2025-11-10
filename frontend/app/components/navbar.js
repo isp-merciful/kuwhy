@@ -95,7 +95,7 @@ export default function Navbar() {
                   {/* guard gap */}
                   <div
                     className={
-                      `absolute right-0 top-[calc(100%+8px)] min-w-[240px] origin-top-right rounded-2xl border border-emerald-900/10 bg-white shadow-xl transition-[opacity,transform] duration-150 ease-out will-change-transform 
+                      `absolute right-0 top-[calc(100%+8px)] min-w-[200px] origin-top-right rounded-2xl border border-emerald-900/10 bg-white shadow-xl transition-[opacity,transform] duration-150 ease-out will-change-transform 
                       ${showFeatures ? 'opacity-100 scale-100' : 'pointer-events-none opacity-0 scale-95'}`
                     }
                     role="menu"
@@ -213,7 +213,7 @@ function ProfileMenu({
       </button>
 
       <div
-        className={`z-40 absolute right-0 top-[calc(100%+8px)] w-[200px] origin-top-right
+        className={`z-40 absolute right-0 top-[calc(100%+8px)] w-[150px] origin-top-right
                     rounded-xl bg-white shadow-[0_16px_36px_-26px_rgba(0,0,0,0.45)]
                     transition-[opacity,transform] duration-180 will-change-transform
                     ${show ? 'opacity-100 scale-100' : 'pointer-events-none opacity-0 scale-95'}`}
@@ -227,7 +227,7 @@ function ProfileMenu({
           <MenuButton
             onClick={onLogout}
             icon={<ArrowRightOnRectangleIcon className="h-4 w-4" />}
-            text="Logout"
+            text="Log out"
             danger
           />
         </div>
