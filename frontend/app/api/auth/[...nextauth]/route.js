@@ -10,7 +10,7 @@ import { randomUUID } from 'crypto';
 
 export const runtime = 'nodejs';
 
-/** สร้าง/อัปเดต row ในตาราง `users` (ของคุณ) ให้ user_id เท่ากับ NextAuth.User.id เสมอ */
+/** Sync ให้ตาราง `users` (ของคุณ) มี user_id = NextAuth.User.id เสมอ เมื่อ Google sign-in */
 async function ensureUsersRowFromNextAuthUser(user) {
   if (!user?.id) return;
 
@@ -63,11 +63,12 @@ export const authOptions = {
         const user_name = (credentials?.user_name || '').trim();
         const password = credentials?.password || '';
 
-        if (!login_name || !password) throw new Error('Missing credentials');
+        // คืน null แทน throw เพื่อหลีกเลี่ยง stack trace; ฝั่ง client จะเห็น CredentialsSignin
+        if (!login_name || !password) return null;
 
         if (isRegister) {
           const dup = await prisma.users.findUnique({ where: { login_name } });
-          if (dup) throw new Error('Username already exists');
+          if (dup) return null;
 
           const user_id = randomUUID();
           const hash = await bcrypt.hash(password, 10);
@@ -87,6 +88,7 @@ export const authOptions = {
               },
             });
 
+            // sync ตาราง next-auth: User
             await tx.user.upsert({
               where: { id: u.user_id },
               update: { name: u.user_name, image: u.img, email: u.email },
@@ -108,13 +110,14 @@ export const authOptions = {
 
         // ===== LOGIN =====
         const user = await prisma.users.findUnique({ where: { login_name } });
-        if (!user || !user.password) throw new Error('Invalid username or password');
+        if (!user || !user.password) return null;
 
         const ok = await bcrypt.compare(password, user.password);
-        if (!ok) throw new Error('Invalid username or password');
+        if (!ok) return null;
 
         const emailSafe = user.email || `${user.login_name}@local.invalid`;
 
+        // sync ตาราง next-auth: User
         await prisma.user.upsert({
           where: { id: user.user_id },
           update: { name: user.user_name, image: user.img ?? undefined, email: emailSafe },
@@ -197,7 +200,8 @@ export const authOptions = {
     },
   },
 
-  pages: { signIn: '/login' },
+  // ส่งทุก error flow (เช่น OAuth ล้มเหลว) กลับหน้า /login เพื่อให้หน้า Login แสดงข้อความเอง
+  pages: { signIn: '/login', error: '/login' },
 };
 
 const handler = NextAuth(authOptions);
