@@ -23,83 +23,81 @@ export default function Navbar() {
 
   const featuresRef = useRef(null);
   const profileRef = useRef(null);
+  const bellRef = useRef(null);
   const closeTimer = useRef(null);
 
   useEffect(() => setMounted(true), []);
 
+  // anti-flicker open/close helpers
   const openWithGrace = (setter) => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setter(true);
   };
-  const closeWithDelay = (setter, ms = 140) => {
+  const closeWithDelay = (setter, ms = 160) => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(() => setter(false), ms);
+  };
+  const closeAll = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setShowFeatures(false);
+    setShowProfile(false);
   };
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/' });
-    try {
-      localStorage.setItem('userId', crypto.randomUUID());
-    } catch {}
+    try { localStorage.setItem('userId', crypto.randomUUID()); } catch {}
   };
 
   if (!mounted || status === 'loading') return null;
 
   const isAuthed = status === 'authenticated';
   const isAdmin = session?.user?.role === 'admin';
-  const avatarSrc =
-    (session?.user?.image && String(session.user.image)) ||
-    '/images/pfp.png';
+  const avatarSrc = (session?.user?.image && String(session.user.image)) || '/images/pfp.png';
   const displayName = session?.user?.name || 'User';
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <div className="bg-white/85 supports-[backdrop-filter]:backdrop-blur-md border-b border-emerald-900/10">
+      <div className="bg-white/85 supports-[backdrop-filter]:backdrop-blur-md border-b border-black/5">
         <nav className="max-w-7xl mx-auto">
           <div className="flex h-16 items-center px-4 sm:px-6">
             {/* Brand */}
-            <a href="/" className="inline-flex items-center">
-              <span className="text-lg sm:text-xl font-extrabold tracking-wide text-emerald-700">
-                KUWHY
+            <a href="/" className="inline-flex items-center select-none">
+              <span className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-[#1E6BFF] via-[#1fb67a] to-[#16A34A] bg-clip-text text-transparent">
+                KU&nbsp;WHY
               </span>
             </a>
 
             {/* Right side */}
             <div className="ml-auto flex items-center gap-2">
-              <ul className="hidden md:flex items-center gap-2">
+              <ul className="hidden md:flex items-center gap-1">
                 <NavLink href="/">Home</NavLink>
 
-                {/* Hover dropdown for Features */}
+                {/* Features */}
                 <li
                   ref={featuresRef}
                   className="relative"
-                  onMouseEnter={() => openWithGrace(setShowFeatures)}
+                  onMouseEnter={() => { closeAll(); openWithGrace(setShowFeatures); }}
                   onMouseLeave={() => closeWithDelay(setShowFeatures)}
                 >
                   <button
-                    className={`nav-pill inline-flex items-center gap-1 ${
-                      showFeatures ? 'ring-1 ring-emerald-500/20' : ''
-                    }`}
-                    onClick={() => setShowFeatures((v) => !v)}
+                    className="relative inline-flex items-center px-3 py-2 rounded-xl text-sm font-medium
+                               text-emerald-900 transition-[transform,box-shadow] duration-150 will-change-transform
+                               hover:scale-[1.05] group"
+                    onClick={() => { setShowProfile(false); setShowFeatures(v => !v); }}
                     aria-haspopup="menu"
                     aria-expanded={showFeatures}
                   >
-                    Features
-                    <ChevronDownIcon
-                      className={`h-4 w-4 transition-transform duration-200 will-change-transform ${
-                        showFeatures ? 'rotate-180' : ''
-                      }`}
-                    />
+                    <span>Features</span>
+                    <ChevronDownIcon className={`ml-1 h-4 w-4 transition-transform duration-150 ${showFeatures ? 'rotate-180' : ''}`} />
+                    <Underline />
                   </button>
 
+                  {/* guard gap */}
                   <div
-                    className={`absolute right-0 top-[calc(100%+8px)] min-w-[240px] origin-top-right rounded-2xl border border-emerald-900/10
-                                bg-white shadow-xl transition-[opacity,transform] duration-150 ease-out will-change-transform
-                                ${
-                                  showFeatures
-                                    ? 'opacity-100 scale-100'
-                                    : 'pointer-events-none opacity-0 scale-95'
-                                }`}
+                    className={
+                      `absolute right-0 top-[calc(100%+8px)] min-w-[240px] origin-top-right rounded-2xl border border-emerald-900/10 bg-white shadow-xl transition-[opacity,transform] duration-150 ease-out will-change-transform 
+                      ${showFeatures ? 'opacity-100 scale-100' : 'pointer-events-none opacity-0 scale-95'}`
+                    }
                     role="menu"
                   >
                     <div className="p-2">
@@ -122,24 +120,37 @@ export default function Navbar() {
                 <NavLink href="/about">About us</NavLink>
 
                 {isAdmin && (
-                  <a
-                    href="/admin"
-                    className="nav-pill inline-flex items-center gap-1"
-                  >
-                    <ShieldCheckIcon className="h-4 w-4" />
-                    Admin
+                  <a href="/admin" className="relative inline-flex items-center px-3 py-2 rounded-xl text-sm font-medium
+                                             text-emerald-900 transition-[transform,box-shadow] duration-150 will-change-transform
+                                             hover:scale-[1.05] group">
+                    <span>Admin</span>
+                    <ShieldCheckIcon className="ml-1 h-4 w-4" />
+                    <Underline />
                   </a>
                 )}
               </ul>
 
-              <div className="hidden sm:block">
+              {/* bell – hovering here closes all */}
+              <div
+                ref={bellRef}
+                className="hidden sm:block relative z-40"
+                onMouseEnter={closeAll}
+                onFocus={closeAll}
+              >
                 <NotificationBell />
               </div>
 
+              {/* auth */}
               {!isAuthed ? (
                 <a
                   href="/login"
-                  className="nav-pill inline-flex items-center"
+                  onMouseEnter={closeAll}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-emerald-950
+                             bg-gradient-to-r from-sky-200 via-emerald-200 to-green-200
+                             shadow-[0_8px_22px_-14px_rgba(16,185,129,0.45)]
+                             transition-transform duration-150 hover:scale-[1.04] focus:outline-none
+                             focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
+                  title="Login"
                 >
                   Login
                 </a>
@@ -149,7 +160,7 @@ export default function Navbar() {
                   openWithGrace={openWithGrace}
                   closeWithDelay={closeWithDelay}
                   show={showProfile}
-                  setShow={setShowProfile}
+                  setShow={(v) => { if (v) setShowFeatures(false); setShowProfile(v); }}
                   avatarSrc={avatarSrc}
                   displayName={displayName}
                   onLogout={handleLogout}
@@ -160,29 +171,8 @@ export default function Navbar() {
         </nav>
       </div>
 
+      {/* spacer */}
       <div className="h-16" />
-
-      <style jsx global>{`
-        @media (prefers-reduced-motion: reduce) {
-          * {
-            transition: none !important;
-            animation: none !important;
-          }
-        }
-        .nav-pill {
-          @apply px-3 py-2 rounded-xl text-sm font-medium text-emerald-900
-                 bg-white border border-emerald-900/10 transition-[transform,box-shadow,background-color] duration-150
-                 hover:scale-[1.03] hover:bg-emerald-50;
-        }
-        .nav-ghost {
-          @apply px-2 py-1 rounded-xl text-emerald-900
-                 transition-colors duration-150 hover:bg-emerald-900/5;
-        }
-        .menu-item {
-          @apply w-full inline-flex items-center gap-3 px-3 py-2 rounded-lg text-sm
-                 text-emerald-900 hover:bg-emerald-50 transition-colors;
-        }
-      `}</style>
     </header>
   );
 }
@@ -206,72 +196,40 @@ function ProfileMenu({
       onMouseEnter={() => openWithGrace(setShow)}
       onMouseLeave={() => closeWithDelay(setShow)}
     >
-      {/* Profile Button */}
       <button
-        className={`nav-ghost group inline-flex items-center gap-2 ${
-          show ? 'ring-1 ring-emerald-500/20' : ''
-        }`}
-        onClick={() => setShow((v) => !v)}
+        className="inline-flex items-center gap-2 px-2 py-1 rounded-lg transition-transform duration-150 hover:scale-[1.02]"
+        onClick={() => setShow(v => !v)}
         aria-haspopup="menu"
         aria-expanded={show}
       >
         <img
           src={avatarSrc}
           alt="Profile"
-          className="w-9 h-9 rounded-full object-cover ring-1 ring-emerald-900/10 transition-transform duration-150 group-hover:scale-105 will-change-transform"
-          onError={(e) => {
-            if (e.currentTarget.src !== '/images/pfp.png')
-              e.currentTarget.src = '/images/pfp.png';
-          }}
+          className="w-9 h-9 rounded-full object-cover"
+          onError={(e) => { if (e.currentTarget.src !== '/images/pfp.png') e.currentTarget.src = '/images/pfp.png'; }}
         />
-        <span className="hidden sm:block text-sm font-medium">
-          {displayName}
-        </span>
-        <ChevronDownIcon
-          className={`hidden sm:block h-4 w-4 transition-transform duration-150 will-change-transform ${
-            show ? 'rotate-180' : ''
-          }`}
-        />
+        <span className="hidden sm:block text-sm font-medium">{displayName}</span>
+        <ChevronDownIcon className={`hidden sm:block h-4 w-4 transition-transform duration-150 ${show ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown */}
       <div
-        className={`absolute right-0 top-[calc(100%+8px)] w-52 origin-top-right rounded-2xl border border-emerald-900/10
-                    bg-white shadow-lg overflow-hidden transition-all duration-150 ease-out
-                    ${
-                      show
-                        ? 'opacity-100 scale-100 translate-y-0'
-                        : 'pointer-events-none opacity-0 scale-95 -translate-y-1'
-                    }`}
+        className={`z-40 absolute right-0 top-[calc(100%+8px)] w-[200px] origin-top-right
+                    rounded-xl bg-white shadow-[0_16px_36px_-26px_rgba(0,0,0,0.45)]
+                    transition-[opacity,transform] duration-180 will-change-transform
+                    ${show ? 'opacity-100 scale-100' : 'pointer-events-none opacity-0 scale-95'}`}
         role="menu"
       >
-        <div className="flex flex-col divide-y divide-emerald-900/10">
-          <a
-            href="/profile"
-            className="menu-item justify-center py-3 text-center font-medium hover:bg-emerald-50"
-            role="menuitem"
-          >
-            <UserCircleIcon className="h-5 w-5 mr-1 inline-block text-emerald-700" />
-            Profile
-          </a>
-
-          <a
-            href="/settings"
-            className="menu-item justify-center py-3 text-center font-medium hover:bg-emerald-50"
-            role="menuitem"
-          >
-            <Cog6ToothIcon className="h-5 w-5 mr-1 inline-block text-emerald-700" />
-            Settings
-          </a>
-
-          <button
+        <div className="p-1">
+          <MenuRow href="/profile"  icon={<UserCircleIcon className="h-4 w-4" />} text="Profile" />
+          <Divider />
+          <MenuRow href="/settings" icon={<Cog6ToothIcon  className="h-4 w-4" />} text="Settings" />
+          <Divider />
+          <MenuButton
             onClick={onLogout}
-            className="menu-item justify-center py-3 text-center font-medium hover:bg-red-50 text-red-600 transition-colors"
-            role="menuitem"
-          >
-            <ArrowRightOnRectangleIcon className="h-5 w-5 mr-1 inline-block" />
-            Logout
-          </button>
+            icon={<ArrowRightOnRectangleIcon className="h-4 w-4" />}
+            text="Logout"
+            danger
+          />
         </div>
       </div>
     </div>
@@ -279,6 +237,16 @@ function ProfileMenu({
 }
 
 /* ---------- Reusable Components ---------- */
+
+function Underline() {
+  return (
+    <span
+      className="pointer-events-none absolute left-3 right-3 -bottom-[2px] h-[2px]
+                 bg-gradient-to-r from-[#1E6BFF] via-[#1fb67a] to-[#16A34A]
+                 scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full will-change-transform"
+    />
+  );
+}
 
 function NavLink({ href, children }) {
   return (
@@ -289,13 +257,56 @@ function NavLink({ href, children }) {
                  hover:scale-[1.05] group"
     >
       <span>{children}</span>
-      <span
-        className="pointer-events-none absolute left-3 right-3 -bottom-[2px] h-[2px]
-                       bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500
-                       scale-x-0 group-hover:scale-x-100 transition-transform origin-left rounded-full will-change-transform"
-      />
+      <Underline />
     </a>
   );
+}
+
+function DDRow({ href, icon, text }) {
+  return (
+    <a
+      href={href}
+      className="w-full inline-flex justify-center items-center gap-2 px-2 h-9 text-[14px] text-gray-900 rounded-lg
+                 hover:bg-[rgba(0,0,0,0.04)] transition-colors"
+    >
+      {icon}
+      <span className="text-center">{text}</span>
+    </a>
+  );
+}
+
+function MenuRow({ href, icon, text }) {
+  return (
+    <a
+      href={href}
+      className="w-full inline-flex justify-center items-center gap-2 px-2 h-9 text-[14px] text-gray-900 rounded-lg
+                 hover:bg-[rgba(0,0,0,0.04)] transition-colors"
+    >
+      {icon}
+      <span className="text-center">{text}</span>
+    </a>
+  );
+}
+
+function MenuButton({ onClick, icon, text, danger = false }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full inline-flex justify-center items-center gap-2 px-2 h-9 text-[14px] rounded-lg transition-colors
+                 ${danger
+                   ? 'text-red-600 hover:bg-red-50'
+                   : 'text-gray-900 hover:bg-[rgba(0,0,0,0.04)]'}`}
+    >
+      {icon}
+      <span className="text-center">{text}</span>
+    </button>
+  );
+}
+
+function Divider() {
+  return <div className="h-px bg-black/10 my-1" />;
+
+
 }
 
 function DropdownItem({ href, icon, label, desc }) {
