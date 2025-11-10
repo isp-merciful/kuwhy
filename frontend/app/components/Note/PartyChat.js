@@ -15,10 +15,7 @@ function Bubble({ mine, name, img, text, time }) {
       )}
 
       <div
-        className={`flex flex-col ${
-          mine ? "items-end text-right" : "items-start text-left"
-        }`}
-        /* กัน container กว้างเกิน */
+        className={`flex flex-col ${mine ? "items-end text-right" : "items-start text-left"}`}
         style={{ maxWidth: "100%" }}
       >
         {/* ชื่อเฉพาะฝั่งคนอื่น */}
@@ -26,11 +23,13 @@ function Bubble({ mine, name, img, text, time }) {
 
         <div
           className={[
-            // จำกัดกว้าง “ครึ่งนึงนิด ๆ” ของ viewport แชท
-            "max-w-[55%]",
-            // ตัดคำทุกกรณี + เคารพ \n
-            "break-words break-all whitespace-pre-wrap",
-            // ฟอง
+            // ความกว้างสูงสุดของบับเบิล (≈ครึ่งหนึ่งของ viewport แชท)
+            "max-w-[60%]",
+            // ทำให้บับเบิลกว้างตามเนื้อหา + จัดกลางแนวแกน X/Y
+            "inline-flex items-center justify-center",
+            // จัดข้อความกึ่งกลาง และเคารพ \n พร้อมตัดคำยาว ๆ
+            "text-center whitespace-pre-wrap break-words hyphens-auto",
+            // สไตล์บับเบิล
             "px-4 py-2 rounded-2xl leading-relaxed",
             mine ? "bg-blue-500 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm",
           ].join(" ")}
@@ -125,7 +124,7 @@ export default function PartyChat({ noteId, userId }) {
       {/* viewport */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
         {messages.length === 0 && (
-          <div className="text-sm text-gray-400 text-center mt-6">ยังไม่มีข้อความ</div>
+          <div className="text-sm text-gray-400 text-center mt-6">No messages yet, feel free to start!</div>
         )}
         {messages.map((m) => (
           <Bubble
@@ -141,30 +140,42 @@ export default function PartyChat({ noteId, userId }) {
       </div>
 
       {/* composer */}
-      <div className="mt-2 pt-2 border-t flex gap-2 sticky bottom-0 bg-white z-10">
-        <textarea
-          rows={1}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          placeholder="Aa"
-          className="flex-1 border rounded-2xl px-4 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 whitespace-pre-wrap"
-        />
-        <button
-          onClick={send}
-          disabled={pending || !text.trim()}
-          className={`px-4 py-2 rounded-full text-white transition ${
-            text.trim() && !pending ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-300"
-          }`}
-        >
-          ส่ง
+<div className="mt-2 pt-2 border-t flex gap-2 sticky bottom-0 bg-white z-10">
+  <input
+    type="text"
+    value={text}
+    onChange={(e) => {
+      // ตัด \n, \r ออกกันทุกเคส (รวมถึงตอน paste)
+      const noNewline = e.target.value.replace(/[\r\n]+/g, " ");
+      setText(noNewline);
+    }}
+    onKeyDown={(e) => {
+      // Enter เพื่อส่ง, กัน Shift+Enter ไม่ให้เกิดบรรทัดใหม่
+      if (e.key === "Enter") {
+        e.preventDefault();
+        send();
+      }
+    }}
+    onPaste={(e) => {
+      // กันข้อความหลายบรรทัดตอน paste
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData("text");
+      const oneLine = pasted.replace(/[\r\n]+/g, " ");
+      setText((prev) => (prev + " " + oneLine).trim());
+    }}
+    placeholder="Aa"
+    className="flex-1 border rounded-2xl px-4 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+  />
+    <button
+    onClick={send}
+    disabled={pending || !text.trim()}
+    className={`px-4 py-2 rounded-full text-white transition ${
+      text.trim() && !pending ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-300"
+    }`}
+          >
+    send
         </button>
-      </div>
+      </div> 
     </div>
   );
 }

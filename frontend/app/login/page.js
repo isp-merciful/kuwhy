@@ -1,208 +1,268 @@
-"use client";
+'use client';
 
-import { useSession, signIn, signOut } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 
 export default function LoginPage() {
   const { data: session } = useSession();
   const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
 
-  // สำหรับ login ด้วย credential
-  const [login_name, setLoginName] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // ✅ JS only (no TS generics)
+  const [formData, setFormData] = useState({
+    login_name: '',
+    user_name: '', // ใช้เฉพาะ register (ชื่อโชว์)
+    password: '',
+  });
+  const [errors, setErrors] = useState({});
+  const [authError, setAuthError] = useState('');
 
-  // สำหรับ register
-  const [register_name, setRegisterName] = useState("");
-  const [register_password, setRegisterPassword] = useState("");
-  const [registerLoading, setRegisterLoading] = useState(false);
-  const [registerError, setRegisterError] = useState("");
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  useEffect(() => setMounted(true), []);
   if (!mounted) return null;
 
-  // ✅ Credential Login Handler
-  const handleCredentialLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch("http://localhost:8000/api/user/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login_name, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Login failed");
-      }
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("user", JSON.stringify(data));
-        alert("Login successful!");
-        window.location.href = "/dashboard";
-      }
-    } catch (err) {
-      setError(err.message || "An error occurred");
-    } finally {
-      setLoading(false);
-    }
+  const switchAuthMode = (mode) => {
+    setAuthMode(mode);
+    setFormData({ login_name: '', user_name: '', password: '' });
+    setErrors({});
+    setAuthError('');
   };
 
-  // ✅ Register Handler
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setRegisterLoading(true);
-    setRegisterError("");
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((p) => ({ ...p, [name]: value }));
+    if (errors[name]) setErrors((p) => ({ ...p, [name]: '' }));
+  };
 
-    try {
-      const res = await fetch("http://localhost:8000/api/user/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-              "user_id" : "u1-8855-99de",
-              "user_name" : "naaBBtBs%%dfs",
-              "email":"kasdfymail.coaadm",
-              "password" : "bankwongclas",
-              "login_name" : "kuytok"
-          }),
-      });
+  const validateForm = () => {
+    const newErr = {};
+    if (!formData.login_name.trim()) newErr.login_name = 'login_name is required';
+    if (!formData.password.trim()) newErr.password = 'Password is required';
+    else if (formData.password.length < 6) newErr.password = 'Password must be at least 6 characters';
+    if (authMode === 'register' && !formData.user_name.trim()) newErr.user_name = 'Display name is required';
+    setErrors(newErr);
+    return Object.keys(newErr).length === 0;
+  };
 
-      const data = await res.json();
+// ... ภายในไฟล์หน้า Login ของคุณ
+    const handleCredentialAuth = async (e) => {
+      e.preventDefault();
+      setAuthError('');
+      if (!validateForm()) return;
 
-      if (!res.ok) {
-        throw new Error(data.error || "Registration failed");
+      setIsLoading(true);
+      try {
+        await signIn('credentials', {
+          login_name: formData.login_name,
+          user_name: authMode === 'register' ? formData.user_name : '',
+          password: formData.password,
+          isRegister: authMode === 'register' ? 'true' : 'false',
+          callbackUrl: '/',   // ✅ ให้ NextAuth พาไป และรีเฟรช session ให้
+          redirect: true,     // ✅
+        });
+      } catch (err) {
+        setAuthError('An unexpected error occurred.');
+        setIsLoading(false);
       }
+    };
 
-      alert("Registration successful! You can now log in.");
-      setRegisterName("");
-      setRegisterPassword("");
-    } catch (err) {
-      setRegisterError(err.message || "An error occurred");
-    } finally {
-      setRegisterLoading(false);
-    }
+
+  const handleGoogle = async () => {
+    setAuthError('');
+    setIsLoading(true);
+    await signIn('google');
+    setIsLoading(false);
+  };
+
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    await signOut({ redirect: false });
+    setIsLoading(false);
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 px-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 w-full max-w-sm text-center">
-        <img
-          src="/images/logo.png"
-          alt="KUWHY Logo"
-          className="w-24 h-24 mx-auto mb-6"
-        />
+    <div className="min-h-screen bg-gradient-to-br from-white via-[#f2fbf6] to-[#eef6ff]">
+      <main className="mx-auto flex max-w-6xl justify-center px-4 py-10">
+        <div className="w-full max-w-md">
+          <div className="rounded-3xl border bg-white shadow-xl">
+            <div className="p-6 sm:p-8">
+              {!session ? (
+                <>
+                  {/* Header */}
+                  <div className="text-center">
+                    <h2 className="text-base font-medium text-gray-700">Welcome to</h2>
+                    <div className="mb-5 text-2xl font-extrabold text-green-600">KU WHY</div>
 
-        {!session ? (
-          <>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Welcome to KUWHY
-            </h1>
-            <p className="text-gray-500 dark:text-gray-300 mb-6">
-              Sign in with your KUWHY credentials or Google account
-            </p>
+                    {/* Tabs */}
+                    <div className="mx-auto mb-6 flex w-full max-w-xs rounded-full bg-gray-100 p-1">
+                      <button
+                        type="button"
+                        onClick={() => switchAuthMode('login')}
+                        className={`flex-1 rounded-full py-2 text-sm font-medium ${
+                          authMode === 'login' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        Sign in
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => switchAuthMode('register')}
+                        className={`flex-1 rounded-full py-2 text-sm font-medium ${
+                          authMode === 'register' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        Sign up
+                      </button>
+                    </div>
+                  </div>
 
-            {/* ✅ Credential Login (Moved to the top) */}
-            <form onSubmit={handleCredentialLogin} className="space-y-3 text-left mb-6">
-              <input
-                type="text"
-                placeholder="Username"
-                value={login_name}
-                onChange={(e) => setLoginName(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
-              />
-              {error && (
-                <p className="text-red-500 text-sm text-center">{error}</p>
+                  {authError ? (
+                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                      {authError}
+                    </div>
+                  ) : null}
+
+                  {/* Form */}
+                  <form onSubmit={handleCredentialAuth} className="space-y-4">
+                    {/* login_name */}
+                    <div>
+                      <label htmlFor="login_name" className="mb-1 block text-sm text-gray-700">
+                        Username 
+                      </label>
+                      <input
+                        id="login_name"
+                        name="login_name"
+                        value={formData.login_name}
+                        onChange={handleInputChange}
+                        placeholder="Enter your Username"
+                        className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                          errors.login_name ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                        }`}
+                      />
+                      {errors.login_name && <p className="mt-1 text-xs text-red-600">{errors.login_name}</p>}
+                    </div>
+
+                    {/* user_name (เฉพาะสมัคร) */}
+                    {authMode === 'register' && (
+                      <div>
+                        <label htmlFor="user_name" className="mb-1 block text-sm text-gray-700">
+                          Display name 
+                        </label>
+                        <input
+                          id="user_name"
+                          name="user_name"
+                          value={formData.user_name}
+                          onChange={handleInputChange}
+                          placeholder="Enter your Display name"
+                          className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                            errors.user_name ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                          }`}
+                        />
+                        {errors.user_name && <p className="mt-1 text-xs text-red-600">{errors.user_name}</p>}
+                      </div>
+                    )}
+
+                    {/* Password */}
+                    <div>
+                      <label htmlFor="password" className="mb-1 block text-sm text-gray-700">
+                        Password
+                      </label>
+                      <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        placeholder="Enter your password"
+                        className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                          errors.password ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                        }`}
+                      />
+                      {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
+                    </div>
+
+                    {/* Submit */}
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-green-600 py-2.5 text-sm font-medium text-white shadow hover:from-blue-700 hover:to-green-700 disabled:opacity-50"
+                    >
+                      {isLoading
+                        ? authMode === 'register'
+                          ? 'Creating account…'
+                          : 'Signing in…'
+                        : authMode === 'register'
+                          ? 'Sign up'
+                          : 'Sign in'}
+                    </button>
+                  </form>
+
+                  {/* Divider */}
+                  <div className="my-6 flex items-center">
+                    <div className="h-px flex-1 bg-gray-200" />
+                    <span className="px-3 text-xs text-gray-500">Or continue with</span>
+                    <div className="h-px flex-1 bg-gray-200" />
+                  </div>
+
+                  {/* Google Button */}
+                  <button
+                    onClick={handleGoogle}
+                    disabled={isLoading}
+                    className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white py-3 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {isLoading ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
+                    ) : (
+                      <>
+                        <img src="/images/google-icon.svg" alt="Google" className="h-5 w-5" />
+                        Continue with Google
+                      </>
+                    )}
+                  </button>
+
+                  <p className="mt-6 text-center text-xs text-gray-500">
+                    By signing in, you agree to our terms of service and privacy policy
+                  </p>
+                </>
+              ) : (
+                /* Logged-in card */
+                <div className="text-center">
+                  <h3 className="mb-2 text-sm text-gray-500">Welcome back</h3>
+                  <img
+                    src={session.user?.image || '/images/logo.png'}
+                    alt={session.user?.name || 'User'}
+                    className="mx-auto mb-3 h-20 w-20 rounded-full border object-cover"
+                  />
+                  <div className="text-lg font-semibold">{session.user?.name ?? 'User'}</div>
+                  {session.user?.email && (
+                    <div className="text-sm text-gray-500">{session.user.email}</div>
+                  )}
+
+                  <div className="mt-6 space-y-3">
+                    <button
+                      onClick={() => (window.location.href = '/')}
+                      className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-green-600 py-2.5 text-sm font-medium text-white shadow hover:from-blue-700 hover:to-green-700"
+                    >
+                      Go to Dashboard
+                    </button>
+                    <button
+                      onClick={handleSignOut}
+                      disabled={isLoading}
+                      className="w-full rounded-lg border bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {isLoading ? 'Signing out…' : 'Sign out'}
+                    </button>
+                  </div>
+                </div>
               )}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition disabled:opacity-60"
-              >
-                {loading ? "Logging in..." : "Login"}
-              </button>
-            </form>
+            </div>
+          </div>
 
-            {/* ✅ OAuth Login (Google) */}
-            <button
-              onClick={() => signIn("google")}
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border border-black text-black font-semibold rounded-lg shadow-md hover:bg-gray-100 transition mb-6"
-            >
-              <img
-                src="/images/google-icon.svg"
-                alt="Google"
-                className="w-6 h-6"
-              />
-              Sign in with Google
-            </button>
-
-            {/* ✅ Register Section */}
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white mt-8 mb-3">
-              Don’t have an account? Register below
-            </h2>
-            <form onSubmit={handleRegister} className="space-y-3 text-left">
-              <input
-                type="text"
-                placeholder="New Username"
-                value={register_name}
-                onChange={(e) => setRegisterName(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
-              />
-              <input
-                type="password"
-                placeholder="New Password"
-                value={register_password}
-                onChange={(e) => setRegisterPassword(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
-              />
-              {registerError && (
-                <p className="text-red-500 text-sm text-center">{registerError}</p>
-              )}
-              <button
-                type="submit"
-                disabled={registerLoading}
-                className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition disabled:opacity-60"
-              >
-                {registerLoading ? "Registering..." : "Register"}
-              </button>
-            </form>
-          </>
-        ) : (
-          <>
-            <img
-              src={session.user?.image || "/images/logo.png"}
-              alt={session.user?.name || "User"}
-              className="w-24 h-24 mx-auto rounded-full mb-4 border-4 border-indigo-500"
-            />
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Hello, {session.user?.name}!
-            </h1>
-            <p className="text-gray-500 dark:text-gray-300 mb-6">
-              {session.user?.email}
-            </p>
-            <button
-              onClick={() => signOut({ redirect: false })}
-              className="w-full py-3 px-4 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-semibold rounded-lg transition"
-            >
-              Sign out
-            </button>
-          </>
-        )}
-      </div>
+          <p className="mt-6 text-center text-xs text-gray-500">
+            Built for Kasetsart University students
+          </p>
+        </div>
+      </main>
     </div>
   );
 }

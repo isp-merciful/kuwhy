@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import MessageInput from "./MessageInput";
 import Avatar from "./Avatar";
@@ -10,7 +11,12 @@ import PartyChat from "./PartyChat";
 import useUserId from "./useUserId";
 
 export default function NoteBubble() {
-  const userId = useUserId();
+  const localOrAuthId = useUserId();             // อาจเป็น anonymous หรือ id จริง
+  const { data: session, status } = useSession(); // เอาไว้รู้ว่าล็อกอินไหม + apiToken
+
+  const authed = status === "authenticated" && session?.user?.id;
+  const userId = authed ? session.user.id : localOrAuthId;
+  const apiToken = authed ? session?.apiToken : null;
 
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,7 +31,7 @@ export default function NoteBubble() {
   const [maxParty, setMaxParty] = useState(0);
   const [currParty, setCurrParty] = useState(0);
 
-  // เคสแสดงโน้ตจากการ join (ไม่ใช่เราโพสต์เอง)
+  // แสดงโน้ตจากการ join (ไม่ใช่ของเรา)
   const [joinedMemberOnly, setJoinedMemberOnly] = useState(false);
 
   const mountedRef = useRef(true);
@@ -53,7 +59,11 @@ export default function NoteBubble() {
 
     const controller = new AbortController();
 
-    // helper: ดึงชื่อจาก payload หลากรูปแบบ
+    // ตั้งชื่อจาก session ก่อน (ถ้าไม่ใช่ anonymous)
+    if (authed && session?.user?.name && session.user.name.toLowerCase() !== "anonymous") {
+      setName(session.user.name);
+    }
+
     const extractServerName = (u) => {
       const candidate =
         u?.user_name ??
@@ -66,9 +76,12 @@ export default function NoteBubble() {
 
     async function fetchUserOnce() {
       try {
+        const headers = {};
+        if (apiToken) headers.Authorization = `Bearer ${apiToken}`;
         const res = await fetch(`http://localhost:8000/api/user/${userId}`, {
           signal: controller.signal,
           cache: "no-store",
+          headers,
         });
         if (!mountedRef.current) return null;
         if (!res.ok) return null;
@@ -80,9 +93,10 @@ export default function NoteBubble() {
       }
     }
 
-    // สร้าง user เฉพาะกรณีไม่พบ
-    async function registerUser() {
+    // สร้าง user เฉพาะกรณีไม่พบ และ "ยังไม่ได้ล็อกอิน"
+    async function registerUserIfAnonymous() {
       try {
+        if (authed) return; // ล็อกอินอยู่ → ห้ามสร้าง anonymous
         await fetch("http://localhost:8000/api/user/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -94,9 +108,12 @@ export default function NoteBubble() {
 
     async function fetchNote() {
       try {
+        const headers = {};
+        if (apiToken) headers.Authorization = `Bearer ${apiToken}`;
         const res = await fetch(`http://localhost:8000/api/note/user/${userId}`, {
           signal: controller.signal,
           cache: "no-store",
+          headers,
         });
         if (!mountedRef.current) return;
 
@@ -150,20 +167,17 @@ export default function NoteBubble() {
       // 1) ลองดึงผู้ใช้ก่อน
       let u = await fetchUserOnce();
 
-      // 2) ถ้าไม่เจอ → register แล้วดึงใหม่
+      // 2) ถ้าไม่เจอ → (กรณี anonymous เท่านั้น) register แล้วดึงใหม่
       if (!u) {
-        await registerUser();
+        await registerUserIfAnonymous();
         u = await fetchUserOnce();
       }
 
-      // 3) ตั้งชื่อจาก DB (อย่ารีเซ็ตทับถ้าไม่มีข้อมูล)
+      // 3) ตั้งชื่อจาก DB ถ้าดีกว่า และไม่ใช่ anonymous
       if (mountedRef.current) {
         const serverName = extractServerName(u);
-        if (serverName && serverName.trim()) {
+        if (serverName && serverName.trim() && serverName.toLowerCase() !== "anonymous") {
           setName(serverName.trim());
-        } else if (!u) {
-          // ตั้ง anonymous เฉพาะเคสหา user ไม่เจอจริง ๆ
-          setName("anonymous");
         }
       }
 
@@ -172,7 +186,7 @@ export default function NoteBubble() {
     })();
 
     return () => controller.abort();
-  }, [userId]);
+  }, [userId, authed, apiToken, session?.user?.name]);
 
   // -------------------------
   // Actions
@@ -182,14 +196,17 @@ export default function NoteBubble() {
     setLoading(true);
     try {
       const payload = {
-        user_id: userId,
+        user_id: userId, // BE จะ override ด้วย req.user.id ถ้ามี token (optionalAuth)
         message: text,
         max_party: isParty ? Math.min(20, Math.max(2, Number(maxParty) || 2)) : 0,
       };
 
+      const headers = { "Content-Type": "application/json" };
+      if (apiToken) headers.Authorization = `Bearer ${apiToken}`;
+
       const res = await fetch("http://localhost:8000/api/note", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -209,11 +226,7 @@ export default function NoteBubble() {
         setIsParty((Number(serverMax) || 0) > 0);
         setMaxParty(Number(serverMax) || 0);
         setCurrParty(Number(serverCurr) || 0);
-
-        // โพสต์เอง → ไม่ใช่ joined
         setJoinedMemberOnly(false);
-
-        alert("เพิ่มโน้ตสำเร็จ!");
       } else {
         alert(result?.error || "ไม่สามารถโพสต์ได้");
       }
@@ -251,15 +264,17 @@ export default function NoteBubble() {
   const handleLeaveParty = async () => {
     if (!noteId || !userId) return;
     try {
+      const headers = { "Content-Type": "application/json" };
+      if (apiToken) headers.Authorization = `Bearer ${apiToken}`;
+
       const res = await fetch("http://localhost:8000/api/note/leave", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ note_id: Number(noteId), user_id: userId }),
       });
       const data = await res.json();
       if (!res.ok) return alert(data?.error || "Leave failed");
 
-      // หลังออกจากปาร์ตี้ กลับเป็นไม่มีโน้ต
       setText("");
       setNoteId(null);
       setIsPosted(false);
@@ -549,7 +564,7 @@ export default function NoteBubble() {
                 transition={{ delay: 0.15 }}
                 className="text-gray-500 text-sm mt-3 text-center max-w-sm"
               >
-                เปิดปาร์ตี้ได้ 2–20 คน (นับตัวเองด้วย) 
+                Party can be held with 2–20 people (including yourself).
               </motion.p>
             )}
 
@@ -559,9 +574,12 @@ export default function NoteBubble() {
                 {isParty && maxParty > 0 ? (
                   <div className="h-60 flex flex-col items-center justify-center text-center">
                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-3xl">Chat 💬</motion.div>
-                    <div className="mt-2 font-semibold text-gray-800"><PartyChat noteId={noteId} userId={userId} /> </div>
-                    <div className="text-sm text-gray-500 mt-1">note #{noteId} • {currParty}/{maxParty} คน</div>
-
+                    <div className="mt-2 font-semibold text-gray-800">
+                      <PartyChat noteId={noteId} userId={userId} />
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      note #{noteId} • {currParty}/{maxParty} คน
+                    </div>
                   </div>
                 ) : (
                   <CommentSection key={`note-${noteId}`} noteId={noteId} userId={userId} />

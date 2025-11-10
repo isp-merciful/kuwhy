@@ -1,54 +1,40 @@
-'use client';
-import { useState, useEffect } from "react";
+// frontend/app/components/useUserId.js (หรือไฟล์เดิมของคุณ)
+"use client";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
 export default function useUserId() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession(); // 'loading' | 'authenticated' | 'unauthenticated'
   const [userId, setUserId] = useState(null);
 
   useEffect(() => {
-    const generateAnonymousId = () => {
-    let newId = crypto.randomUUID();
-    localStorage.setItem("userId", newId);
-    return newId;
-    };
-    
-    let currentId = localStorage.getItem("userId");
-    if (currentId) currentId = currentId.replace(/"/g, "").trim();
+    // รอจนรู้สถานะ session ก่อน
+    if (status === "loading") return;
 
-    if (session?.user?.id) {
-      // case: user login
-      const loginId = session.user.id;
-
-      
-      // merge anonymous -> user (ไม่เปลี่ยน primary key)
-      if (currentId && currentId !== loginId) {
-        fetch("http://localhost:8000/api/user/merge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: loginId,
-            anonymous_id: currentId,
-            user_name: session.user.name,
-            email: session.user.email,
-            image: session.user.image,
-            role: "member",
-          }),
-        });
-      }
-
-      // update localStorage ให้เป็น userId ของ session
-      localStorage.setItem("userId", loginId);
-      currentId = loginId;
-    } else {
-      // case: anonymous
-      if (!currentId) {
-        currentId = generateAnonymousId();
-      }
+    // 1) ถ้ามี session → ใช้ session.user.id (จริง) เสมอ
+    if (status === "authenticated" && session?.user?.id) {
+      const id = session.user.id;
+      setUserId(id);
+      // sync localStorage ให้เท่ากับ user ที่ล็อกอิน
+      try {
+        localStorage.setItem("userId", id);
+      } catch {}
+      return;
     }
 
-    setUserId(currentId);
-  }, [session]);
+    // 2) ถ้า "ยังไม่ได้ล็อกอิน" → ใช้ anonymous id (คงเดิมถ้ามี)
+    try {
+      let anon = localStorage.getItem("userId");
+      if (!anon) {
+        anon = crypto.randomUUID();
+        localStorage.setItem("userId", anon);
+      }
+      setUserId(anon);
+    } catch {
+      // fallback ถ้า localStorage พัง
+      setUserId(crypto.randomUUID());
+    }
+  }, [status, session?.user?.id]);
 
-  return userId; 
+  return userId;
 }

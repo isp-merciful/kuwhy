@@ -1,39 +1,54 @@
 'use client';
 
-import { useSession, signOut } from "next-auth/react";
-import NotificationBell from "./notification/NotificationBell";
-import useUserId from "./Note/useUserId";
-import { useEffect, useState } from "react";
-
+import { useSession, signOut } from 'next-auth/react';
+import NotificationBell from './notification/NotificationBell';
+import useUserId from './Note/useUserId';
+import { useEffect, useState } from 'react';
 
 export default function Navbar() {
   const { data: session, status } = useSession();
-  const userId = useUserId(); // UUID หรือ session.user.id
+  const userId = useUserId(); // local uuid (fallback)
   const [mounted, setMounted] = useState(false);
   const [showShareDropdown, setShowShareDropdown] = useState(false);
 
-  // รอจน client render
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // รอ client mount เพื่อกัน hydration mismatch
+  useEffect(() => setMounted(true), []);
 
-  // log userId
+  // ซิงก์ localStorage.userId ให้ใช้ session.user.id เมื่อ login แล้ว
   useEffect(() => {
-    if (userId) {
-      console.log("Current UUID:", userId);
-      console.log("Type of user_id:", typeof userId);
-      console.log("Length:", userId.length);
+    if (status === 'authenticated' && session?.user?.id) {
+      const current = localStorage.getItem('userId');
+      if (current !== session.user.id) {
+        localStorage.setItem('userId', session.user.id);
+      }
     }
-  }, [userId]);
+  }, [status, session?.user?.id]);
 
-  const handleLogout = () => {
-    signOut({ redirect: false });
-    const newId = crypto.randomUUID();
-    localStorage.setItem("userId", newId);
+  // debug id
+  useEffect(() => {
+    const id = status === 'authenticated' ? session?.user?.id : userId;
+    if (id) {
+      console.log('Current UUID:', id);
+      console.log('Type of user_id:', typeof id);
+      console.log('Length:', String(id).length);
+    }
+  }, [status, session?.user?.id, userId]);
+
+  const handleLogout = async () => {
+    // ออกจากระบบ + ให้ NextAuth redirect เพื่อรีเฟรช session state ทั้งแอพ
+    await signOut({ callbackUrl: '/' });
+    // สร้าง anon id ใหม่สำหรับ guest โหมด (หลัง redirect แล้วจะวิ่งอีกครั้ง)
+    try {
+      const newId = crypto.randomUUID();
+      localStorage.setItem('userId', newId);
+    } catch {}
   };
 
-  // รอจน client render และ session โหลดเสร็จ → ป้องกัน hydration error
-  if (!mounted || status === "loading") return null;
+  if (!mounted || status === 'loading') return null;
+
+  const isAuthed = status === 'authenticated';
+  const avatarSrc = (session?.user?.image && String(session.user.image)) || '/images/pfp.png';
+  const displayName = session?.user?.name || 'User';
 
   return (
     <main>
@@ -45,6 +60,7 @@ export default function Navbar() {
                 <img src="/images/logo.png" alt="KUWHY_logo" className="w-20 h-20" />
               </a>
             </div>
+
             <ul className="flex items-center gap-6">
               <a
                 className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition"
@@ -52,54 +68,47 @@ export default function Navbar() {
               >
                 Home
               </a>
-                            {/* Share Dropdown */}
-                <li className="relative">
-                  <button 
-                    className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition"
-                    onMouseEnter={() => setShowShareDropdown(true)}
-                    onMouseLeave={() => setShowShareDropdown(false)}
-                  >
-                    Features
-                  </button>
-                  {showShareDropdown && (
-                    <div 
-                      className="absolute top-full left-0 bg-white border border-gray-200 rounded-md shadow-lg py-2 min-w-[120px]"
-                      onMouseEnter={() => setShowShareDropdown(true)}
-                      onMouseLeave={() => setShowShareDropdown(false)}
-                    >
-                      <a 
-                        href="/note" 
-                        className="block px-4 py-2 text-black font-sans text-sm hover:bg-gray-100 transition"
-                      >
-                        Note
-                      </a>
-                      <a 
-                        href="/blog" 
-                        className="block px-4 py-2 text-black font-sans text-sm hover:bg-gray-100 transition"
-                      >
-                        Blog
-                      </a>
-                    </div>
-                  )}
-                </li>
-            
-              {/* <a
-                className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition"
-                href="#"
+
+              {/* Features Dropdown (จับ hover จากกล่องครอบกันกะพริบ) */}
+              <li
+                className="relative"
+                onMouseEnter={() => setShowShareDropdown(true)}
+                onMouseLeave={() => setShowShareDropdown(false)}
               >
-                Project
-              </a> */}
+                <button className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition">
+                  Features
+                </button>
+                {showShareDropdown && (
+                  <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-md shadow-lg py-2 min-w-[140px]">
+                    <a
+                      href="/note"
+                      className="block px-4 py-2 text-black font-sans text-sm hover:bg-gray-100 transition"
+                    >
+                      Note
+                    </a>
+                    <a
+                      href="/blog"
+                      className="block px-4 py-2 text-black font-sans text-sm hover:bg-gray-100 transition"
+                    >
+                      Blog
+                    </a>
+                  </div>
+                )}
+              </li>
+
               <a
                 className="block h-14 flex items-center px-4 text-black font-sans text-sm hover:bg-gray-100 transition"
                 href="/about"
               >
                 About us
               </a>
+
               <li>
                 <NotificationBell />
               </li>
+
               <li>
-                {!session ? (
+                {!isAuthed ? (
                   <a
                     href="/login"
                     className="px-4 py-2 border border-black rounded-full text-black hover:bg-gray-100"
@@ -108,14 +117,18 @@ export default function Navbar() {
                   </a>
                 ) : (
                   <div className="flex items-center gap-2">
-                    {session.user.image && (
-                      <img
-                        src={session.user.image}
-                        alt="pfp"
-                        className="w-8 h-8 rounded-full"
-                      />
-                    )}
-                    <span>{session.user.name || "User"}</span>
+                    <img
+                      src={avatarSrc}
+                      alt="pfp"
+                      className="w-8 h-8 rounded-full object-cover"
+                      // ป้องกันรูปเน่าหรือโดเมนไม่อนุญาต → fallback
+                      onError={(e) => {
+                        if (e.currentTarget.src !== '/images/pfp.png') {
+                          e.currentTarget.src = '/images/pfp.png';
+                        }
+                      }}
+                    />
+                    <span className="text-sm">{displayName}</span>
                     <button
                       onClick={handleLogout}
                       className="px-2 py-1 border border-black rounded-full text-black hover:bg-gray-100"

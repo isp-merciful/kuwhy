@@ -7,7 +7,7 @@ const settingRouter = require('./user_setting_api');
 
 router.post("/register", async (req, res) => {
   try {
-    const { user_id, user_name, email, password,login_name } = req.body;
+    const { user_id, user_name, password,login_name } = req.body;
 
     if (!user_id || !password) {
       return res.status(400).json({ error: "Missing user_id or password" });
@@ -17,10 +17,10 @@ router.post("/register", async (req, res) => {
     if (existing) {
       return res.status(409).json({ message: "User already exists", user: existing });
     }
-    const existing_mail = await prisma.users.findUnique({ where: { email } });
-    if (existing) {
-      return res.status(409).json({ message: "Email already exists", user: existing_mail });
-    }
+    // const existing_mail = await prisma.users.findUnique({ where: { email } });
+    // if (existing) {
+    //   return res.status(409).json({ message: "Email already exists", user: existing_mail });
+    // }
     const existing_usrname = await prisma.users.findMany({ where: { login_name } });
     if (existing_usrname.length > 0) {
       return res.status(409).json({ message: "Username already exists", user: existing_usrname });
@@ -36,7 +36,7 @@ router.post("/register", async (req, res) => {
     const newUser = await prisma.users.create({
       data: {
         user_id,
-        email,
+        // email,
         user_name: user_name || "anonymous",
         password: hash,
         login_name: login_name,
@@ -68,7 +68,7 @@ router.post("/login", async (req, res) => {
       user_id: user.user_id,
       name: user.user_name,
       login_name : user.login_name,
-      email: user.email,
+      // email: user.email,
       image: user.img
     });
   } catch (err) {

@@ -183,7 +183,7 @@ export default function Popup({
                     Join this party to view group chat
                   </div>
                   <div className="text-sm text-gray-500 mt-1">
-                    note #{noteId} • {curr}/{max} คน
+                    note #{noteId} • {curr}/{max} 
                   </div>
                   <button
                     onClick={handleJoin}
