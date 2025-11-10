@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { prisma } = require('./lib/prisma.cjs');
 const bcrypt = require("bcrypt");
+const settingRouter = require('./user_setting_api');
+
 
 router.post("/register", async (req, res) => {
   try {
@@ -234,5 +236,5 @@ router.post('/', async (req, res) => {
   }
 });
 
-
+router.use('/:id/setting', settingRouter);
 module.exports = router;
