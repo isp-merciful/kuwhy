@@ -79,41 +79,63 @@ export default function LoginPage() {
     return Object.keys(newErr).length === 0;
   };
 
-  const handleCredentialAuth = async (e) => {
-    e.preventDefault();
-    setAuthError('');
-    if (!validateForm()) return;
+const handleCredentialAuth = async (e) => {
+  e.preventDefault();
+  setAuthError('');
+  if (!validateForm()) return;
 
-    setIsLoading(true);
+  setIsLoading(true);
+  try {
+    // อ่าน callbackUrl จาก query (เหมือนเดิม)
+    let callbackUrl = '/';
     try {
-      let callbackUrl = '/';
-      try {
-        const usp = new URLSearchParams(window.location.search);
-        callbackUrl = usp.get('callbackUrl') || '/';
-      } catch {}
+      const usp = new URLSearchParams(window.location.search);
+      callbackUrl = usp.get('callbackUrl') || '/';
+    } catch {}
 
-      const res = await signIn('credentials', {
-        redirect: false,
-        login_name: formData.login_name,
-        user_name: authMode === 'register' ? formData.user_name : '',
-        password: formData.password,
-        isRegister: authMode === 'register' ? 'true' : 'false',
-        callbackUrl,
-      });
-
-      if (res?.error) {
-        setFormData((p) => ({ ...p, password: '' })); // คง username ล้างรหัส
-        setAuthError(ERROR_TEXT[res.error] || ERROR_TEXT.default);
+    // ✅ เพิ่ม: เช็ก username ซ้ำเฉพาะตอนสมัคร
+    if (authMode === 'register') {
+      const resp = await fetch(
+        `/api/check-username?login_name=${encodeURIComponent(formData.login_name)}`,
+        { cache: 'no-store' }
+      );
+      const data = await resp.json();
+      if (!data.ok) {
         setIsLoading(false);
+        setAuthError('Could not verify username availability. Please try again.');
         return;
       }
-
-      router.replace(res?.url || callbackUrl);
-    } catch {
-      setAuthError('An unexpected error occurred.');
-      setIsLoading(false);
+      if (data.exists) {
+        setIsLoading(false);
+        setErrors((p) => ({ ...p, login_name: 'This username is already taken. Please choose another one.' }));
+        return;
+      }
     }
-  };
+
+    // ดำเนินการเดิม: signIn แบบ redirect:false
+    const res = await signIn('credentials', {
+      redirect: false,
+      login_name: formData.login_name,
+      user_name: authMode === 'register' ? formData.user_name : '',
+      password: formData.password,
+      isRegister: authMode === 'register' ? 'true' : 'false',
+      callbackUrl,
+    });
+
+    if (res?.error) {
+      // สำหรับ login พลาด หรือ register fail ด้วยเหตุอื่น
+      setFormData((p) => ({ ...p, password: '' }));
+      setAuthError(ERROR_TEXT[res.error] || ERROR_TEXT.default);
+      setIsLoading(false);
+      return;
+    }
+
+    router.replace(res?.url || callbackUrl);
+  } catch {
+    setAuthError('An unexpected error occurred.');
+    setIsLoading(false);
+  }
+};
 
   const handleGoogle = async () => {
     setAuthError('');
