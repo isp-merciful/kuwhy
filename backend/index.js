@@ -9,7 +9,7 @@ const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
 const { requireMember, requireAdmin } = require("./auth_mw");
-
+const setting = require("./user_setting_api");
 
 const app = express();
 app.use(bodyParser.json());
@@ -21,7 +21,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-
+app.user("/api/setting",requireMember, setting);
 app.use("/api/blog",requireMember, blogRouter);
 app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
