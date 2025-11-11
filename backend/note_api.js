@@ -1,7 +1,7 @@
 // backend/note_api.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
-const { optionalAuth, requireMember } = require("./auth_mw");
+const { optionalAuth, requireMember,requireAuth } = require("./auth_mw");
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -207,7 +207,7 @@ router.delete("/:id", optionalAuth, async (req, res) => {
  * - requireMember: ต้องล็อกอิน
  * - 🔧 CHANGED: ทับ user_id ด้วย req.user.id เสมอ
  * ========================================= */
-router.post("/join", requireMember, async (req, res) => {
+router.post("/join", requireAuth, async (req, res) => {
   try {
     const note_id = Number(req.body.note_id);
     const user_id = String(req.user.id); // <— ทับเสมอ

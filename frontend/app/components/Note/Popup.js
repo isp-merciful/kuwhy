@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import CommentSection from "./CommentSection";
 import MessageInput from "./MessageInput";
 import Avatar from "./Avatar";
@@ -16,9 +18,13 @@ export default function Popup({
   maxParty = 0,
   currParty = 0,
   ownerId,
-  viewerUserId,
+  viewerUserId, // still used for UI/PartyChat/Comments, but NOT for auth to backend
 }) {
   if (!showPopup) return null;
+
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const search = useSearchParams();
 
   const [joined, setJoined] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -35,40 +41,109 @@ export default function Popup({
     if (isOwner && isParty) setJoined(true);
   }, [isOwner, isParty]);
 
-  // ตรวจเคย join แล้วหรือยัง → ถ้าเคย ให้เปิดห้องแชทเลย
+  // ตรวจว่าเป็นสมาชิกอยู่แล้วหรือยัง (รองรับทั้ง anonymous และ login)
   useEffect(() => {
     let alive = true;
+
     async function checkJoined() {
-      if (!isParty || !viewerUserId || !noteId) return;
+      if (!isParty || !noteId) return;
+
       try {
-        const r = await fetch(`http://localhost:8000/api/note/membership/${noteId}/${viewerUserId}`, { cache: "no-store" });
+        // ใช้ endpoint ใหม่ที่รองรับ optionalAuth:
+        // GET http://localhost:8000/api/party/is-member?note_id=:id
+        // - ถ้าล็อกอิน: แนบ Bearer แล้ว backend จะอ่าน user จาก token
+        // - ถ้าไม่ล็อกอิน: ไม่แนบ Bearer → backend จะตอบ is_member:false (หรือจะรองรับ query user_id เป็น fallback ก็ได้ถ้าคุณตั้งไว้)
+        const url = new URL("http://localhost:8000/api/party/is-member");
+        url.searchParams.set("note_id", String(noteId));
+
+        const headers = { "Content-Type": "application/json" };
+        if (session?.apiToken) {
+          headers["Authorization"] = `Bearer ${session.apiToken}`;
+        }
+
+        const r = await fetch(url.toString(), { method: "GET", headers, cache: "no-store" });
         if (!alive) return;
-        if (!r.ok) return; // เงียบไว้
+        if (!r.ok) return;
+
         const d = await r.json();
-        // d.joined = true/false
-        if (d?.joined) setJoined(true);
-      } catch {}
+        if (d?.is_member) setJoined(true);
+        if (typeof d?.crr_party === "number") setCurr(Number(d.crr_party));
+        if (typeof d?.max_party === "number") setMax(Number(d.max_party));
+      } catch {
+        // เงียบไว้ ไม่ block UI
+      }
     }
+
     checkJoined();
-    return () => { alive = false; };
-  }, [isParty, noteId, viewerUserId]);
+    return () => {
+      alive = false;
+    };
+  }, [isParty, noteId, session?.apiToken]);
+
+  // Auto-join (กรณีถูกส่งกลับมาพร้อม ?autoJoin=1 หลัง login)
+  useEffect(() => {
+    const autoJoin = search.get("autoJoin") === "1";
+    if (!autoJoin || !isParty || joined || !noteId) return;
+    if (status !== "authenticated" || !session?.apiToken) return; // ต้องล็อกอินแล้ว
+
+    (async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/note/join", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.apiToken}`,
+          },
+          body: JSON.stringify({ note_id: Number(noteId) }),
+        });
+        const data = await res.json();
+        if (res.ok || data?.error === "already joined") {
+          setJoined(true);
+          if (typeof data?.data?.crr_party === "number") setCurr(Number(data.data.crr_party));
+          if (typeof data?.data?.max_party === "number") setMax(Number(data.data.max_party));
+        }
+      } catch {
+        // เงียบไว้
+      } finally {
+        // ล้าง query autoJoin ออกเพื่อไม่ให้ยิงซ้ำเวลา refresh
+        const url = new URL(window.location.href);
+        url.searchParams.delete("autoJoin");
+        router.replace(url.pathname + (url.search ? "?" + url.searchParams.toString() : ""));
+      }
+    })();
+  }, [search, isParty, joined, noteId, status, session?.apiToken, router]);
+
+  const redirectToLogin = () => {
+    const callbackUrl = `/note/${noteId}?autoJoin=1`;
+    router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+  };
 
   const handleJoin = async () => {
-    if (!isParty || !noteId || !viewerUserId || isFull) return;
+    if (!isParty || !noteId || isFull) return;
+
+    // ถ้า anonymous → บังคับไปหน้า login ก่อน (แล้วค่อย auto-join)
+    if (status !== "authenticated" || !session?.apiToken) {
+      redirectToLogin();
+      return;
+    }
+
     setJoining(true);
     try {
       const res = await fetch("http://localhost:8000/api/note/join", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note_id: Number(noteId), user_id: viewerUserId }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.apiToken}`, // ✅ ต้องมี
+        },
+        body: JSON.stringify({ note_id: Number(noteId) }), // ❌ ไม่ต้องส่ง user_id
       });
       const data = await res.json();
       if (!res.ok) {
         alert(data?.error || "Join failed");
       } else {
-        setJoined(true); // ✅ เปิดแชททันที
-        if (data?.data?.crr_party != null) setCurr(Number(data.data.crr_party));
-        if (data?.data?.max_party != null) setMax(Number(data.data.max_party));
+        setJoined(true); // เปิดแชททันที
+        if (typeof data?.data?.crr_party === "number") setCurr(Number(data.data.crr_party));
+        if (typeof data?.data?.max_party === "number") setMax(Number(data.data.max_party));
       }
     } catch {
       alert("ไม่สามารถเชื่อมต่อ server ได้");
@@ -78,20 +153,30 @@ export default function Popup({
   };
 
   const handleLeave = async () => {
-    if (!isParty || !noteId || !viewerUserId || isOwner) return;
+    if (!isParty || !noteId || isOwner) return;
+
+    // ต้องล็อกอินเพื่อ leave
+    if (status !== "authenticated" || !session?.apiToken) {
+      redirectToLogin();
+      return;
+    }
+
     setLeaving(true);
     try {
       const res = await fetch("http://localhost:8000/api/note/leave", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note_id: Number(noteId), user_id: viewerUserId }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.apiToken}`, // ✅ ต้องมี
+        },
+        body: JSON.stringify({ note_id: Number(noteId) }), // ❌ ไม่ต้องส่ง user_id
       });
       const data = await res.json();
       if (!res.ok) {
         alert(data?.error || "Leave failed");
       } else {
         setJoined(false);
-        if (data?.data?.crr_party != null) setCurr(Number(data.data.crr_party));
+        if (typeof data?.data?.crr_party === "number") setCurr(Number(data.data.crr_party));
       }
     } catch {
       alert("ไม่สามารถเชื่อมต่อ server ได้");
@@ -113,7 +198,7 @@ export default function Popup({
           </button>
         </div>
 
-        {/* Header: bubble + avatar + ชิปปาร์ตี้ */}
+        {/* Header: bubble */}
         <div className="px-5 -mt-2">
           <MessageInput
             text={text}
@@ -163,10 +248,8 @@ export default function Popup({
         {/* Content */}
         <div className="flex-1 px-4 pb-4 pt-3 overflow-hidden">
           <div className="w-full h-full bg-white rounded-2xl border shadow-inner overflow-hidden">
-            {/* ถ้าเป็น party */}
             {isParty ? (
               joined ? (
-                // ✅ เคย join แล้ว / เพิ่ง join สำเร็จ → เปิดแชททันที
                 <div className="h-full">
                   <div className="px-4 py-2 border-b text-lg font-semibold sticky top-0 bg-white z-10">
                     Chat
@@ -176,14 +259,13 @@ export default function Popup({
                   </div>
                 </div>
               ) : (
-                // ยังไม่ join → แสดงปุ่ม join
                 <div className="h-full flex flex-col items-center justify-center text-center px-6">
                   <div className="text-3xl">💬</div>
                   <div className="mt-2 font-semibold text-gray-800">
                     Join this party to view group chat
                   </div>
                   <div className="text-sm text-gray-500 mt-1">
-                    note #{noteId} • {curr}/{max} 
+                    note #{noteId} • {curr}/{max}
                   </div>
                   <button
                     onClick={handleJoin}
@@ -199,7 +281,6 @@ export default function Popup({
                 </div>
               )
             ) : (
-              // โน้ตธรรมดา → คอมเมนต์
               <div className="h-full flex flex-col">
                 <div className="px-4 py-2 border-b text-lg font-semibold sticky top-0 bg-white z-10">
                   Comments

@@ -1,69 +1,88 @@
 // backend/auth_mw.js
-const { jwtVerify, jwtDecrypt } = require("jose");
+const { jwtVerify /*, jwtDecrypt*/ } = require("jose");
 
-// ✅ ใช้ secret แบบ trim แล้วเสมอ
+// === Secret (ต้องตรงกับ NextAuth เป๊ะ และ trim แล้ว) ===
 const RAW = (process.env.NEXTAUTH_SECRET || "").trim();
-if (!RAW) console.warn("[auth_mw] Missing NEXTAUTH_SECRET");
-const SECRET_KEY = new TextEncoder().encode(RAW);
+if (!RAW) console.warn("[auth_mw] Missing NEXTAUTH_SECRET (ทุกเคสจะ 401)");
+const SECRET = new TextEncoder().encode(RAW);
 
+// === helpers ===
 function getBearerToken(req) {
-  const h = req.headers.authorization || "";
-  return h.startsWith("Bearer ") ? h.slice(7).trim() : "";
+  const h = req.headers.authorization || req.headers.Authorization || "";
+  return typeof h === "string" && h.startsWith("Bearer ") ? h.slice(7).trim() : "";
 }
 
-async function decodeAny(token) {
-  const parts = token.split(".");
-  const opts = { clockTolerance: 60 }; // กัน clock เพี้ยน
-
-  if (parts.length === 5) {
-    // JWE
-    const { payload } = await jwtDecrypt(token, SECRET_KEY, opts);
-    return payload;
-  } else if (parts.length === 3) {
-    // JWS (เช่น ที่ encode ด้วย next-auth/jwt)
-    const { payload } = await jwtVerify(token, SECRET_KEY, {
-      algorithms: ["HS256", "HS512"], // ครอบคลุม
-      clockTolerance: 60,
-    });
-    return payload;
-  }
-  throw new Error("Invalid JWT compact format");
-}
-
-async function optionalAuth(req, _res, next) {
+// ถ้าคุณยังไม่ได้ออก JWE จริง ๆ แนะนำ “ล็อก HS256 JWS เท่านั้น”
+async function verifyFromHeader(req) {
   const token = getBearerToken(req);
-  if (!token) return next();
+  if (!token) throw new Error("no token");
+
+  // --- รองรับ JWS HS256 เท่านั้น (ตรงกับที่ NextAuth ของคุณ sign) ---
+  const { payload, protectedHeader } = await jwtVerify(token, SECRET, {
+    algorithms: ["HS256"],
+    clockTolerance: 60, // กันนาฬิกาเพี้ยน
+  });
+
+  // sanity check: ต้องมี id
+  if (!payload?.id) throw new Error("no id in token");
+  // ใส่ข้อมูลไว้เผื่อดีบัก
+  req.tokenHeader = protectedHeader;
+  return payload; // { id, role, login_name, iat, exp }
+}
+
+// === middlewares ===
+async function optionalAuth(req, _res, next) {
   try {
-    const payload = await decodeAny(token);
-    req.user = payload;
-  } catch (e) {
-    // ไม่บล็อก แต่ไม่ตั้ง req.user
-    // console.warn("[optionalAuth] invalid token:", e);
+    req.user = await verifyFromHeader(req);
+  } catch (_) {
+    // ไม่มี token / verify fail ก็ไม่ผูก req.user เฉย ๆ
   }
-  next();
+  return next();
 }
 
 async function requireAuth(req, res, next) {
-  const token = getBearerToken(req);
-  if (!token) return res.status(401).json({ error: "Missing bearer token" });
   try {
-    const payload = await decodeAny(token);
-    req.user = payload;
-    next();
+    req.user = await verifyFromHeader(req);
+    return next();
   } catch (e) {
-    return res.status(401).json({ error: "Invalid/expired token" });
+    // เปิด log ตอน dev ให้เห็นชัดว่า fail เพราะอะไร
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[requireAuth] verify failed:", e?.message || e);
+    }
+    return res.status(401).json({ error: "Unauthorized" });
   }
 }
 
-function requireMember(req, res, next) {
-  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
-  if (req.user.role === "member" || req.user.role === "admin") return next();
-  return res.status(403).json({ error: "Forbidden" });
+async function requireMember(req, res, next) {
+  try {
+    req.user = await verifyFromHeader(req);
+  } catch (e) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[requireMember] verify failed:", e?.message || e);
+    }
+    return res.status(401).json({ error: "Unauthorized" }); // verify ไม่ผ่าน
+  }
+  const role = String(req.user?.role || "");
+  if (!["member", "admin"].includes(role)) {
+    return res.status(403).json({ error: "Forbidden (member only)" }); // role ไม่ถึง
+  }
+  return next();
 }
-function requireAdmin(req, res, next) {
-  if (!req.user) return res.status(401).json({ error: "Unauthorized" });
-  if (req.user.role === "admin") return next();
-  return res.status(403).json({ error: "Forbidden" });
+
+async function requireAdmin(req, res, next) {
+  try {
+    req.user = await verifyFromHeader(req);
+  } catch (e) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[requireAdmin] verify failed:", e?.message || e);
+    }
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const role = String(req.user?.role || "");
+  if (role !== "admin") {
+    return res.status(403).json({ error: "Forbidden (admin only)" });
+  }
+  return next();
 }
 
 module.exports = { optionalAuth, requireAuth, requireMember, requireAdmin };
