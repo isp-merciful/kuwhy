@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 const ROUTES = {
-  getUser: (id) => `http://localhost:8000/api/user/f1ca8698-6de5-4db4-bec9-5044951bf5c0`,
-  updateUserSetting: (id) => `http://localhost:8000/api/settings/f1ca8698-6de5-4db4-bec9-5044951bf5c0`,
+  getUser: (id) => `http://localhost:8000/api/user/${id}`,
+  updateUserSetting: (id) => `http://localhost:8000/api/settings/${id}`,
 };
 
 export default function ProfilePage() {
