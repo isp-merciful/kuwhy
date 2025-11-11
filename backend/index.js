@@ -13,8 +13,7 @@ const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
 
 const { requireMember, requireAdmin } = require("./auth_mw");
-const settings = require("./user_setting_api");   // PUT /api/setting  (session only)
-const meApi = require("./me_api");               // GET /api/me       (session only)
+const settings = require("./user_setting_api");   // PUT /api/setting  (session only) 
 
 const app = express();
 

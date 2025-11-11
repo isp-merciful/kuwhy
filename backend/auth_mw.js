@@ -3,8 +3,6 @@ const { jwtVerify } = require("jose");
 
 // ===== Secret (ต้องตั้ง NEXTAUTH_SECRET ให้ตรงกับ NextAuth) =====
 if (!process.env.NEXTAUTH_SECRET) {
-  // ไม่ throw เพื่อไม่ล่มตอน dev แต่จะ 401 ทุกเคส verify
-  // แนะนำ: ตั้งให้ถูกก่อนรันจริง
   console.warn("[auth_mw] Missing NEXTAUTH_SECRET env");
 }
 const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || "unset-secret");
@@ -15,10 +13,31 @@ function getBearerToken(req) {
   return h.startsWith("Bearer ") ? h.slice(7) : "";
 }
 
+function getNextAuthCookieToken(req) {
+  // NextAuth ใช้ชื่อคุกกี้ต่างกันระหว่าง dev/prod
+  // - prod (https): __Secure-next-auth.session-token
+  // - dev:          next-auth.session-token
+  const cookies = req.cookies || {};
+  return (
+    cookies["__Secure-next-auth.session-token"] ||
+    cookies["next-auth.session-token"] ||
+    ""
+  );
+}
+
 async function verifyToken(token) {
-  const { payload } = await jwtVerify(token, secret);
-  // ตามที่เราอัดจาก NextAuth: { id, role, login_name, name, picture, ... }
+  // เผื่อ clock skew เล็กน้อย
+  const { payload } = await jwtVerify(token, secret, { clockTolerance: 60 });
+  // token จาก NextAuth callbacks เราอัด { id, role, login_name, ... }
   return payload;
+}
+
+async function getTokenFromReq(req) {
+  // 1) พยายามอ่านจาก Authorization: Bearer <token>
+  let token = getBearerToken(req);
+  // 2) ถ้าไม่มี Bearer ให้ fallback ไปหาคุกกี้ NextAuth
+  if (!token) token = getNextAuthCookieToken(req);
+  return token || "";
 }
 
 // ===== middlewares =====
@@ -26,13 +45,16 @@ async function verifyToken(token) {
 /** แนบ req.user แบบ "ถ้ามี token" เท่านั้น (ไม่บังคับ) */
 async function optionalAuth(req, _res, next) {
   try {
-    const token = getBearerToken(req);
+    const token = await getTokenFromReq(req);
     if (token) {
       req.user = await verifyToken(token);
       req.token = token;
+    } else {
+      req.user = undefined;
+      req.token = undefined;
     }
   } catch {
-    // ถ้ามี token แต่ verify ไม่ผ่าน → ถือว่าไม่มี user แล้วไปต่อแบบ anonymous
+    // มี token แต่ verify ไม่ผ่าน → ถือว่า anonymous
     req.user = undefined;
     req.token = undefined;
   }
@@ -42,12 +64,12 @@ async function optionalAuth(req, _res, next) {
 /** ต้องมี token และ verify ผ่านเท่านั้น */
 async function requireAuth(req, res, next) {
   try {
-    const token = getBearerToken(req);
+    const token = await getTokenFromReq(req);
     if (!token) return res.status(401).json({ error: "Unauthorized" });
     req.user = await verifyToken(token);
     req.token = token;
     return next();
-  } catch {
+  } catch (e) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 }
