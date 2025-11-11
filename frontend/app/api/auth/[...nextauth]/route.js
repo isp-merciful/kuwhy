@@ -7,22 +7,22 @@ import { prisma } from '../../../../lib/prisma';
 import { encode as encodeJwt } from 'next-auth/jwt';
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
+import { SignJWT } from 'jose';
 
 export const runtime = 'nodejs';
+const SECRET_BYTES = new TextEncoder().encode((process.env.NEXTAUTH_SECRET || '').trim());
 
-/** Sync ให้ตาราง `users` (ของคุณ) มี user_id = NextAuth.User.id เสมอ เมื่อ Google sign-in */
 async function ensureUsersRowFromNextAuthUser(user) {
   if (!user?.id) return;
-
+  // สร้าง login_name fallback จากอีเมล (ถ้ามี)
   const emailLocal = user.email?.split('@')?.[0];
   const fallbackLoginName = (emailLocal || `user_${String(user.id).slice(0, 8)}`)?.toLowerCase();
 
   const exists = await prisma.users.findUnique({ where: { user_id: user.id } });
-
   if (!exists) {
     await prisma.users.create({
       data: {
-        user_id: user.id,
+        user_id: user.id,                         // ใช้ id ที่ adapter สร้างแล้ว (ตัวจริง)
         user_name: user.name ?? 'anonymous',
         login_name: fallbackLoginName,
         password: '',
@@ -47,23 +47,20 @@ async function ensureUsersRowFromNextAuthUser(user) {
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
-
   providers: [
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        login_name: { label: 'Username', type: 'text', placeholder: 'your_username' },
-        user_name: { label: 'Display name', type: 'text' }, // ใช้เฉพาะสมัคร
+        login_name: { label: 'Username', type: 'text' },
+        user_name: { label: 'Display name', type: 'text' },
         password: { label: 'Password', type: 'password' },
-        isRegister: { label: 'isRegister', type: 'text' }, // 'true' | 'false'
+        isRegister: { label: 'isRegister', type: 'text' },
       },
       async authorize(credentials) {
         const isRegister = credentials?.isRegister === 'true';
         const login_name = (credentials?.login_name || '').trim().toLowerCase();
         const user_name = (credentials?.user_name || '').trim();
         const password = credentials?.password || '';
-
-        // คืน null แทน throw เพื่อหลีกเลี่ยง stack trace; ฝั่ง client จะเห็น CredentialsSignin
         if (!login_name || !password) return null;
 
         if (isRegister) {
@@ -87,14 +84,12 @@ export const authOptions = {
                 email: emailFallback,
               },
             });
-
-            // sync ตาราง next-auth: User
+            // sync ไปตาราง next-auth.User ให้ใช้ id เดียวกัน
             await tx.user.upsert({
               where: { id: u.user_id },
               update: { name: u.user_name, image: u.img, email: u.email },
               create: { id: u.user_id, name: u.user_name, image: u.img, email: u.email },
             });
-
             return u;
           });
 
@@ -108,7 +103,7 @@ export const authOptions = {
           };
         }
 
-        // ===== LOGIN =====
+        // LOGIN
         const user = await prisma.users.findUnique({ where: { login_name } });
         if (!user || !user.password) return null;
 
@@ -116,8 +111,6 @@ export const authOptions = {
         if (!ok) return null;
 
         const emailSafe = user.email || `${user.login_name}@local.invalid`;
-
-        // sync ตาราง next-auth: User
         await prisma.user.upsert({
           where: { id: user.user_id },
           update: { name: user.user_name, image: user.img ?? undefined, email: emailSafe },
@@ -134,7 +127,6 @@ export const authOptions = {
         };
       },
     }),
-
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -144,21 +136,10 @@ export const authOptions = {
   session: { strategy: 'jwt', maxAge: 60 * 60 * 24 * 7 },
   secret: process.env.NEXTAUTH_SECRET,
 
+  // ❌ ไม่ต้อง ensure ใน signIn อีกต่อไป
   callbacks: {
-    async signIn({ user, account }) {
-      try {
-        if (account?.provider === 'google') {
-          await ensureUsersRowFromNextAuthUser(user);
-        }
-      } catch (e) {
-        console.error('ensureUsersRowFromNextAuthUser error:', e);
-      }
-      return true;
-    },
-
     async jwt({ token, user }) {
       if (user?.id) token.id = user.id;
-
       if (token?.id) {
         const u = await prisma.users.findUnique({
           where: { user_id: token.id },
@@ -172,10 +153,8 @@ export const authOptions = {
           token.email = u.email || token.email;
         }
       }
-
       return token;
     },
-
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
@@ -185,22 +164,45 @@ export const authOptions = {
         session.user.image = token.picture || session.user.image;
         session.user.email = token.email || session.user.email;
       }
-
-      if (process.env.NEXTAUTH_SECRET && token?.id) {
-        session.apiToken = await encodeJwt({
-          token: { id: token.id, role: token.role || 'anonymous', login_name: token.login_name || null },
-          secret: process.env.NEXTAUTH_SECRET,
-          maxAge: 60 * 60 * 24 * 7,
-        });
-      } else {
-        session.apiToken = null;
-      }
-
+      // if (process.env.NEXTAUTH_SECRET && token?.id) {
+      //   session.apiToken = await encodeJwt({
+      //     token: { id: token.id, role: token.role || 'anonymous', login_name: token.login_name || null },
+      //     secret: process.env.NEXTAUTH_SECRET,
+      //     maxAge: 60 * 60 * 24 * 7,
+      //   });
+      // } else {
+      //   session.apiToken = null;
+      // }
+          if (token?.id) {
+      // 👉 ออกเป็น JWS 3 จุด (HS256) เสมอ — backend verify ได้ทันที
+      const payload = {
+        id: String(token.id),
+        role: token.role || 'anonymous',
+        login_name: token.login_name || null,
+        // ใส่พวก name/image เฉพาะจำเป็นเท่านั้นก็พอ
+      };
+      session.apiToken = await new SignJWT(payload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('7d')
+        .sign(SECRET_BYTES);
+    } else {
+      session.apiToken = null;
+    }
       return session;
     },
   },
 
-  // ส่งทุก error flow (เช่น OAuth ล้มเหลว) กลับหน้า /login เพื่อให้หน้า Login แสดงข้อความเอง
+  // ✅ ทำให้แน่ใจว่าเรา sync หลัง adapter สร้างผู้ใช้แล้ว
+  events: {
+    async createUser({ user }) {
+      await ensureUsersRowFromNextAuthUser(user);
+    },
+    async linkAccount({ user }) {
+      await ensureUsersRowFromNextAuthUser(user);
+    },
+  },
+
   pages: { signIn: '/login', error: '/login' },
 };
 
