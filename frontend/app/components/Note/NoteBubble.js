@@ -70,6 +70,54 @@ export default function NoteBubble() {
       u?.name;
     return typeof candidate === "string" ? candidate : null;
   };
+  const extractServerImg = (u) => {
+    const candidate = u?.img ?? u?.user?.img ?? u?.users?.img ?? u?.value?.img;
+    return typeof candidate === "string" ? candidate : null;
+  };
+
+  // --------------------------
+  // Avatar persistence
+  // --------------------------
+  // serverImg: รูปจาก DB (ถ้ามี = ใช้เป็นรูปถาวร ไม่สุ่ม)
+  const [serverImg, setServerImg] = useState(null);
+  // pendingAvatarUrlRef: เก็บ URL ที่ Avatar สุ่มได้ "ชั่วคราว" ก่อนโพสต์
+  const pendingAvatarUrlRef = useRef(null);
+
+  // รับ URL จาก Avatar ตอนยังไม่มีรูปถาวร
+  const handleAvatarUrlReady = (url) => {
+    if (!serverImg && url) pendingAvatarUrlRef.current = url;
+  };
+
+  // หลัง "โพสต์สำเร็จครั้งแรก" ให้บันทึกรูปถาวรถ้ายังไม่มีใน DB
+  const persistAvatarIfNeeded = async () => {
+    if (serverImg) return; // มีใน DB แล้ว ไม่ต้องทำซ้ำ
+    const url = pendingAvatarUrlRef.current;
+    if (!url || !userId) return;
+
+    try {
+      const targetId = authed ? session.user.id : userId;
+      const res = await fetch(
+        `http://localhost:8000/api/user/${encodeURIComponent(targetId)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ img: url }),
+        }
+      );
+      if (res.ok) {
+        setServerImg(url); // ตั้งเป็นรูปถาวรใน FE ทันที
+      } else {
+        console.warn("[avatar] persist failed:", await res.text());
+      }
+    } catch (e) {
+      console.warn("[avatar] persist error:", e);
+    }
+  };
+
+  // เมื่อเปลี่ยนตัวตน (เช่น anonymous -> login) ล้างค่าชั่วคราว
+  useEffect(() => {
+    pendingAvatarUrlRef.current = null;
+  }, [userId]);
 
   // --------------------------
   // initial load (profile + note)
@@ -183,6 +231,10 @@ export default function NoteBubble() {
         ) {
           setName(serverName.trim());
         }
+        // โหลดรูปจาก DB ถ้ามี → จะบังคับให้ Avatar ใช้รูปนี้ (ไม่สุ่ม)
+        const img = extractServerImg(u);
+        if (img && typeof img === "string") setServerImg(img);
+        else setServerImg(null);
       }
       await fetchNote();
     })();
@@ -234,6 +286,9 @@ export default function NoteBubble() {
         setMaxParty(Number(serverMax) || 0);
         setCurrParty(Number(serverCurr) || 0);
         setJoinedMemberOnly(false);
+
+        // ✅ ล็อกอวาตาร์หลังโพสต์ครั้งแรก ถ้ายังไม่มีใน DB
+        await persistAvatarIfNeeded();
       } else {
         alert(result?.error || "ไม่สามารถโพสต์ได้");
       }
@@ -262,6 +317,7 @@ export default function NoteBubble() {
         setMaxParty(0);
         setCurrParty(0);
         setJoinedMemberOnly(false);
+        // ไม่แตะ serverImg — รูปถาวรควรคงอยู่
       } else {
         const data = await res.json().catch(() => ({}));
         alert(data?.error || "ไม่สามารถลบโน้ตได้");
@@ -289,6 +345,7 @@ export default function NoteBubble() {
       setMaxParty(0);
       setCurrParty(0);
       setJoinedMemberOnly(false);
+      // รูปถาวรยังคงเดิม
     } catch {
       alert("ไม่สามารถเชื่อมต่อ server ได้");
     }
@@ -361,7 +418,11 @@ export default function NoteBubble() {
             />
 
             <div className="relative mt-4">
-              <Avatar />
+              {/* ถ้ามีรูปใน DB แล้ว → ใช้ src, ถ้าไม่มีก็ให้ Avatar สุ่มแล้วส่ง url กลับ */}
+              <Avatar
+                src={serverImg || undefined}
+                onUrlReady={!serverImg ? handleAvatarUrlReady : undefined}
+              />
             </div>
 
             <UserNameEditor
@@ -411,7 +472,10 @@ export default function NoteBubble() {
             {/* Avatar + FABs */}
             <div className="relative mt-5">
               <div className="relative inline-block">
-                <Avatar />
+                <Avatar
+                  src={serverImg || undefined}
+                  onUrlReady={!serverImg ? handleAvatarUrlReady : undefined}
+                />
                 {isPosted && !joinedMemberOnly && (
                   <div className="absolute -bottom-2 -right-2 flex space-x-2">
                     <button
@@ -472,9 +536,7 @@ export default function NoteBubble() {
                   <span className="select-none">🎉 Party</span>
                   {PartySwitch}
                   <span
-                    className={`text-gray-500 ${
-                      !isParty ? "opacity-50" : ""
-                    }`}
+                    className={`text-gray-500 ${!isParty ? "opacity-50" : ""}`}
                   >
                     max
                   </span>

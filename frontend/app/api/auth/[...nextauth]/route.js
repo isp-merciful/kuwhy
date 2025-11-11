@@ -46,6 +46,19 @@ async function ensureUsersRowFromNextAuthUser(user) {
   }
 }
 
+function dicebearUrl(seed, size = 256, style = "thumbs") {
+  const params = new URLSearchParams({
+    seed,
+    size: String(size),
+    radius: "50",
+    backgroundType: "gradientLinear",
+  });
+  return `https://api.dicebear.com/9.x/${style}/png?${params.toString()}`;
+}
+
+
+
+
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -72,6 +85,8 @@ export const authOptions = {
           const hash = await bcrypt.hash(password, 10);
           const emailFallback = `${login_name}@local.invalid`;
 
+          const avatar = dicebearUrl(`u:${user_id}`, 256, "thumbs");
+
           const created = await prisma.$transaction(async (tx) => {
             const u = await tx.users.create({
               data: {
@@ -80,7 +95,7 @@ export const authOptions = {
                 user_name: user_name || 'anonymous',
                 password: hash,
                 gender: 'Not_Specified',
-                img: dicebearUrl(`user:${user.id}`, 256, "adventurer"),
+                img: avatar,
                 role: 'member',
                 email: emailFallback,
               },

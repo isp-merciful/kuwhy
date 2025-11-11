@@ -1,46 +1,45 @@
+// Avatar.jsx
 "use client";
-import { useMemo, useRef } from "react";
-
-const DICEBEAR_STYLES = [
-  "thumbs",        
-  "adventurer",    
-
-];
-
-function buildDicebearUrl({ style, seed, size = 150, png = true }) {
-  const fmt = png ? "png" : "svg";
-  const params = new URLSearchParams({
-    seed,
-    size: String(size),
-    radius: "50",                     // มุมโค้ง
-    backgroundType: "gradientLinear", // มีพื้นหลังสวยๆ
-  });
-  return `https://api.dicebear.com/9.x/${style}/${fmt}?${params.toString()}`;
-}
+import { useMemo, useRef, useEffect } from "react";
 
 export default function Avatar({
   center = true,
   size = 150,
-  style = "random",     // "thumbs" | "adventurer" | ... | "random"
-  seed,                 // ถ้าไม่ส่งมา จะสุ่มให้
+  style = "random",
+  seed,
   className = "",
+  onUrlReady,
+  src,                 // ✅ ถ้ามี src จะใช้รูปนี้เลย (ไม่สุ่ม)
 }) {
-  // เลือก style แบบคงที่ต่อ component (ไม่เปลี่ยนทุก re-render)
   const chosenStyle = useMemo(() => {
     if (style !== "random") return style;
-    const i = Math.floor(Math.random() * DICEBEAR_STYLES.length);
-    return DICEBEAR_STYLES[i];
+    const arr = ["thumbs", "adventurer"];
+    return arr[Math.floor(Math.random() * arr.length)];
   }, [style]);
 
-  // ทำ seed ครั้งเดียวต่อ component
   const seedRef = useRef(seed || (typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : String(Math.random())));
 
+  const build = ({ style, seed, size = 150, png = true }) => {
+    const fmt = png ? "png" : "svg";
+    const params = new URLSearchParams({
+      seed,
+      size: String(size),
+      radius: "50",
+      backgroundType: "gradientLinear",
+    });
+    return `https://api.dicebear.com/9.x/${style}/${fmt}?${params.toString()}`;
+  };
+
   const url = useMemo(
-    () => buildDicebearUrl({ style: chosenStyle, seed: seedRef.current, size, png: true }),
-    [chosenStyle, size]
+    () => src || build({ style: chosenStyle, seed: seedRef.current, size, png: true }),
+    [src, chosenStyle, size]
   );
+
+  useEffect(() => {
+    if (!src && onUrlReady) onUrlReady(url); // แจ้งเฉพาะตอนเป็นรูปสุ่ม
+  }, [url, src, onUrlReady]);
 
   return (
     <div className={`${center ? "mt-1 flex justify-center w-full" : "mt-1"} ${className}`}>
@@ -51,14 +50,8 @@ export default function Avatar({
         height={size}
         className="rounded-full object-cover border border-gray-300 bg-gray-100"
         onError={(e) => {
-          // ถ้าสตรีมล่ม ลองสลับไป style สำรอง
-          const fallback = buildDicebearUrl({
-            style: "identicon",
-            seed: seedRef.current,
-            size,
-            png: true,
-          });
-          e.currentTarget.src = fallback;
+          if (src) return; // ถ้าเป็นรูปล็อกจาก DB ไม่เปลี่ยน style สำรอง (ให้ owner แก้เอง)
+          e.currentTarget.src = build({ style: "identicon", seed: seedRef.current, size, png: true });
         }}
       />
     </div>
