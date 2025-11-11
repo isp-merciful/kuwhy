@@ -6,6 +6,7 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from '../../../../lib/prisma';
 import { encode as encodeJwt } from 'next-auth/jwt';
 import bcrypt from 'bcrypt';
+// import { dicebearUrl } from "../../../../lib/avatarUrl";
 import { randomUUID } from 'crypto';
 import { SignJWT } from 'jose';
 
@@ -79,7 +80,7 @@ export const authOptions = {
                 user_name: user_name || 'anonymous',
                 password: hash,
                 gender: 'Not_Specified',
-                img: '/images/pfp.png',
+                img: dicebearUrl(`user:${user.id}`, 256, "adventurer"),
                 role: 'member',
                 email: emailFallback,
               },
