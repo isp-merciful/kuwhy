@@ -47,7 +47,7 @@ function removeById(list, id) {
 }
 
 /* ---------------- helpers: profile url ---------------- */
-const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/user"; 
+const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/profile"; 
 function buildProfileUrl(handle) {
   if (!handle) return "/";
   if (PROFILE_BASE === "root") return `/${handle}`;

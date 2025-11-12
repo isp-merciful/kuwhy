@@ -249,7 +249,7 @@ export default function NoteBubble() {
     if (!ready) return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
     if (!userId) return alert("ไม่พบผู้ใช้ กรุณารีเฟรชหน้า");
     if (!text.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง!");
-    if (isParty && !authed) return alert("ต้องล็อกอินก่อนจึงจะสร้างปาร์ตี้ได้");
+    if (isParty && !authed) return alert("You need to log in first before creating a party.");
 
     setLoading(true);
     try {
@@ -522,80 +522,70 @@ export default function NoteBubble() {
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-                <div className="inline-flex items-center gap-2 text-sm bg-white/70 backdrop-blur rounded-full px-3 py-1 border border-gray-200 shadow-sm">
-                  <span className="select-none">🎉 Party</span>
-                  {PartySwitch}
-                  <span
-                    className={`text-gray-500 ${!isParty ? "opacity-50" : ""}`}
-                  >
-                    max
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isParty) return;
-                        setMaxParty((prev) => {
-                          const n = Math.max(
-                            2,
-                            Math.min(20, Number(prev) || 2)
-                          );
-                          return Math.max(2, n - 1);
-                        });
-                      }}
-                      className={`w-6 h-6 grid place-items-center rounded-md border ${
-                        isParty
-                          ? "hover:bg-white"
-                          : "opacity-50 cursor-not-allowed"
-                      }`}
-                      disabled={!isParty}
-                      aria-label="ลดจำนวน"
-                    >
-                      −
-                    </button>
-                    <input
-                      type="number"
-                      min={2}
-                      max={20}
-                      step={1}
-                      value={isParty ? Number(maxParty) || 2 : 0}
-                      onChange={(e) => {
-                        if (!isParty) return;
-                        let v = Math.floor(
-                          Math.abs(Number(e.target.value) || 0)
-                        );
-                        if (v < 2) v = 2;
-                        if (v > 20) v = 20;
-                        setMaxParty(v);
-                      }}
-                      className="w-12 text-center bg-transparent outline-none border rounded-md py-0.5"
-                      disabled={!isParty}
-                      aria-label="จำนวนสมาชิกสูงสุด"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isParty) return;
-                        setMaxParty((prev) => {
-                          const n = Math.max(
-                            2,
-                            Math.min(20, Number(prev) || 2)
-                          );
-                          return Math.min(20, n + 1);
-                        });
-                      }}
-                      className={`w-6 h-6 grid place-items-center rounded-md border ${
-                        isParty
-                          ? "hover:bg-white"
-                          : "opacity-50 cursor-not-allowed"
-                      }`}
-                      disabled={!isParty}
-                      aria-label="เพิ่มจำนวน"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
+<div className="inline-flex items-center gap-2 text-sm bg-white/70 backdrop-blur rounded-full px-3 py-1 border border-gray-200 shadow-sm">
+  <span className="select-none">🎉 Party</span>
+  {PartySwitch}
+  <span className={`text-gray-500 ${!isParty ? "opacity-50" : ""}`}>max</span>
+
+  <div className="flex items-center gap-1">
+    <input
+      type="number"
+      min={2}
+      max={20}
+      step={1}
+      value={isParty ? Number(maxParty) || 2 : 0}
+      onChange={(e) => {
+        if (!isParty) return;
+        let v = Math.floor(Math.abs(Number(e.target.value) || 0));
+        if (v < 2) v = 2;
+        if (v > 20) v = 20;
+        setMaxParty(v);
+      }}
+      className="w-14 text-center bg-transparent outline-none border rounded-md py-1"
+      disabled={!isParty}
+      aria-label="จำนวนสมาชิกสูงสุด"
+    />
+
+    {/* ปุ่ม + ชิดเลข */}
+    <button
+      type="button"
+      onClick={() => {
+        if (!isParty) return;
+        setMaxParty((prev) => {
+          const n = Math.max(2, Math.min(20, Number(prev) || 2));
+          return Math.min(20, n + 1);
+        });
+      }}
+      className={`w-8 h-8 grid place-items-center rounded-md border transition
+                  ${isParty ? "hover:bg-white active:scale-95" : "opacity-50 cursor-not-allowed"}`}
+      disabled={!isParty}
+      aria-label="เพิ่มจำนวน"
+      title="เพิ่มจำนวน"
+    >
+      +
+    </button>
+
+    {/* ปุ่ม − อยู่ขวาสุด */}
+    <button
+      type="button"
+      onClick={() => {
+        if (!isParty) return;
+        setMaxParty((prev) => {
+          const n = Math.max(2, Math.min(20, Number(prev) || 2));
+          return Math.max(2, n - 1);
+        });
+      }}
+      className={`w-8 h-8 grid place-items-center rounded-md border transition
+                  ${isParty ? "hover:bg-white active:scale-95" : "opacity-50 cursor-not-allowed"}`}
+      disabled={!isParty}
+      aria-label="ลดจำนวน"
+      title="ลดจำนวน"
+    >
+      −
+    </button>
+  </div>
+</div>
+
               </motion.div>
             )}
 
@@ -639,7 +629,7 @@ export default function NoteBubble() {
                 transition={{ delay: 0.15 }}
                 className="text-gray-500 text-sm mt-3 text-center max-w-sm"
               >
-                Party can be held with 2–20 people (including yourself).
+                Share quick thoughts or start group activities (login required) that disappear in 24 hours.
               </motion.p>
             )}
 
