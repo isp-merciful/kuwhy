@@ -15,17 +15,16 @@ export default function ProfilePage() {
   const [state, setState] = useState({
     loading: true,
     error: "",
-    user: null,     // = ข้อมูลผู้ใช้ฉบับเต็ม (รวม bio/website/etc)
+    user: null,
     blogs: [],
   });
   const [hasActiveNote, setHasActiveNote] = useState(false);
 
   useEffect(() => {
     let alive = true;
-
     (async () => {
       try {
-        // 1) ดึง user เบื้องต้นจาก handle เพื่อหา user_id
+        // 1) หา user_id จาก handle
         const uRes = await fetch(
           `http://localhost:8000/api/user/by-handle/${encodeURIComponent(handle)}`,
           { cache: "no-store" }
@@ -33,13 +32,13 @@ export default function ProfilePage() {
         if (!uRes.ok) throw new Error("User not found");
         const { user: baseUser } = await uRes.json();
 
-        // 2) ดึงโปรไฟล์เต็ม (มี bio / รายละเอียดอื่นๆ)
+        // 2) โหลดโปรไฟล์เต็ม (ดึง bio/รายละเอียด)
         const fullRes = await fetch(`http://localhost:8000/api/user/${baseUser.user_id}`, {
           cache: "no-store",
         });
         if (!fullRes.ok) throw new Error("Failed to load full profile");
         const fullUser = await fullRes.json();
-        const user = { ...baseUser, ...fullUser }; // รวมเป็นก้อนเดียว
+        const user = { ...baseUser, ...fullUser };
 
         // 3) ดึง blog ของ user นี้
         let blogs = [];
@@ -57,7 +56,7 @@ export default function ProfilePage() {
           }
         } catch {}
 
-        // 4) เช็กโน้ตล่าสุดของ user ด้วย API ที่ให้มา
+        // 4) เช็กว่ามีโน้ตล่าสุดไหม
         const noteRes = await fetch(
           `http://localhost:8000/api/note/user/${encodeURIComponent(user.user_id)}`,
           { cache: "no-store" }
@@ -65,7 +64,6 @@ export default function ProfilePage() {
         let hasNote = false;
         if (noteRes.ok) {
           const data = await noteRes.json();
-          // รูปแบบที่รองรับ: {note:null} หรือ object note จริง ๆ
           hasNote = data && data.note !== null;
         }
 
@@ -78,7 +76,6 @@ export default function ProfilePage() {
         setHasActiveNote(false);
       }
     })();
-
     return () => {
       alive = false;
     };
@@ -97,18 +94,15 @@ export default function ProfilePage() {
   const u = state.user;
   const isOwner = !!(session?.user?.id && String(session.user.id) === String(u.user_id));
 
-  // ✅ bio จาก backend (ให้ความสำคัญ user_bio เป็นอันดับแรก)
   const bioText =
     [u?.user_bio, u?.bio, u?.description, u?.about].find((v) => !!v && String(v).trim()) || "";
-
   const website = normalizeUrl(u?.website);
 
   return (
     <div className="mx-auto max-w-5xl pb-16 relative">
       {/* cover เขียว-ฟ้าอ่อน */}
       <div className="relative -mt-2 md:-mt-4 -mx-4 md:-mx-6">
-        <div className="h-44 md:h-56 w-full rounded-b-2xl overflow-hidden
-                        bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50" />
+        <div className="h-44 md:h-56 w-full rounded-b-2xl overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50" />
       </div>
 
       {/* Header */}
@@ -122,7 +116,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* ActiveNoteViewer: แสดงเฉพาะเมื่อมีโน้ต และนำไปไว้เหนือหัว */}
+          {/* ActiveNoteViewer: แสดงเฉพาะเมื่อมีโน้ต */}
           {hasActiveNote && (
             <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[120%]">
               <ActiveNoteViewer
@@ -147,8 +141,7 @@ export default function ProfilePage() {
             {isOwner && (
               <a
                 href="/settings"
-                className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium
-                           bg-gradient-to-r from-emerald-500 to-sky-500 text-white shadow hover:opacity-90"
+                className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-emerald-500 to-sky-500 text-white shadow hover:opacity-90"
               >
                 Edit Profile
               </a>
@@ -157,15 +150,6 @@ export default function ProfilePage() {
 
           {/* bio จาก backend */}
           {bioText && <p className="mt-3 text-gray-700 whitespace-pre-wrap">{bioText}</p>}
-        </div>
-
-        <div className="mt-6">
-          <div className="flex gap-6 text-sm">
-            <Tab href={`/note?owner=${u.user_id}`} label="Notes" />
-            <Tab href={`/blog?author=${u.user_id}`} label="Blog" />
-            <Tab href={`/party?user=${u.user_id}`} label="Party" />
-          </div>
-          <hr className="mt-3 border-emerald-100/70" />
         </div>
       </div>
 
@@ -234,22 +218,9 @@ function normalizeUrl(url) {
   return `https://${url}`;
 }
 
-function Tab({ href, label }) {
-  return (
-    <a
-      href={href}
-      className="py-2 -mb-px border-b-2 border-transparent hover:border-emerald-200 text-gray-700 hover:text-emerald-700"
-    >
-      {label}
-    </a>
-  );
-}
-
 function Card({ children, className = "" }) {
   return (
-    <div
-      className={`rounded-2xl border border-emerald-100/70 bg-white/80 backdrop-blur-sm p-4 ${className}`}
-    >
+    <div className={`rounded-2xl border border-emerald-100/70 bg-white/80 backdrop-blur-sm p-4 ${className}`}>
       {children}
     </div>
   );
@@ -259,9 +230,7 @@ function Detail({ label, value, privateHint = false }) {
   return (
     <div className="text-sm flex items-start gap-2 mt-2">
       <span className="text-gray-500 min-w-24">{label}</span>
-      <span className="font-medium break-all">
-        {value ? value : privateHint ? "Private" : "—"}
-      </span>
+      <span className="font-medium break-all">{value ? value : privateHint ? "Private" : "—"}</span>
     </div>
   );
 }
