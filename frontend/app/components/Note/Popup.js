@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { XMarkIcon, UsersIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/solid";
+import CommentSection from "./CommentSection";
 
 export default function Popup({
   showPopup,
@@ -63,6 +64,7 @@ export default function Popup({
   }, [noteId]);
 
   const partyTitle = `${name || "anonymous"}'s Party`;
+  const noteTitle = `${name || "anonymous"}'s note`;
 
   const showToast = (text, type = "error", timeout = 2800) => {
     setToast({ text, type });
@@ -77,7 +79,9 @@ export default function Popup({
   async function fetchJson(url, options = {}) {
     const res = await fetch(url, options);
     let data = null;
-    try { data = await res.json(); } catch {}
+    try {
+      data = await res.json();
+    } catch {}
     return { ok: res.ok, status: res.status, data };
   }
 
@@ -265,36 +269,54 @@ export default function Popup({
             <XMarkIcon className="h-5 w-5" />
           </button>
 
-          {/* ===== Combined bubble (label + message in one pill) centered above avatar ===== */}
+          {/* ===== TOP BUBBLE ===== */}
           <div className="px-6 pt-6 pb-0">
             <div className="flex justify-center">
-              <div className="relative text-center">
-                <div className="inline-block rounded-[18px] bg-neutral-900 text-white px-5 py-3 shadow-md">
-                  {/* label row */}
-                  <div className="flex items-center justify-center gap-2 text-[13px] font-semibold text-fuchsia-300">
-                    <SparklesIcon className="h-4 w-4" />
-                    <span>{crazyLabel}</span>
+              {isParty ? (
+                // PARTY: label + message ในก้อนเดียว (ดำ)
+                <div className="relative text-center">
+                  <div className="inline-block rounded-[18px] bg-neutral-900 text-white px-5 py-3 shadow-md">
+                    <div className="flex items-center justify-center gap-2 text-[13px] font-semibold text-fuchsia-300">
+                      <SparklesIcon className="h-4 w-4" />
+                      <span>{crazyLabel}</span>
+                    </div>
+                    <div className="mt-1 text-[17px] md:text-[18px] font-semibold leading-snug break-words text-white/95">
+                      {text || "—"}
+                    </div>
                   </div>
-                  {/* note message */}
-                  <div className="mt-1 text-[17px] md:text-[18px] font-semibold leading-snug break-words text-white/95">
-                    {text || "—"}
-                  </div>
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full bg-neutral-900"
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-x-3 w-2 h-2 rounded-full bg-neutral-900"
+                    style={{ bottom: "-1.125rem" }}
+                  />
                 </div>
-                {/* tail (two dots, centered) */}
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full bg-neutral-900"
-                />
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-x-3 w-2 h-2 rounded-full bg-neutral-900"
-                  style={{ bottom: "-1.125rem" }} // ≈ -bottom-4.5
-                />
-              </div>
+              ) : (
+                // REGULAR NOTE: bubble เขียว (ไม่มี label)
+                <div className="relative text-center">
+                  <div className="inline-block rounded-[18px] bg-green-100 text-gray-800 px-5 py-2.5 shadow-sm">
+                    <div className="text-[16px] md:text-[17px] font-semibold leading-snug break-words">
+                      {text || "—"}
+                    </div>
+                  </div>
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-green-100"
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-green-100"
+                    style={{ bottom: "-1.125rem" }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ===== host avatar ===== */}
+          {/* ===== AVATAR ===== */}
           <div className="px-6 pt-5 pb-1 text-center">
             <div className="flex items-center justify-center">
               <div className="flex items-center -space-x-3">
@@ -310,31 +332,32 @@ export default function Popup({
                     }}
                   />
                 </div>
-                {/* up to 2 members (small) */}
-                {members.slice(0, 2).map((m) => (
-                  <div
-                    key={m.user_id}
-                    className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow-md"
-                  >
-                    <img
-                      src={m.img || "/images/pfp.png"}
-                      alt={m.user_name || "member"}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        if (e.currentTarget.src !== "/images/pfp.png")
-                          e.currentTarget.src = "/images/pfp.png";
-                      }}
-                    />
-                  </div>
-                ))}
+                {/* small members (party only) */}
+                {isParty &&
+                  members.slice(0, 2).map((m) => (
+                    <div
+                      key={m.user_id}
+                      className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow-md"
+                    >
+                      <img
+                        src={m.img || "/images/pfp.png"}
+                        alt={m.user_name || "member"}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          if (e.currentTarget.src !== "/images/pfp.png")
+                            e.currentTarget.src = "/images/pfp.png";
+                        }}
+                      />
+                    </div>
+                  ))}
               </div>
             </div>
             <div className="mt-3 text-[15px] font-medium text-gray-900">
-              {partyTitle}
+              {isParty ? partyTitle : noteTitle}
             </div>
           </div>
 
-          {/* ===== content ===== */}
+          {/* ===== CONTENT ===== */}
           <div className="px-6 pb-6">
             {isParty ? (
               <>
@@ -386,11 +409,13 @@ export default function Popup({
                 ) : null}
               </>
             ) : (
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700 text-center">
-                This is a regular note.
+              // REGULAR NOTE: comment section
+              <div className="mt-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-inner">
+                <CommentSection noteId={noteId} userId={viewerUserId} />
               </div>
             )}
 
+            {/* bottom close */}
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setShowPopup(false)}

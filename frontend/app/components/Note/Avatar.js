@@ -1,6 +1,7 @@
-// Avatar.jsx
 "use client";
 import { useMemo, useRef, useEffect } from "react";
+
+const normalizeStyle = (s) => String(s || "").trim().toLowerCase();
 
 export default function Avatar({
   center = true,
@@ -9,17 +10,20 @@ export default function Avatar({
   seed,
   className = "",
   onUrlReady,
-  src,                 // ✅ ถ้ามี src จะใช้รูปนี้เลย (ไม่สุ่ม)
+  src,
 }) {
   const chosenStyle = useMemo(() => {
-    if (style !== "random") return style;
-    const arr = ["thumbs", "Dylan"];
+    if (style !== "random") return normalizeStyle(style);
+    const arr = ["thumbs", "dylan"];
     return arr[Math.floor(Math.random() * arr.length)];
   }, [style]);
 
-  const seedRef = useRef(seed || (typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : String(Math.random())));
+  const seedRef = useRef(
+    seed ||
+      (typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Math.random()))
+  );
 
   const build = ({ style, seed, size = 150, png = true }) => {
     const fmt = png ? "png" : "svg";
@@ -29,7 +33,8 @@ export default function Avatar({
       radius: "50",
       backgroundType: "gradientLinear",
     });
-    return `https://api.dicebear.com/9.x/${style}/${fmt}?${params.toString()}`;
+    const slug = normalizeStyle(style); 
+    return `https://api.dicebear.com/9.x/${slug}/${fmt}?${params.toString()}`;
   };
 
   const url = useMemo(
@@ -38,7 +43,7 @@ export default function Avatar({
   );
 
   useEffect(() => {
-    if (!src && onUrlReady) onUrlReady(url); // แจ้งเฉพาะตอนเป็นรูปสุ่ม
+    if (!src && onUrlReady) onUrlReady(url);
   }, [url, src, onUrlReady]);
 
   return (
@@ -50,7 +55,7 @@ export default function Avatar({
         height={size}
         className="rounded-full object-cover border border-gray-300 bg-gray-100"
         onError={(e) => {
-          if (src) return; // ถ้าเป็นรูปล็อกจาก DB ไม่เปลี่ยน style สำรอง (ให้ owner แก้เอง)
+          if (src) return;
           e.currentTarget.src = build({ style: "thumbs", seed: seedRef.current, size, png: true });
         }}
       />
