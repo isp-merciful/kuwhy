@@ -1,22 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
-/**
- * One-per-browser voting with React state + localStorage.
- * - Toggle: clicking the same side again removes your vote
- * - Flip: clicking the opposite side switches sides
- * - Server keeps global counters consistent via /vote-simple
- */
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.API_BASE ||
+  "http://localhost:8000";
+
 export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
   const [up, setUp] = useState(initialUp ?? 0);
   const [down, setDown] = useState(initialDown ?? 0);
   const [mine, setMine] = useState(null); // "up" | "down" | null
   const [loading, setLoading] = useState(false);
 
-  const lsKey = `blogVote:${blogId}`;
+  const lsKey = useMemo(() => `blogVote:${blogId}`, [blogId]);
 
-  // Load saved vote from this browser
   useEffect(() => {
     try {
       const v = localStorage.getItem(lsKey);
@@ -27,13 +25,12 @@ export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
   const nextState = (action) => (mine === action ? null : action);
 
   async function doVote(action) {
-    if (loading) return;
+    if (loading || !blogId) return;
     setLoading(true);
 
     const prev = mine;
     const next = nextState(action);
 
-    // Optimistic UI
     const snap = { up, down, mine };
     if (prev !== next) {
       if (prev === null && next === "up")       { setUp(v => v + 1); setMine("up"); }
@@ -45,29 +42,26 @@ export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
     }
 
     try {
-      const res = await fetch(`http://localhost:8000/api/blog/${blogId}/vote-simple`, {
+      const res = await fetch(`${API_BASE}/api/blog/${blogId}/vote-simple`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prev, next }),
       });
-      if (!res.ok) throw new Error("Vote failed");
+      if (!res.ok) throw new Error(`Vote failed (${res.status})`);
       const data = await res.json();
 
-      // Sync with server truth
       if (typeof data.blog_up === "number") setUp(data.blog_up);
       if (typeof data.blog_down === "number") setDown(data.blog_down);
       setMine(data.vote ?? null);
 
-      // Persist to this browser
       try {
         if (data.vote) localStorage.setItem(lsKey, data.vote);
         else localStorage.removeItem(lsKey);
       } catch {}
     } catch (e) {
-      // Revert on error
       setUp(snap.up); setDown(snap.down); setMine(snap.mine);
-      alert(e.message || "Vote failed");
       console.error(e);
+      alert(e.message || "Vote failed");
     } finally {
       setLoading(false);
     }

@@ -128,6 +128,23 @@ router.get("/blog/:blog_id", async (req, res) => {
   }
 });
 
+/* BLOG comments */
+router.get('/blog/:blog_id', async (req, res) => {
+  try {
+    const [rows] = await wire.query(
+      `SELECT c.*, u.user_name, u.img
+         FROM comment c
+         LEFT JOIN users u ON c.user_id = u.user_id
+        WHERE c.blog_id = ?
+        ORDER BY c.created_at ASC`,
+      [req.params.blog_id]
+    );
+    res.json({ message: "getblog", comment: CommentTree(rows) });
+  } catch (error) {
+    console.error("❌ Fetch blog comments error:", error);
+    res.status(500).json({ error: error.message || "can't fetch blog comment" });
+  }
+});
 /* --------------------------------------------
    POST /api/comment
    body: { user_id, message, note_id?, blog_id?, parent_comment_id? }

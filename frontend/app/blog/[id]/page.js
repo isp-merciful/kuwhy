@@ -1,8 +1,23 @@
 import Link from "next/link";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
+import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
+
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+// Resolve API base (Docker: set NEXT_PUBLIC_API_BASE=http://backend:8000)
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.API_BASE ||
+  "http://localhost:8000";
+
+// Helper: prefix backend base for /uploads/* paths
+function toAbs(url) {
+  if (!url) return "";
+  return url.startsWith("http") ? url : `${API_BASE}${url}`;
+}
 
 // Hydration-safe date formatting
 function formatDate(iso) {
@@ -22,25 +37,51 @@ function formatDate(iso) {
     const d = new Date(iso);
     const pad = (n) => String(n).padStart(2, "0");
     return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} `
-         + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+      + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
   }
 }
 
+async function fetchJSON(url) {
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeOne(json) {
+  if (!json) return null;
+  if (json.data) return json.data; // support {data:{...}}
+  if (Array.isArray(json)) return json[0] ?? null; // rare fallback
+  return json;
+}
+
+function normalizeMany(json) {
+  if (!json) return [];
+  return Array.isArray(json) ? json : json.data ?? [];
+}
+
 async function fetchPost(id) {
-  const res = await fetch(`http://localhost:8000/api/blog/${id}`, { cache: "no-store" });
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json?.data ?? json ?? null;
+  // Prefer /api/blog/:id; fall back to /api/blog?id=
+  const candidates = [
+    `${API_BASE}/api/blog/${encodeURIComponent(id)}`,
+    `${API_BASE}/api/blog?id=${encodeURIComponent(id)}`,
+  ];
+  for (const u of candidates) {
+    const one = normalizeOne(await fetchJSON(u));
+    if (one && (one.blog_id ?? one.id)) return one;
+  }
+  return null;
 }
 
 async function fetchAllPosts() {
-  const res = await fetch(`http://localhost:8000/api/blog`, { cache: "no-store" });
-  if (!res.ok) return [];
-  return res.json();
+  return normalizeMany(await fetchJSON(`${API_BASE}/api/blog`));
 }
 
 export default async function BlogPostPage({ params }) {
-  const { id } = await params;   // ← required in Next 15
+  const { id } = params;
   const [post, allPosts] = await Promise.all([fetchPost(id), fetchAllPosts()]);
 
   if (!post) {
@@ -50,7 +91,7 @@ export default async function BlogPostPage({ params }) {
         <p className="mt-2 text-gray-600">
           We couldn’t find a blog post with ID <code>{id}</code>.
         </p>
-        <Link href="/" className="mt-4 inline-block text-sm text-blue-600 underline">
+        <Link href="/blog" className="mt-4 inline-block text-sm text-blue-600 underline">
           ← Back to Community Blog
         </Link>
       </div>
@@ -61,10 +102,13 @@ export default async function BlogPostPage({ params }) {
     .filter((p) => String(p.blog_id) !== String(id))
     .slice(0, 8);
 
+  // Ensure attachments array is normalized (hotfix-safe)
+  const atts = Array.isArray(post.attachments) ? post.attachments : [];
+
   return (
     <div className="mx-auto max-w-5xl py-10">
       <div className="mb-4">
-        <Link href="/" className="text-sm text-gray-600 hover:underline">
+        <Link href="/blog" className="text-sm text-gray-600 hover:underline">
           ← Back to Community Blog
         </Link>
       </div>
@@ -86,6 +130,63 @@ export default async function BlogPostPage({ params }) {
             <p className="whitespace-pre-wrap">{post.message}</p>
           </section>
 
+          {/* Attachments (works even during hotfix: if backend later returns JSON, it renders; if not, nothing breaks) */}
+          {(atts.length > 0) || post.file_url ? (
+            <section className="mt-6">
+              <h3 className="text-sm font-semibold text-gray-700">Attachments</h3>
+
+              {/* Multiple attachments */}
+              {atts.length > 0 ? (
+                <ul className="mt-3 space-y-2">
+                  {atts.map((att, idx) => {
+                    const url = toAbs(att.url);
+                    const isImg = (att.type || "").startsWith("image/");
+                    return (
+                      <li key={idx} className="rounded-md border border-gray-200 p-3">
+                        {isImg ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={url}
+                            alt={att.name || `attachment-${idx}`}
+                            className="max-h-80 w-auto rounded"
+                          />
+                        ) : (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 underline break-all"
+                          >
+                            {att.name || url}
+                          </a>
+                        )}
+                        {att.size ? (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {(att.size / 1024).toFixed(1)} KB
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+
+              {/* Legacy single file_url */}
+              {post.file_url && !post.attachments && (
+                <div className="mt-3 rounded-md border border-gray-200 p-3">
+                  <a
+                    href={toAbs(post.file_url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 underline break-all"
+                  >
+                    Download attachment
+                  </a>
+                </div>
+              )}
+            </section>
+          ) : null}
+
           {/* Likes / Dislikes */}
           <footer className="mt-6 flex items-center gap-4 text-sm text-gray-700">
             <LikeButtons
@@ -95,42 +196,16 @@ export default async function BlogPostPage({ params }) {
             />
           </footer>
 
-          {/* Comments (generic thread, blog mode) */}
+          {/* Comments */}
           <CommentThread blogId={post.blog_id} />
         </article>
 
-        {/* Sidebar: Other posts */}
-        <aside className="lg:col-span-1">
-          <div className="sticky top-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h2 className="text-lg font-semibold">Other posts</h2>
-            {otherPosts.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-600">No other posts yet.</p>
-            ) : (
-              <ul className="mt-3 space-y-3">
-                {otherPosts.map((p) => (
-                  <li key={p.blog_id} className="group">
-                    <Link
-                      href={`/blog/${p.blog_id}`}
-                      className="block rounded-md border border-transparent p-2 hover:border-gray-200 hover:bg-gray-50"
-                    >
-                      <div className="line-clamp-1 font-medium group-hover:underline">
-                        {p.blog_title || "(untitled)"}
-                      </div>
-                      <div className="mt-0.5 text-xs text-gray-500">
-                        {p.user_name ?? "anonymous"} ·{" "}
-                        <time dateTime={p.created_at} suppressHydrationWarning>
-                          {p.created_at ? formatDate(p.created_at) : ""}
-                        </time>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </aside>
+        {/* Sidebar: Other posts (with search) */}
+<aside className="lg:col-span-1">
+  <OtherPostsSearch posts={otherPosts} />
+</aside>
+
       </div>
     </div>
   );
 }
-

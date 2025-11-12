@@ -1,139 +1,184 @@
-const express = require('express');
+// backend/blog_api.js
+const express = require("express");
 const router = express.Router();
-const { prisma } = require('./lib/prisma.cjs');
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
+const { prisma } = require("./lib/prisma.cjs");
 
+// Ensure uploads folder exists
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-router.post('/', async (req, res) => {
+// Multer storage
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const safe = Date.now() + "-" + file.originalname.replace(/\s+/g, "_");
+    cb(null, safe);
+  },
+});
+const upload = multer({ storage });
+
+// Helper (kept for later when you add attachments to DB)
+function filesToAttachments(files = []) {
+  return files.map((f) => ({
+    url: `/uploads/${f.filename}`,
+    name: f.originalname,
+    type: f.mimetype,
+    size: f.size,
+  }));
+}
+
+/**
+ * POST /api/blog
+ * Accepts:
+ * - multipart/form-data (fields: user_id, blog_title, message; files: attachments[])
+ * - OR application/json
+ *
+ * HOTFIX: we do NOT persist attachments to DB (no migration yet).
+ * Files still upload to /uploads; we return them in the response only.
+ */
+router.post("/", upload.array("attachments", 10), async (req, res) => {
   try {
-    const { user_id, blog_title, message } = req.body;
+    const { user_id, blog_title, message } = req.body || {};
+    if (!user_id || !blog_title || !message) {
+      return res.status(400).json({ error: "Missing fields" });
+    }
 
-    const result = await prisma.blog.create({
+    const uploaded = filesToAttachments(req.files || []);
+
+    const created = await prisma.blog.create({
       data: {
         user_id,
         blog_title,
         message,
+        // attachments: <omitted on purpose>  // hotfix: no JSON column yet
       },
     });
 
-    res.json({
-      message: 'inserted',
-      insertedId: result.blog_id,
+    return res.status(201).json({
+      message: "inserted",
+      insertedId: created.blog_id,
+      data: created,
+      // return uploaded file info for debugging/preview; not stored in DB yet
+      uploaded_attachments: uploaded,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Database insert failed' });
+    console.error("POST /api/blog failed:", error);
+    return res.status(500).json({ error: "Database insert failed" });
   }
 });
 
-
-router.get('/', async (req, res) => {
+/**
+ * GET /api/blog  (hotfix: select only existing columns)
+ * Uses relation name "users" per your schema
+ */
+router.get("/", async (_req, res) => {
   try {
     const result = await prisma.blog.findMany({
-      orderBy: { blog_id: 'desc' },
-      include: {
-        users: {
-          select: {
-            img: true,
-            user_name: true,
-          },
-        },
+      orderBy: { blog_id: "desc" },
+      select: {
+        blog_id: true,
+        blog_title: true,
+        message: true,
+        blog_up: true,
+        blog_down: true,
+        user_id: true,
+        created_at: true,
+        updated_at: true,
+        users: { select: { img: true, user_name: true } },
       },
     });
 
-
-    const blogs = result.map(b => ({
+    const blogs = result.map((b) => ({
       blog_id: b.blog_id,
       blog_title: b.blog_title,
       message: b.message,
-      img: b.user?.img,
-      user_name: b.user?.user_name,
+      img: b.users?.img || null,
+      user_name: b.users?.user_name || "anonymous",
       created_at: b.created_at,
+      // attachments omitted (no column yet)
     }));
 
     res.json(blogs);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'fetch post fail' });
+    console.error("GET /api/blog failed:", error);
+    res.status(500).json({ error: "fetch post fail" });
   }
 });
 
-/* ------------ NO-MIGRATION VOTING (state + localStorage) ------------ */
 /**
- * Client sends:
- *   { prev: "up"|"down"|null, next: "up"|"down"|null }
- * Server computes deltas and updates blog_up/blog_down atomically.
+ * GET /api/blog/:id  (hotfix: select only existing columns)
  */
-router.post('/:id/vote-simple', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const id = req.params.id;
-    let { prev, next } = req.body || {};
-    const norm = (v) => (v === 'up' || v === 'down' ? v : null);
-    prev = norm(prev);
-    next = norm(next);
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ error: "Bad id" });
 
-    let upDelta = 0, downDelta = 0;
-    if (prev !== next) {
-      if (prev === null && next === 'up') upDelta = +1;
-      else if (prev === null && next === 'down') downDelta = +1;
-      else if (prev === 'up' && next === null) upDelta = -1;
-      else if (prev === 'down' && next === null) downDelta = -1;
-      else if (prev === 'up' && next === 'down') { upDelta = -1; downDelta = +1; }
-      else if (prev === 'down' && next === 'up') { downDelta = -1; upDelta = +1; }
-    }
-
-    await wire.query(
-      `UPDATE blog
-         SET blog_up   = GREATEST(IFNULL(blog_up,0)   + ?, 0),
-             blog_down = GREATEST(IFNULL(blog_down,0) + ?, 0)
-       WHERE blog_id = ?`,
-      [upDelta, downDelta, id]
-    );
-
-    const [[row]] = await wire.query(
-      `SELECT blog_up, blog_down FROM blog WHERE blog_id = ? LIMIT 1`,
-      [id]
-    );
-    if (!row) return res.status(404).json({ error: 'not found' });
+    const b = await prisma.blog.findUnique({
+      where: { blog_id: id },
+      select: {
+        blog_id: true,
+        blog_title: true,
+        message: true,
+        blog_up: true,
+        blog_down: true,
+        user_id: true,
+        created_at: true,
+        updated_at: true,
+        users: { select: { img: true, user_name: true } },
+      },
+    });
+    if (!b) return res.status(404).json({ error: "Not found" });
 
     res.json({
-      vote: next,
-      blog_up: row.blog_up ?? 0,
-      blog_down: row.blog_down ?? 0,
+      blog_id: b.blog_id,
+      blog_title: b.blog_title,
+      message: b.message,
+      img: b.users?.img || null,
+      user_name: b.users?.user_name || "anonymous",
+      created_at: b.created_at,
+      // attachments omitted (no column yet)
     });
-  } catch (err) {
-    console.error('vote-simple error', err);
-    res.status(500).json({ error: 'vote failed' });
+  } catch (error) {
+    console.error("GET /api/blog/:id failed:", error);
+    res.status(500).json({ error: "fetch post fail" });
   }
 });
 
-module.exports = { router, DBconnect };
-
-router.put('/', async (req, res) => {
+/**
+ * PUT /api/blog
+ */
+router.put("/", async (req, res) => {
   try {
-    const { message, blog_id } = req.body;
+    const { message, blog_id } = req.body || {};
+    if (!blog_id) return res.status(400).json({ error: "Missing blog_id" });
 
     await prisma.blog.update({
-      where: { blog_id: blog_id },
+      where: { blog_id: Number(blog_id) },
       data: { message },
     });
 
-    res.json({ message: 'updatesuccess' });
+    res.json({ message: "updatesuccess" });
   } catch (err) {
-    console.error(err);
+    console.error("PUT /api/blog failed:", err);
     res.status(500).json({ error: "Failed to update blog" });
   }
 });
 
-
-router.delete('/:id', async (req, res) => {
+/**
+ * DELETE /api/blog/:id
+ */
+router.delete("/:id", async (req, res) => {
   try {
     await prisma.blog.delete({
       where: { blog_id: Number(req.params.id) },
     });
 
-    res.json('delete success');
+    res.json("delete success");
   } catch (error) {
-    console.error(error);
+    console.error("DELETE /api/blog/:id failed:", error);
     res.status(500).json({ error: "can't deleted blog" });
   }
 });
