@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -9,80 +9,76 @@ import BlogCard from "../../components/profile/BlogCard";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
-  const params = useParams();
-  const handle = String(params?.handle ?? "").toLowerCase();
+  const routerParams = useParams();
+  const handle = String(routerParams?.handle ?? "").toLowerCase();
 
-  const [state, setState] = useState({
-    loading: true,
-    error: "",
-    user: null,     // = ข้อมูลผู้ใช้ฉบับเต็ม (รวม bio/website/etc)
-    blogs: [],
-  });
+  const [state, setState] = useState({ loading: true, error: "", user: null, blogs: [] });
   const [hasActiveNote, setHasActiveNote] = useState(false);
 
   useEffect(() => {
-    let alive = true;
-
+    let ok = true;
     (async () => {
       try {
-        // 1) ดึง user เบื้องต้นจาก handle เพื่อหา user_id
-        const uRes = await fetch(
+        // ===== 1) โหลดโปรไฟล์จาก handle =====
+        const profRes = await fetch(
           `http://localhost:8000/api/user/by-handle/${encodeURIComponent(handle)}`,
           { cache: "no-store" }
         );
-        if (!uRes.ok) throw new Error("User not found");
-        const { user: baseUser } = await uRes.json();
+        if (!ok) return;
+        if (!profRes.ok) throw new Error("User not found");
+        const { user } = await profRes.json();
 
-        // 2) ดึงโปรไฟล์เต็ม (มี bio / รายละเอียดอื่นๆ)
-        const fullRes = await fetch(`http://localhost:8000/api/user/${baseUser.user_id}`, {
-          cache: "no-store",
-        });
-        if (!fullRes.ok) throw new Error("Failed to load full profile");
-        const fullUser = await fullRes.json();
-        const user = { ...baseUser, ...fullUser }; // รวมเป็นก้อนเดียว
-
-        // 3) ดึง blog ของ user นี้
+        // ===== 2) ดึงบล็อกของ user นี้ =====
         let blogs = [];
         try {
           const r = await fetch(`http://localhost:8000/api/blog`, { cache: "no-store" });
           if (r.ok) {
             const all = await r.json();
             blogs = all.filter((b) => {
-              const byId = b.user_id && String(b.user_id) === String(user.user_id);
-              const byUsersId = b.users?.user_id && String(b.users.user_id) === String(user.user_id);
+              const byId = b.user_id && b.user_id === user.user_id;
               const byName = b.user_name && b.user_name === user.user_name;
+              const byUsersId = b.users?.user_id && b.users.user_id === user.user_id;
               const byUsersName = b.users?.user_name && b.users.user_name === user.user_name;
-              return byId || byUsersId || byName || byUsersName;
+              return byId || byName || byUsersId || byUsersName;
             });
           }
         } catch {}
 
-        // 4) เช็กโน้ตล่าสุดของ user ด้วย API ที่ให้มา
-        const noteRes = await fetch(
-          `http://localhost:8000/api/note/user/${encodeURIComponent(user.user_id)}`,
-          { cache: "no-store" }
-        );
-        let hasNote = false;
-        if (noteRes.ok) {
-          const data = await noteRes.json();
-          // รูปแบบที่รองรับ: {note:null} หรือ object note จริง ๆ
-          hasNote = data && data.note !== null;
-        }
+        // ===== 3) เช็กว่ามี active note ไหม (เพื่อซ่อน/แสดง …) =====
+        const hasNote = await detectHasActiveNote(user.user_id);
 
-        if (!alive) return;
+        if (!ok) return;
         setState({ loading: false, error: "", user, blogs });
         setHasActiveNote(hasNote);
       } catch (e) {
-        if (!alive) return;
+        if (!ok) return;
         setState({ loading: false, error: e?.message || "Load failed", user: null, blogs: [] });
         setHasActiveNote(false);
       }
     })();
-
-    return () => {
-      alive = false;
-    };
+    return () => { ok = false; };
   }, [handle]);
+
+  // helper: ลองหลาย endpoint เผื่อโปรเจกต์จริงใช้ชื่อไม่เหมือนกัน
+  async function detectHasActiveNote(userId) {
+    const endpoints = [
+      `http://localhost:8000/api/note/${userId}`,
+      `http://localhost:8000/api/note/active?user_id=${userId}`,
+      `http://localhost:8000/api/note?owner=${userId}&active=1&limit=1`,
+    ];
+    for (const url of endpoints) {
+      try {
+        const r = await fetch(url, { cache: "no-store" });
+        if (!r.ok) continue;
+        const data = await r.json();
+        // รองรับได้ทั้ง object และ array
+        if ((Array.isArray(data) && data.length > 0) || data?.note || data?.note_id || data?.id) {
+          return true;
+        }
+      } catch {}
+    }
+    return false;
+  }
 
   if (state.loading) return <PageSkeleton />;
   if (state.error || !state.user) {
@@ -95,17 +91,18 @@ export default function ProfilePage() {
   }
 
   const u = state.user;
-  const isOwner = !!(session?.user?.id && String(session.user.id) === String(u.user_id));
+  const isOwner = !!(session?.user?.id && session.user.id === u.user_id);
 
-  // ✅ bio จาก backend (ให้ความสำคัญ user_bio เป็นอันดับแรก)
+  // ✅ ผูก bio กับ backend (รองรับหลายชื่อฟิลด์)
   const bioText =
-    [u?.user_bio, u?.bio, u?.description, u?.about].find((v) => !!v && String(v).trim()) || "";
+  [u?.bio, u?.user_bio, u?.description, u?.about].find(Boolean) || "";
 
-  const website = normalizeUrl(u?.website);
+  // ✅ ทำให้ website ใช้งานได้แม้ไม่ใส่ http/https
+  const website = normalizeUrl(u.website);
 
   return (
     <div className="mx-auto max-w-5xl pb-16 relative">
-      {/* cover เขียว-ฟ้าอ่อน */}
+      {/* Cover theme เขียว-ฟ้าอ่อน */}
       <div className="relative -mt-2 md:-mt-4 -mx-4 md:-mx-6">
         <div className="h-44 md:h-56 w-full rounded-b-2xl overflow-hidden
                         bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50" />
@@ -122,15 +119,23 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* ActiveNoteViewer: แสดงเฉพาะเมื่อมีโน้ต และนำไปไว้เหนือหัว */}
-          {hasActiveNote && (
-            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[120%]">
+          {/* Thought bubble (ActiveNoteViewer) เหนือหัว
+              ❗ เอา "..." ออกเมื่อไม่มีโน้ต (hasActiveNote=false) */}
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[120%]">
+            <div className="relative">
+              {hasActiveNote && (
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 pointer-events-none">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300/80" />
+                  <span className="w-2 h-2 rounded-full bg-cyan-300/80" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-sky-300/80" />
+                </div>
+              )}
               <ActiveNoteViewer
                 userId={u.user_id}
                 className="rounded-xl shadow-lg ring-1 ring-emerald-100/60 bg-white"
               />
             </div>
-          )}
+          </div>
         </div>
 
         <div className="mt-3 md:mt-4">
@@ -155,7 +160,7 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* bio จาก backend */}
+          {/* ✅ bio จาก backend */}
           {bioText && <p className="mt-3 text-gray-700 whitespace-pre-wrap">{bioText}</p>}
         </div>
 
@@ -186,12 +191,8 @@ export default function ProfilePage() {
             {website && (
               <div className="text-sm mt-2">
                 <span className="text-gray-500">Website </span>
-                <a
-                  className="underline break-all text-emerald-700 hover:text-emerald-900"
-                  target="_blank"
-                  rel="noreferrer"
-                  href={website}
-                >
+                <a className="underline break-all text-emerald-700 hover:text-emerald-900"
+                   target="_blank" rel="noreferrer" href={website}>
                   {website}
                 </a>
               </div>
@@ -214,9 +215,7 @@ export default function ProfilePage() {
 
           {state.blogs?.length ? (
             <div className="space-y-4">
-              {state.blogs.map((b) => (
-                <BlogCard key={b.blog_id} b={b} />
-              ))}
+              {state.blogs.map((b) => <BlogCard key={b.blog_id} b={b} />)}
             </div>
           ) : (
             <Card className="p-8 text-center text-gray-500">No blog posts yet.</Card>
@@ -227,7 +226,7 @@ export default function ProfilePage() {
   );
 }
 
-/* ---------- helpers / small UI ---------- */
+/* --------- helpers & small UI components --------- */
 function normalizeUrl(url) {
   if (!url) return "";
   if (/^https?:\/\//i.test(url)) return url;
@@ -244,24 +243,18 @@ function Tab({ href, label }) {
     </a>
   );
 }
-
 function Card({ children, className = "" }) {
   return (
-    <div
-      className={`rounded-2xl border border-emerald-100/70 bg-white/80 backdrop-blur-sm p-4 ${className}`}
-    >
+    <div className={`rounded-2xl border border-emerald-100/70 bg-white/80 backdrop-blur-sm p-4 ${className}`}>
       {children}
     </div>
   );
 }
-
 function Detail({ label, value, privateHint = false }) {
   return (
     <div className="text-sm flex items-start gap-2 mt-2">
       <span className="text-gray-500 min-w-24">{label}</span>
-      <span className="font-medium break-all">
-        {value ? value : privateHint ? "Private" : "—"}
-      </span>
+      <span className="font-medium break-all">{value ? value : privateHint ? "Private" : "—"}</span>
     </div>
   );
 }
