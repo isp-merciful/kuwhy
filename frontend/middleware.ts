@@ -8,37 +8,40 @@ export async function middleware(req: NextRequest) {
   const path = url.pathname;
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  console.log(token)
+
+  // แนะนำ: ไม่ console.log ในโปรดักชัน
+  if (process.env.NODE_ENV !== "production") {
+    // console.log("[mw] token", token);
+  }
+
   const toLogin = () => {
     const loginUrl = new URL("/login", url);
+    // เก็บเส้นทางเดิมไว้ (รวม query)
     loginUrl.searchParams.set("callbackUrl", path + (url.search || ""));
     return NextResponse.redirect(loginUrl);
   };
 
+  const isMember = token && (token.role === "member" || token.role === "admin");
+  const isAdmin = token && token.role === "admin";
+
+  // ต้องล็อกอิน (role ใดก็ได้) สำหรับ settings
+  if (path.startsWith("/settings")) {
+    if (!token) return toLogin();
+  }
+
+  // ต้องเป็นสมาชิกอย่างน้อย (member/admin) สำหรับ blog/party
   if (path.startsWith("/blog") || path.startsWith("/party")) {
-    if (!token || (token.role !== "member" && token.role !== "admin")) {
-      return toLogin();
-    }
+    if (!isMember) return toLogin();
   }
 
+  // ต้องเป็น admin สำหรับ /admin/*
   if (path.startsWith("/admin")) {
-    if (!token || token.role !== "admin") {
-      return NextResponse.redirect(new URL("/", url));
-    }
-  }
-
-  if (req.nextUrl.pathname.startsWith('/settings')) {
-    if (!token) {
-      const url = req.nextUrl.clone();
-      url.pathname = '/login';
-      url.searchParams.set('callbackUrl', req.nextUrl.pathname);
-      return NextResponse.redirect(url);
-    }
+    if (!isAdmin) return NextResponse.redirect(new URL("/", url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/blog/:path*", "/party/:path*", "/admin/:path*",'/settings/:path*'],
+  matcher: ["/blog/:path*", "/party/:path*", "/admin/:path*", "/settings"],
 };
