@@ -10,6 +10,8 @@ import CommentSection from "./CommentSection";
 import { TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
 import PartyChat from "./PartyChat";
 import useUserId from "./useUserId";
+import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
+import ConfirmReplaceDialog from "./ConfirmReplaceDialog";
 
 export default function NoteBubble() {
   // --- session / token ---
@@ -42,6 +44,12 @@ export default function NoteBubble() {
   const [noteId, setNoteId] = useState(null);
   const [isComposing, setIsComposing] = useState(false);
   const [editNameOnExpand, setEditNameOnExpand] = useState(false);
+
+  // dialog box
+  const [showDelete, setShowDelete] = useState(false);
+  const [showReplace, setShowReplace] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [replacing, setReplacing] = useState(false);
 
   // --- party states ---
   const [isParty, setIsParty] = useState(false);
@@ -78,19 +86,15 @@ export default function NoteBubble() {
   // --------------------------
   // Avatar persistence
   // --------------------------
-  // serverImg: รูปจาก DB (ถ้ามี = ใช้เป็นรูปถาวร ไม่สุ่ม)
   const [serverImg, setServerImg] = useState(null);
-  // pendingAvatarUrlRef: เก็บ URL ที่ Avatar สุ่มได้ "ชั่วคราว" ก่อนโพสต์
   const pendingAvatarUrlRef = useRef(null);
 
-  // รับ URL จาก Avatar ตอนยังไม่มีรูปถาวร
   const handleAvatarUrlReady = (url) => {
     if (!serverImg && url) pendingAvatarUrlRef.current = url;
   };
 
-  // หลัง "โพสต์สำเร็จครั้งแรก" ให้บันทึกรูปถาวรถ้ายังไม่มีใน DB
   const persistAvatarIfNeeded = async () => {
-    if (serverImg) return; // มีใน DB แล้ว ไม่ต้องทำซ้ำ
+    if (serverImg) return;
     const url = pendingAvatarUrlRef.current;
     if (!url || !userId) return;
 
@@ -105,7 +109,7 @@ export default function NoteBubble() {
         }
       );
       if (res.ok) {
-        setServerImg(url); // ตั้งเป็นรูปถาวรใน FE ทันที
+        setServerImg(url);
       } else {
         console.warn("[avatar] persist failed:", await res.text());
       }
@@ -114,7 +118,6 @@ export default function NoteBubble() {
     }
   };
 
-  // เมื่อเปลี่ยนตัวตน (เช่น anonymous -> login) ล้างค่าชั่วคราว
   useEffect(() => {
     pendingAvatarUrlRef.current = null;
   }, [userId]);
@@ -123,7 +126,6 @@ export default function NoteBubble() {
   // initial load (profile + note)
   // --------------------------
   useEffect(() => {
-    // ยังไม่รู้ userId หรือ session ยังโหลดอยู่ → อย่าทำอะไร
     if (!userId || !ready) return;
 
     // reset note/party states (ไม่แตะ name)
@@ -137,7 +139,6 @@ export default function NoteBubble() {
 
     const controller = new AbortController();
 
-    // ตั้งชื่อจาก session ก่อน (ถ้า auth และไม่ใช่ anonymous)
     if (
       authed &&
       session?.user?.name &&
@@ -221,7 +222,7 @@ export default function NoteBubble() {
     }
 
     (async () => {
-      const u = await fetchUserOnce(); // ❗ไม่มีการ register anonymous ฝั่ง FE แล้ว
+      const u = await fetchUserOnce();
       if (mountedRef.current && u) {
         const serverName = extractServerName(u);
         if (
@@ -231,7 +232,6 @@ export default function NoteBubble() {
         ) {
           setName(serverName.trim());
         }
-        // โหลดรูปจาก DB ถ้ามี → จะบังคับให้ Avatar ใช้รูปนี้ (ไม่สุ่ม)
         const img = extractServerImg(u);
         if (img && typeof img === "string") setServerImg(img);
         else setServerImg(null);
@@ -254,7 +254,7 @@ export default function NoteBubble() {
     setLoading(true);
     try {
       const payload = {
-        user_id: userId, // BE จะ override ด้วย req.user.id ถ้ามี token
+        user_id: userId,
         message: text,
         max_party: isParty
           ? Math.min(20, Math.max(2, Number(maxParty) || 2))
@@ -287,7 +287,6 @@ export default function NoteBubble() {
         setCurrParty(Number(serverCurr) || 0);
         setJoinedMemberOnly(false);
 
-        // ✅ ล็อกอวาตาร์หลังโพสต์ครั้งแรก ถ้ายังไม่มีใน DB
         await persistAvatarIfNeeded();
       } else {
         alert(result?.error || "ไม่สามารถโพสต์ได้");
@@ -302,11 +301,11 @@ export default function NoteBubble() {
   const handleDelete = async () => {
     if (!noteId) return;
     if (joinedMemberOnly)
-      return alert("คุณเข้าร่วมปาร์ตี้นี้ไว้ ไม่สามารถลบโน้ตของผู้อื่นได้");
+      return alert("You have joined this party and cannot delete other people's notes.");
     try {
       const res = await fetch(`http://localhost:8000/api/note/${noteId}`, {
         method: "DELETE",
-        headers: { ...authHeaders },
+        
       });
       if (res.ok) {
         setText("");
@@ -317,7 +316,6 @@ export default function NoteBubble() {
         setMaxParty(0);
         setCurrParty(0);
         setJoinedMemberOnly(false);
-        // ไม่แตะ serverImg — รูปถาวรควรคงอยู่
       } else {
         const data = await res.json().catch(() => ({}));
         alert(data?.error || "ไม่สามารถลบโน้ตได้");
@@ -345,7 +343,6 @@ export default function NoteBubble() {
       setMaxParty(0);
       setCurrParty(0);
       setJoinedMemberOnly(false);
-      // รูปถาวรยังคงเดิม
     } catch {
       alert("ไม่สามารถเชื่อมต่อ server ได้");
     }
@@ -478,27 +475,20 @@ export default function NoteBubble() {
                 />
                 {isPosted && !joinedMemberOnly && (
                   <div className="absolute -bottom-2 -right-2 flex space-x-2">
+                    {/* + = replace (ยืนยันก่อน) */}
                     <button
-                      onClick={async () => {
-                        await handleDelete();
-                        setIsPosted(false);
-                        setText("");
-                        setNoteId(null);
-                        setIsComposing(true);
-                        setIsParty(false);
-                        setMaxParty(0);
-                        setCurrParty(0);
-                        setJoinedMemberOnly(false);
-                      }}
+                      onClick={() => setShowReplace(true)}
                       className="w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow"
                       title="Add New Note"
                     >
                       <PlusIcon className="w-5 h-5" />
                     </button>
+                    {/* 🗑 = delete (ยืนยันก่อน) */}
                     <button
-                      onClick={handleDelete}
-                      className="w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow"
+                      onClick={() => setShowDelete(true)}
+                      className="w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow disabled:opacity-50"
                       title="Delete"
+                      disabled={!noteId}
                     >
                       <TrashIcon className="w-5 h-5" />
                     </button>
@@ -680,6 +670,46 @@ export default function NoteBubble() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* === Dialogs === */}
+      <ConfirmReplaceDialog
+        open={showReplace}
+        onClose={() => setShowReplace(false)}
+        busy={replacing}
+        onConfirm={async () => {
+          try {
+            setReplacing(true);
+            // “แทนที่” = ลบโน้ตเดิมแล้วเข้าโหมดแต่งโพสต์ใหม่
+            await handleDelete();
+            setIsPosted(false);
+            setText("");
+            setNoteId(null);
+            setIsComposing(true);
+            setIsParty(false);
+            setMaxParty(0);
+            setCurrParty(0);
+            setJoinedMemberOnly(false);
+          } finally {
+            setReplacing(false);
+            setShowReplace(false);
+          }
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        busy={deleting}
+        onConfirm={async () => {
+          try {
+            setDeleting(true);
+            await handleDelete();
+          } finally {
+            setDeleting(false);
+            setShowDelete(false);
+          }
+        }}
+      />
     </motion.div>
   );
 }

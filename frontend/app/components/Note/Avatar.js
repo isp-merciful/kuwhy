@@ -13,7 +13,7 @@ export default function Avatar({
 }) {
   const chosenStyle = useMemo(() => {
     if (style !== "random") return style;
-    const arr = ["thumbs", "adventurer"];
+    const arr = ["thumbs", "Croodles"];
     return arr[Math.floor(Math.random() * arr.length)];
   }, [style]);
 
