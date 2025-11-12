@@ -25,7 +25,7 @@ export default function Popup({
   const search = useSearchParams();
   const router = useRouter();
 
-  // state
+  // ===== state =====
   const [joined, setJoined] = useState(false);
   const [joining, setJoining] = useState(false);
   const [curr, setCurr] = useState(Number(currParty) || 0);
@@ -42,7 +42,7 @@ export default function Popup({
   const [members, setMembers] = useState([]); // [{ user_id, user_name, img }]
   const [loadingMembers, setLoadingMembers] = useState(false);
 
-  // toast (no alert)
+  // toast
   const [toast, setToast] = useState(null); // { type: 'info'|'error'|'success', text: string }
 
   const isParty = max > 0;
@@ -77,13 +77,11 @@ export default function Popup({
   async function fetchJson(url, options = {}) {
     const res = await fetch(url, options);
     let data = null;
-    try {
-      data = await res.json();
-    } catch {}
+    try { data = await res.json(); } catch {}
     return { ok: res.ok, status: res.status, data };
   }
 
-  // If viewer is the host, consider joined immediately
+  // viewer is host => already joined
   useEffect(() => {
     if (!showPopup) return;
     if (ownerId && viewerUserId && String(ownerId) === String(viewerUserId)) {
@@ -91,14 +89,13 @@ export default function Popup({
     }
   }, [showPopup, ownerId, viewerUserId]);
 
-  // Hard check: viewer must NOT have their own note to be allowed to join another party
+  // must not have own note / other party
   useEffect(() => {
     if (!showPopup || !viewerUserId) return;
     (async () => {
       try {
         const resp = await fetch(`http://localhost:8000/api/note/user/${viewerUserId}`, {
-          headers: { ...authHeaders },
-          cache: "no-store",
+          headers: { ...authHeaders }, cache: "no-store",
         });
         const raw = await resp.json().catch(() => null);
         const n = raw && typeof raw === "object" ? (raw.note ?? raw) : null;
@@ -118,53 +115,40 @@ export default function Popup({
     })();
   }, [showPopup, viewerUserId, authHeaders, noteId]);
 
-  // Load host/members + derive joined
+  // load members + derive joined
   useEffect(() => {
     if (!showPopup) return;
-
     (async () => {
-      if (!isParty || !noteId) {
-        setMembers([]);
-        return;
-      }
+      if (!isParty || !noteId) { setMembers([]); return; }
       setLoadingMembers(true);
       try {
         const resp = await fetch(`http://localhost:8000/api/note/${noteId}/members`, {
-          headers: { ...authHeaders },
-          cache: "no-store",
+          headers: { ...authHeaders }, cache: "no-store",
         });
         const data = await resp.json().catch(() => ({}));
 
         if (resp.ok && data && Array.isArray(data.members)) {
           setHostPfp(data?.host?.img || null);
-
           if (typeof data?.crr_party === "number") setCurr(Number(data.crr_party));
           if (typeof data?.max_party === "number") setMax(Number(data.max_party));
-
           const norm = data.members.map((m) => ({
-            user_id: m.user_id,
-            user_name: m.user_name || "anonymous",
-            img: m.img || null,
+            user_id: m.user_id, user_name: m.user_name || "anonymous", img: m.img || null,
           }));
           setMembers(norm);
 
           const viewerId = viewerUserId ? String(viewerUserId) : null;
-          const hostJoined =
-            viewerId && data?.host?.user_id && String(data.host.user_id) === viewerId;
-          const inMembers =
-            viewerId && norm.some((m) => String(m.user_id) === viewerId);
+          const hostJoined = viewerId && data?.host?.user_id && String(data.host.user_id) === viewerId;
+          const inMembers  = viewerId && norm.some((m) => String(m.user_id) === viewerId);
           if (hostJoined || inMembers) setJoined(true);
         } else {
           setMembers([]);
         }
-      } finally {
-        setLoadingMembers(false);
-      }
+      } finally { setLoadingMembers(false); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showPopup, isParty, noteId]);
 
-  // Auto-join via ?autoJoin=1
+  // auto-join via ?autoJoin=1
   useEffect(() => {
     const autoJoin = search.get("autoJoin") === "1";
     if (!autoJoin || !isParty || joined || !noteId) return;
@@ -190,13 +174,11 @@ export default function Popup({
           } else if (data?.error_code === "PARTY_FULL") {
             showToast("Party is full", "error");
           } else {
-            const msg = (data?.error || "Join failed").toString();
-            showToast(msg, "error");
+            showToast((data?.error || "Join failed").toString(), "error");
           }
         }
-      } catch {
-        showToast("Cannot join party right now", "error");
-      } finally {
+      } catch { showToast("Cannot join party right now", "error"); }
+      finally {
         try {
           const url = new URL(window.location.href);
           url.searchParams.delete("autoJoin");
@@ -209,23 +191,14 @@ export default function Popup({
   async function handleJoin() {
     if (!noteId || !isParty || joined || joining) return;
 
-    // FE guards
     if (hasOwnNote && Number(ownNoteId) !== Number(noteId)) {
-      showToast("You already have your own note. Replace or delete it first.", "info");
-      return;
+      showToast("You already have your own note. Replace or delete it first.", "info"); return;
     }
     if (alreadyInAnotherParty && Number(currentPartyId) !== Number(noteId)) {
-      showToast("You are already in another party. Leave it first.", "info");
-      return;
+      showToast("You are already in another party. Leave it first.", "info"); return;
     }
-    if (!authed) {
-      showToast("Please sign in to join this party.", "info");
-      return;
-    }
-    if (curr >= max) {
-      showToast("Party is full", "error");
-      return;
-    }
+    if (!authed) { showToast("Please sign in to join this party.", "info"); return; }
+    if (curr >= max) { showToast("Party is full", "error"); return; }
 
     try {
       setJoining(true);
@@ -239,27 +212,19 @@ export default function Popup({
         if (data?.error_code === "ALREADY_IN_PARTY") {
           setAlreadyInAnotherParty(true);
           setCurrentPartyId(data?.current_note_id ?? null);
-          showToast("You are already in another party. Leave it first.", "info");
-          return;
+          showToast("You are already in another party. Leave it first.", "info"); return;
         }
-        if (data?.error_code === "PARTY_FULL") {
-          showToast("Party is full", "error");
-          return;
-        }
-        const msg = (data?.error || "Join failed").toString();
-        showToast(msg, "error");
-        return;
+        if (data?.error_code === "PARTY_FULL") { showToast("Party is full", "error"); return; }
+        showToast((data?.error || "Join failed").toString(), "error"); return;
       }
       setJoined(true);
       if (typeof data?.data?.crr_party === "number") setCurr(Number(data.data.crr_party));
       if (typeof data?.data?.max_party === "number") setMax(Number(data.data.max_party));
       showToast("Joined party 🎉", "success");
 
-      // reload members
       try {
         const m = await fetchJson(`http://localhost:8000/api/note/${noteId}/members`, {
-          headers: { ...authHeaders },
-          cache: "no-store",
+          headers: { ...authHeaders }, cache: "no-store",
         });
         if (m.ok && m.data && Array.isArray(m.data.members)) {
           const norm = m.data.members.map((x) => ({
@@ -272,15 +237,11 @@ export default function Popup({
           if (typeof m.data?.max_party === "number") setMax(Number(m.data.max_party));
         }
       } catch {}
-    } finally {
-      setJoining(false);
-    }
+    } finally { setJoining(false); }
   }
 
   const canShowCTA =
-    isParty &&
-    !joined &&
-    !isFull &&
+    isParty && !joined && !isFull &&
     !alreadyInAnotherParty &&
     !(hasOwnNote && Number(ownNoteId) !== Number(noteId));
 
@@ -304,21 +265,37 @@ export default function Popup({
             <XMarkIcon className="h-5 w-5" />
           </button>
 
-          {/* pill banner: label + message (message emphasized) */}
-          <div className="px-6 pt-6 pb-2">
-            <div className="inline-block rounded-[18px] bg-neutral-900 text-white px-4 py-3 shadow-md">
-              <div className="flex items-center gap-2 text-[13px] font-semibold text-fuchsia-300">
-                <SparklesIcon className="h-4 w-4" />
-                <span>{crazyLabel}</span>
-              </div>
-              <div className="mt-1 text-[16px] md:text-[17px] font-semibold leading-snug break-words text-white/95">
-                {text || "—"}
+          {/* ===== Combined bubble (label + message in one pill) centered above avatar ===== */}
+          <div className="px-6 pt-6 pb-0">
+            <div className="flex justify-center">
+              <div className="relative text-center">
+                <div className="inline-block rounded-[18px] bg-neutral-900 text-white px-5 py-3 shadow-md">
+                  {/* label row */}
+                  <div className="flex items-center justify-center gap-2 text-[13px] font-semibold text-fuchsia-300">
+                    <SparklesIcon className="h-4 w-4" />
+                    <span>{crazyLabel}</span>
+                  </div>
+                  {/* note message */}
+                  <div className="mt-1 text-[17px] md:text-[18px] font-semibold leading-snug break-words text-white/95">
+                    {text || "—"}
+                  </div>
+                </div>
+                {/* tail (two dots, centered) */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full bg-neutral-900"
+                />
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-x-3 w-2 h-2 rounded-full bg-neutral-900"
+                  style={{ bottom: "-1.125rem" }} // ≈ -bottom-4.5
+                />
               </div>
             </div>
           </div>
 
-          {/* host big avatar + tiny stack to the right */}
-          <div className="px-6 pt-2 pb-1 text-center">
+          {/* ===== host avatar ===== */}
+          <div className="px-6 pt-5 pb-1 text-center">
             <div className="flex items-center justify-center">
               <div className="flex items-center -space-x-3">
                 {/* host (big) */}
@@ -357,23 +334,17 @@ export default function Popup({
             </div>
           </div>
 
-          {/* content */}
+          {/* ===== content ===== */}
           <div className="px-6 pb-6">
             {isParty ? (
               <>
-                {/* party status (center) */}
                 <div className="mt-2 mb-4 flex items-center justify-center gap-2 text-gray-700">
                   <UsersIcon className="h-4 w-4 text-gray-500" />
                   <span className="text-sm">
-                    Party{" "}
-                    <span className="font-semibold">
-                      {curr}/{max}
-                    </span>{" "}
-                    {memberWord}
+                    Party <span className="font-semibold">{curr}/{max}</span> {memberWord}
                   </span>
                 </div>
 
-                {/* states */}
                 {joined ? (
                   <InfoCard tone="success">
                     You have already joined this party. Open the note to chat with members.
@@ -420,7 +391,6 @@ export default function Popup({
               </div>
             )}
 
-            {/* bottom close */}
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setShowPopup(false)}
@@ -431,7 +401,6 @@ export default function Popup({
             </div>
           </div>
 
-          {/* toast */}
           <Toast toast={toast} onClose={() => setToast(null)} />
         </motion.div>
       )}
@@ -446,9 +415,7 @@ function InfoCard({ tone = "info", children }) {
     tone === "success"
       ? "border-emerald-200 bg-emerald-50 text-emerald-800"
       : "border-amber-200 bg-amber-50 text-amber-800";
-  return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneMap}`}>{children}</div>
-  );
+  return <div className={`rounded-2xl border px-4 py-3 ${toneMap}`}>{children}</div>;
 }
 
 function Toast({ toast, onClose }) {

@@ -51,7 +51,7 @@ export default function Avatar({
         className="rounded-full object-cover border border-gray-300 bg-gray-100"
         onError={(e) => {
           if (src) return; // ถ้าเป็นรูปล็อกจาก DB ไม่เปลี่ยน style สำรอง (ให้ owner แก้เอง)
-          e.currentTarget.src = build({ style: "identicon", seed: seedRef.current, size, png: true });
+          e.currentTarget.src = build({ style: "thumbs", seed: seedRef.current, size, png: true });
         }}
       />
     </div>
