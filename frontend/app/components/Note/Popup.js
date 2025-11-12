@@ -106,7 +106,6 @@ export default function Popup({
         if (n && n.note_id) {
           setHasOwnNote(true);
           setOwnNoteId(n.note_id);
-          // If their own note is a party (host), treat as "already in another party"
           if (Number(n.max_party) > 0 && Number(n.note_id) !== Number(noteId)) {
             setAlreadyInAnotherParty(true);
             setCurrentPartyId(n.note_id);
@@ -115,13 +114,11 @@ export default function Popup({
           setHasOwnNote(false);
           setOwnNoteId(null);
         }
-      } catch {
-        // silent
-      }
+      } catch {}
     })();
   }, [showPopup, viewerUserId, authHeaders, noteId]);
 
-  // Load host/members from /api/note/:id/members and derive joined from server
+  // Load host/members + derive joined
   useEffect(() => {
     if (!showPopup) return;
 
@@ -139,10 +136,8 @@ export default function Popup({
         const data = await resp.json().catch(() => ({}));
 
         if (resp.ok && data && Array.isArray(data.members)) {
-          // host picture
           setHostPfp(data?.host?.img || null);
 
-          // sync counts from server
           if (typeof data?.crr_party === "number") setCurr(Number(data.crr_party));
           if (typeof data?.max_party === "number") setMax(Number(data.max_party));
 
@@ -153,7 +148,6 @@ export default function Popup({
           }));
           setMembers(norm);
 
-          // derive joined from host or member list
           const viewerId = viewerUserId ? String(viewerUserId) : null;
           const hostJoined =
             viewerId && data?.host?.user_id && String(data.host.user_id) === viewerId;
@@ -170,7 +164,7 @@ export default function Popup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showPopup, isParty, noteId]);
 
-  // Auto-join via ?autoJoin=1 (keeps toast for errors)
+  // Auto-join via ?autoJoin=1
   useEffect(() => {
     const autoJoin = search.get("autoJoin") === "1";
     if (!autoJoin || !isParty || joined || !noteId) return;
@@ -215,7 +209,7 @@ export default function Popup({
   async function handleJoin() {
     if (!noteId || !isParty || joined || joining) return;
 
-    // extra FE guard: must have neither own note nor another party
+    // FE guards
     if (hasOwnNote && Number(ownNoteId) !== Number(noteId)) {
       showToast("You already have your own note. Replace or delete it first.", "info");
       return;
@@ -224,7 +218,6 @@ export default function Popup({
       showToast("You are already in another party. Leave it first.", "info");
       return;
     }
-
     if (!authed) {
       showToast("Please sign in to join this party.", "info");
       return;
@@ -233,6 +226,7 @@ export default function Popup({
       showToast("Party is full", "error");
       return;
     }
+
     try {
       setJoining(true);
       const res = await fetch("http://localhost:8000/api/note/join", {
@@ -310,43 +304,28 @@ export default function Popup({
             <XMarkIcon className="h-5 w-5" />
           </button>
 
-          {/* banner (pill) */}
-          <div className="p-6 pb-2">
-            <div className="inline-block rounded-2xl bg-neutral-900 text-white px-4 py-3 shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-semibold text-fuchsia-300">
+          {/* pill banner: label + message (message emphasized) */}
+          <div className="px-6 pt-6 pb-2">
+            <div className="inline-block rounded-[18px] bg-neutral-900 text-white px-4 py-3 shadow-md">
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-fuchsia-300">
                 <SparklesIcon className="h-4 w-4" />
                 <span>{crazyLabel}</span>
               </div>
-              <div className="mt-1 text-[15px] leading-snug break-words">
+              <div className="mt-1 text-[16px] md:text-[17px] font-semibold leading-snug break-words text-white/95">
                 {text || "—"}
               </div>
             </div>
           </div>
 
-          {/* avatars + party title (centered, like the mock) */}
+          {/* host big avatar + tiny stack to the right */}
           <div className="px-6 pt-2 pb-1 text-center">
-            <div className="mx-auto flex items-center justify-center -space-x-2">
-              {/* host first */}
-              <div className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow">
-                <img
-                  src={hostPfp || "/images/pfp.png"}
-                  alt="host"
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    if (e.currentTarget.src !== "/images/pfp.png")
-                      e.currentTarget.src = "/images/pfp.png";
-                  }}
-                />
-              </div>
-              {/* first 2 members */}
-              {members.slice(0, 2).map((m) => (
-                <div
-                  key={m.user_id}
-                  className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow"
-                >
+            <div className="flex items-center justify-center">
+              <div className="flex items-center -space-x-3">
+                {/* host (big) */}
+                <div className="relative h-16 w-16 rounded-full ring-4 ring-white overflow-hidden shadow-lg">
                   <img
-                    src={m.img || "/images/pfp.png"}
-                    alt={m.user_name || "member"}
+                    src={hostPfp || "/images/pfp.png"}
+                    alt="host"
                     className="h-full w-full object-cover"
                     onError={(e) => {
                       if (e.currentTarget.src !== "/images/pfp.png")
@@ -354,9 +333,26 @@ export default function Popup({
                     }}
                   />
                 </div>
-              ))}
+                {/* up to 2 members (small) */}
+                {members.slice(0, 2).map((m) => (
+                  <div
+                    key={m.user_id}
+                    className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow-md"
+                  >
+                    <img
+                      src={m.img || "/images/pfp.png"}
+                      alt={m.user_name || "member"}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        if (e.currentTarget.src !== "/images/pfp.png")
+                          e.currentTarget.src = "/images/pfp.png";
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="mt-2 text-base font-medium text-gray-900">
+            <div className="mt-3 text-[15px] font-medium text-gray-900">
               {partyTitle}
             </div>
           </div>
@@ -365,8 +361,8 @@ export default function Popup({
           <div className="px-6 pb-6">
             {isParty ? (
               <>
-                {/* status row */}
-                <div className="mt-3 mb-4 flex items-center justify-center gap-2 text-gray-700">
+                {/* party status (center) */}
+                <div className="mt-2 mb-4 flex items-center justify-center gap-2 text-gray-700">
                   <UsersIcon className="h-4 w-4 text-gray-500" />
                   <span className="text-sm">
                     Party{" "}
@@ -393,7 +389,7 @@ export default function Popup({
                 ) : isFull ? (
                   <InfoCard tone="warn">Party is full. Please check back later.</InfoCard>
                 ) : canShowCTA ? (
-                  <div className="rounded-2xl border border-gray-200 p-5 text-center">
+                  <div className="rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
                     <div className="text-lg font-semibold text-gray-900">
                       Joining {partyTitle}?
                     </div>
@@ -403,14 +399,14 @@ export default function Popup({
                     <div className="mt-5 flex justify-center gap-3">
                       <button
                         onClick={() => setShowPopup(false)}
-                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        className="rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleJoin}
                         disabled={joining}
-                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                        className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
                       >
                         {joining ? "Joining…" : "Join Party"}
                       </button>
@@ -452,42 +448,6 @@ function InfoCard({ tone = "info", children }) {
       : "border-amber-200 bg-amber-50 text-amber-800";
   return (
     <div className={`rounded-2xl border px-4 py-3 ${toneMap}`}>{children}</div>
-  );
-}
-
-function AvatarStack({ people = [], loading = false, maxShow = 5 }) {
-  const list = Array.isArray(people) ? people.slice(0, maxShow) : [];
-  const more = Math.max(0, (people?.length || 0) - list.length);
-
-  return (
-    <div className="flex items-center">
-      {loading && !people?.length ? (
-        <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
-      ) : (
-        <>
-          {list.map((p, i) => (
-            <div
-              key={p.user_id ?? i}
-              className="relative h-8 w-8 -ml-2 first:ml-0 overflow-hidden rounded-full ring-2 ring-white shadow"
-              title={p.user_name || "member"}
-            >
-              <img
-                src={p.img || "/images/pfp.png"}
-                alt={p.user_name || "member"}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  if (e.currentTarget.src !== "/images/pfp.png")
-                    e.currentTarget.src = "/images/pfp.png";
-                }}
-              />
-            </div>
-          ))}
-          {more > 0 && (
-            <div className="ml-2 text-xs text-gray-500">+{more} more</div>
-          )}
-        </>
-      )}
-    </div>
   );
 }
 
