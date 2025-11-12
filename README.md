@@ -58,7 +58,7 @@ The platform provides KU students with a **central hub** to:
 ### ⚙️ Get Started in 3 Steps
 ```bash
 # 1. Clone the repository
-git clone https://github.com/ISPBANANA/FLEARN.git
+git clone https://github.com/isp-merciful/kuwhy.git
 cd FLEARN
 
 # 2. Start all services with Docker
