@@ -1,4 +1,4 @@
-// frontend/app/components/notes/ConfirmDeleteDialog.jsx
+// frontend/app/components/ConfirmDeleteDialog.jsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -6,18 +6,6 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
-/**
- * ConfirmDeleteDialog
- * props:
- *  - open: boolean
- *  - onClose: () => void
- *  - onConfirm: () => void | Promise<void>
- *  - busy?: boolean
- *  - title?: string
- *  - description?: string | JSX.Element
- *  - confirmText?: string (default: "Delete")
- *  - cancelText?: string  (default: "Cancel")
- */
 export default function ConfirmDeleteDialog({
   open,
   onClose,
@@ -32,16 +20,12 @@ export default function ConfirmDeleteDialog({
   const cancelRef = useRef(null);
 
   useEffect(() => setMounted(true), []);
-
-  // Esc เพื่อปิด
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => e.key === "Escape" && onClose?.();
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    const onKey = (e) => e.key === "Escape" && onClose?.();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
-
-  // โฟกัสปุ่ม Cancel ตอนเปิด
   useEffect(() => {
     if (open) setTimeout(() => cancelRef.current?.focus(), 0);
   }, [open]);
@@ -57,22 +41,23 @@ export default function ConfirmDeleteDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* backdrop */}
+          {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/50"
             onClick={() => !busy && onClose?.()}
           />
 
-          {/* card */}
+          {/* Card */}
           <motion.div
             role="dialog"
             aria-modal="true"
-            className="relative z-[1001] w-[92%] max-w-md rounded-2xl bg-white p-5 shadow-xl"
-            initial={{ scale: 0.96, y: 6, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.96, y: 6, opacity: 0 }}
+            className="relative z-[1001] w-[min(92vw,360px)] rounded-xl bg-white p-6 shadow-lg ring-1 ring-black/5"
+            initial={{ y: 8, scale: 0.98, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: 8, scale: 0.98, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 280, damping: 26 }}
           >
-            {/* ปุ่มปิด (X) */}
+            {/* Close */}
             <button
               onClick={() => !busy && onClose?.()}
               className="absolute right-3 top-3 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -82,30 +67,35 @@ export default function ConfirmDeleteDialog({
               <XMarkIcon className="h-5 w-5" />
             </button>
 
-            {/* header */}
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
-                <TrashIcon className="h-5 w-5 text-red-600" />
+            {/* Header */}
+            <div className="flex items-start gap-4">
+              {/* ไอคอน: ใหญ่และเต็มขึ้น */}
+              <div className="mt-0.5 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 ring-1 ring-red-100">
+                <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-                <p className="mt-1 text-sm text-gray-500">{description}</p>
+                <h3 className="text-base font-semibold text-gray-900 leading-6">
+                  {title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-500">
+                  {description}
+                </p>
               </div>
             </div>
 
-            {/* actions */}
+            {/* Actions */}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 ref={cancelRef}
                 onClick={() => !busy && onClose?.()}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-50"
                 disabled={busy}
               >
                 {cancelText}
               </button>
               <button
                 onClick={onConfirm}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:opacity-50"
                 disabled={busy}
               >
                 {confirmText}

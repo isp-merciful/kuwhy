@@ -1,23 +1,11 @@
-// frontend/app/components/notes/ConfirmReplaceDialog.jsx
+// frontend/app/components/ConfirmReplaceDialog.jsx
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
-/**
- * ConfirmReplaceDialog
- * props:
- *  - open: boolean
- *  - onClose: () => void
- *  - onConfirm: () => void | Promise<void>
- *  - busy?: boolean
- *  - title?: string
- *  - description?: string | JSX.Element
- *  - confirmText?: string (default: "Replace")
- *  - cancelText?: string  (default: "Cancel")
- */
 export default function ConfirmReplaceDialog({
   open,
   onClose,
@@ -53,22 +41,23 @@ export default function ConfirmReplaceDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* backdrop */}
+          {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/50"
             onClick={() => !busy && onClose?.()}
           />
 
-          {/* card */}
+          {/* Card: ยาวขึ้นเพื่อให้หัวข้อได้หนึ่งบรรทัด */}
           <motion.div
             role="dialog"
             aria-modal="true"
-            className="relative z-[1001] w-[92%] max-w-md rounded-2xl bg-white p-5 shadow-xl"
-            initial={{ scale: 0.96, y: 6, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.96, y: 6, opacity: 0 }}
+            className="relative z-[1001] w-[min(96vw,440px)] rounded-xl bg-white p-6 shadow-lg ring-1 ring-black/5"
+            initial={{ y: 10, scale: 0.98, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: 10, scale: 0.98, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 280, damping: 26 }}
           >
-            {/* close(X) */}
+            {/* Close */}
             <button
               onClick={() => !busy && onClose?.()}
               className="absolute right-3 top-3 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -78,32 +67,37 @@ export default function ConfirmReplaceDialog({
               <XMarkIcon className="h-5 w-5" />
             </button>
 
-            {/* header */}
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
-                <PlusIcon className="h-5 w-5 text-blue-600" />
+            {/* Header */}
+            <div className="flex items-start gap-4">
+              {/* ไอคอนใหญ่/เต็ม */}
+              <div className="mt-0.5 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 ring-1 ring-blue-100">
+                <PlusIcon className="h-6 w-6 text-blue-600" />
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">
+
+              {/* ข้อความ: บังคับหัวข้อบรรทัดเดียว */}
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-gray-900 leading-6 whitespace-nowrap overflow-hidden text-ellipsis">
                   {title}
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">{description}</p>
+                <p className="mt-2 text-sm leading-relaxed text-gray-500">
+                  {description}
+                </p>
               </div>
             </div>
 
-            {/* actions */}
+            {/* Actions */}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 ref={cancelRef}
                 onClick={() => !busy && onClose?.()}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 disabled:opacity-50"
                 disabled={busy}
               >
                 {cancelText}
               </button>
               <button
                 onClick={onConfirm}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
                 disabled={busy}
               >
                 {confirmText}
