@@ -1,11 +1,21 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import NotificationPanel from "./NotificationPanel";
 
-export default function NotificationBell() {
-  const [showPanel, setShowPanel] = useState(false);
+/**
+ * Props (ทั้งหมดเป็น optional)
+ * - isOpen: boolean (controlled)  ถ้าส่งมา จะใช้เป็นแหล่งความจริง
+ * - onOpenChange: (open:boolean) => void  ถูกเรียกเมื่อผู้ใช้กดเปิด/ปิด
+ */
+export default function NotificationBell({ isOpen, onOpenChange }) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = typeof isOpen === "boolean" ? isOpen : internalOpen;
+  const setOpen =
+    typeof onOpenChange === "function" ? onOpenChange : setInternalOpen;
+
   const [notifications, setNotifications] = useState([]);
   const [userId, setUserId] = useState("");
+  const rootRef = useRef(null);
 
   useEffect(() => {
     const id = localStorage.getItem("userId");
@@ -26,13 +36,35 @@ export default function NotificationBell() {
     fetchNotifications();
   }, [userId]);
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  // ปิดเมื่อคลิกนอก
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e) {
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    function onEsc(e) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [open, setOpen]);
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
-        onClick={() => setShowPanel(!showPanel)}
+        onClick={() => setOpen(!open)}
         className="relative p-2 rounded-full hover:bg-gray-100 transition"
+        aria-expanded={open}
+        aria-haspopup="true"
+        title="Notifications"
       >
         {/* SVG Bell */}
         <svg
@@ -57,7 +89,11 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {showPanel && <NotificationPanel notifications={notifications} />}
+      {open && (
+        <div className="absolute right-0 mt-2 z-50">
+          <NotificationPanel notifications={notifications} />
+        </div>
+      )}
     </div>
   );
 }

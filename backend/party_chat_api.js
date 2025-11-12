@@ -22,28 +22,28 @@ async function isPartyMemberOrOwner(noteId, userId) {
   return !!member;
 }
 
-
-
-
 /** GET /api/chat/party/:noteId?cursor=0&limit=50
  * ดึงข้อความต่อจาก cursor (message_id) เรียงเก่า→ใหม่
+ * ต้องเป็น owner หรือ member เท่านั้น
  */
 router.get("/party/:noteId", async (req, res) => {
   try {
     const noteId = Number(req.params.noteId);
+    if (!Number.isFinite(noteId)) return res.status(400).json({ error: "invalid note_id" });
+
+    const userId = String(req.user?.id || ""); // จาก requireMember
+    const allowed = await isPartyMemberOrOwner(noteId, userId);
+    if (!allowed) return res.status(403).json({ error: "not a party member" });
+
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
-    const cursor = Number(req.query.cursor || 0); // ดึงใหม่กว่า cursor
+    const cursor = Number(req.query.cursor || 0); // ดึง message_id > cursor
 
     const rows = await prisma.party_messages.findMany({
-      where: {
-        note_id: noteId,
-        ...(cursor > 0 ? { message_id: { gt: cursor } } : {}),
-      },
+      where: { note_id: noteId, ...(cursor > 0 ? { message_id: { gt: cursor } } : {}) },
       orderBy: { message_id: "asc" },
       take: limit,
       include: {
-        // ⛳ ใช้ 'user' (สัมพันธ์ไปโมเดล users)
-        user: { select: { user_id: true, user_name: true, img: true } },
+        user: { select: { user_id: true, user_name: true, img: true } }, // relation ไปตาราง users
       },
     });
 
@@ -64,32 +64,24 @@ router.get("/party/:noteId", async (req, res) => {
 });
 
 /** POST /api/chat/party/:noteId
- * body: { user_id, content }
+ * body: { content }  ← ไม่ต้องส่ง user_id แล้ว (อ่านจาก req.user.id)
+ * ต้องเป็น owner หรือ member เท่านั้น
  */
 router.post("/party/:noteId", async (req, res) => {
   try {
     const noteId = Number(req.params.noteId);
-    const { user_id, content } = req.body;
+    if (!Number.isFinite(noteId)) return res.status(400).json({ error: "invalid note_id" });
 
-    if (!user_id || !String(content || "").trim()) {
-      return res.status(400).json({ error: "user_id และ content จำเป็น" });
-    }
+    const user_id = String(req.user?.id || ""); // จาก requireMember
+    const content = String(req.body?.content || "").trim();
+    if (!content) return res.status(400).json({ error: "content is required" });
 
-    // ต้องเป็นเจ้าของหรือสมาชิกปาร์ตี้เท่านั้น
     const allowed = await isPartyMemberOrOwner(noteId, user_id);
-    if (!allowed) {
-      return res.status(403).json({ error: "not a party member" });
-    }
+    if (!allowed) return res.status(403).json({ error: "not a party member" });
 
     const msg = await prisma.party_messages.create({
-      data: {
-        note_id: noteId,
-        user_id,
-        content: String(content).trim(),
-      },
-      include: {
-        user: { select: { user_name: true, img: true } },
-      },
+      data: { note_id: noteId, user_id, content },
+      include: { user: { select: { user_name: true, img: true } } },
     });
 
     res.status(201).json({
@@ -109,20 +101,28 @@ router.post("/party/:noteId", async (req, res) => {
   }
 });
 
-/** (option) ลบข้อความตัวเอง */
+/** DELETE /api/chat/party/:noteId/:messageId
+ * ลบข้อความ "ของตัวเอง" เท่านั้น และควรเป็น member/owner ของห้องนั้น
+ */
 router.delete("/party/:noteId/:messageId", async (req, res) => {
   try {
+    const noteId = Number(req.params.noteId);
     const messageId = Number(req.params.messageId);
-    const { user_id } = req.body;
+    if (!Number.isFinite(noteId) || !Number.isFinite(messageId)) {
+      return res.status(400).json({ error: "invalid params" });
+    }
+
+    const user_id = String(req.user?.id || "");
+    const allowed = await isPartyMemberOrOwner(noteId, user_id);
+    if (!allowed) return res.status(403).json({ error: "not a party member" });
 
     const m = await prisma.party_messages.findUnique({
       where: { message_id: messageId },
-      select: { user_id: true },
+      select: { user_id: true, note_id: true },
     });
     if (!m) return res.status(404).json({ error: "message not found" });
-    if (m.user_id !== user_id) {
-      return res.status(403).json({ error: "can delete own message only" });
-    }
+    if (m.note_id !== noteId) return res.status(400).json({ error: "note mismatch" });
+    if (m.user_id !== user_id) return res.status(403).json({ error: "can delete own message only" });
 
     await prisma.party_messages.delete({ where: { message_id: messageId } });
     res.json({ message: "deleted" });
