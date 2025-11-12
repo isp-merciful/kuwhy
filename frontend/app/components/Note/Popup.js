@@ -90,6 +90,8 @@ export default function Popup({
     if (!showPopup) return;
     if (ownerId && viewerUserId && String(ownerId) === String(viewerUserId)) {
       setJoined(true);
+    } else {
+      setJoined(false);
     }
   }, [showPopup, ownerId, viewerUserId]);
 
@@ -99,60 +101,117 @@ export default function Popup({
     (async () => {
       try {
         const resp = await fetch(`http://localhost:8000/api/note/user/${viewerUserId}`, {
-          headers: { ...authHeaders }, cache: "no-store",
+          headers: { ...authHeaders },
+          cache: "no-store",
         });
         const raw = await resp.json().catch(() => null);
         const n = raw && typeof raw === "object" ? (raw.note ?? raw) : null;
 
         if (n && n.note_id) {
           setHasOwnNote(true);
-          setOwnNoteId(n.note_id);
+            setOwnNoteId(n.note_id);
           if (Number(n.max_party) > 0 && Number(n.note_id) !== Number(noteId)) {
             setAlreadyInAnotherParty(true);
             setCurrentPartyId(n.note_id);
+          } else {
+            setAlreadyInAnotherParty(false);
+            setCurrentPartyId(null);
           }
         } else {
           setHasOwnNote(false);
           setOwnNoteId(null);
+          setAlreadyInAnotherParty(false);
+          setCurrentPartyId(null);
         }
-      } catch {}
+      } catch {
+        // เงียบไว้ตามเดิม
+      }
     })();
   }, [showPopup, viewerUserId, authHeaders, noteId]);
 
-  // load members + derive joined
+  // reset เมื่อเปิดใหม่ กันค่า avatar/members จากโน้ตก่อนหน้าค้างมา
   useEffect(() => {
     if (!showPopup) return;
+    setHostPfp(null);
+    setMembers([]);
+  }, [showPopup]);
+
+  // โหลด host + (ถ้าเป็นปาร์ตี้) members — ทำงานได้ทั้งโน้ตปกติและปาร์ตี้
+  useEffect(() => {
+    if (!showPopup || !noteId) return;
+    let aborted = false;
+
     (async () => {
-      if (!isParty || !noteId) { setMembers([]); return; }
       setLoadingMembers(true);
       try {
-        const resp = await fetch(`http://localhost:8000/api/note/${noteId}/members`, {
-          headers: { ...authHeaders }, cache: "no-store",
+        // ใช้ endpoint members เหมือนเดิม
+        const m = await fetchJson(`http://localhost:8000/api/note/${noteId}/members`, {
+          headers: { ...authHeaders },
+          cache: "no-store",
         });
-        const data = await resp.json().catch(() => ({}));
+        if (aborted) return;
 
-        if (resp.ok && data && Array.isArray(data.members)) {
-          setHostPfp(data?.host?.img || null);
-          if (typeof data?.crr_party === "number") setCurr(Number(data.crr_party));
-          if (typeof data?.max_party === "number") setMax(Number(data.max_party));
-          const norm = data.members.map((m) => ({
-            user_id: m.user_id, user_name: m.user_name || "anonymous", img: m.img || null,
-          }));
-          setMembers(norm);
+        if (m.ok && m.data) {
+          // พยายาม map host image ให้ได้ก่อน
+          const hostImg =
+            m.data?.host?.img ??
+            m.data?.owner?.img ??
+            m.data?.user?.img ??
+            m.data?.note?.owner?.img ??
+            null;
+          if (hostImg) setHostPfp(hostImg);
 
-          const viewerId = viewerUserId ? String(viewerUserId) : null;
-          const hostJoined = viewerId && data?.host?.user_id && String(data.host.user_id) === viewerId;
-          const inMembers  = viewerId && norm.some((m) => String(m.user_id) === viewerId);
-          if (hostJoined || inMembers) setJoined(true);
-        } else {
-          setMembers([]);
+          if (typeof m.data?.crr_party === "number") setCurr(Number(m.data.crr_party));
+          if (typeof m.data?.max_party === "number") setMax(Number(m.data.max_party));
+
+          // party members (ถ้ามี)
+          if (Array.isArray(m.data.members)) {
+            const norm = m.data.members.map((x) => ({
+              user_id: x.user_id ?? x.id ?? x.uid,
+              user_name: x.user_name ?? x.name ?? "anonymous",
+              img: x.img ?? x.picture ?? null,
+            }));
+            setMembers(norm);
+
+            const viewerId = viewerUserId ? String(viewerUserId) : null;
+            const hostJoined =
+              viewerId && m.data?.host?.user_id && String(m.data.host.user_id) === viewerId;
+            const inMembers = viewerId && norm.some((mm) => String(mm.user_id) === viewerId);
+            if (hostJoined || inMembers) setJoined(true);
+          } else {
+            setMembers([]); // โน้ตปกติ: ไม่มี members ก็ไม่เป็นไร
+          }
         }
-      } finally { setLoadingMembers(false); }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showPopup, isParty, noteId]);
 
-  // auto-join via ?autoJoin=1
+        // Fallback: ถ้าหา host image ไม่เจอเลย ลองดึงจาก note detail (ถ้ามี)
+        if (!aborted && !hostPfp) {
+          try {
+            const n = await fetchJson(`http://localhost:8000/api/note/${noteId}`, {
+              headers: { ...authHeaders },
+              cache: "no-store",
+            });
+            if (n.ok && n.data) {
+              const altHost =
+                n.data?.host?.img ??
+                n.data?.owner?.img ??
+                n.data?.user?.img ??
+                n.data?.note?.owner?.img ??
+                null;
+              if (altHost) setHostPfp(altHost);
+            }
+          } catch {}
+        }
+      } finally {
+        if (!aborted) setLoadingMembers(false);
+      }
+    })();
+
+    return () => {
+      aborted = true;
+    };
+  }, [showPopup, noteId, authHeaders, viewerUserId, hostPfp]);
+
+  // auto-join via ?autoJoin=1 (เฉพาะปาร์ตี้)
   useEffect(() => {
     const autoJoin = search.get("autoJoin") === "1";
     if (!autoJoin || !isParty || joined || !noteId) return;
@@ -181,8 +240,10 @@ export default function Popup({
             showToast((data?.error || "Join failed").toString(), "error");
           }
         }
-      } catch { showToast("Cannot join party right now", "error"); }
-      finally {
+      } catch {
+        showToast("Cannot join party right now", "error");
+      } finally {
+        // เอา query autoJoin ออก
         try {
           const url = new URL(window.location.href);
           url.searchParams.delete("autoJoin");
@@ -196,13 +257,21 @@ export default function Popup({
     if (!noteId || !isParty || joined || joining) return;
 
     if (hasOwnNote && Number(ownNoteId) !== Number(noteId)) {
-      showToast("You already have your own note. Replace or delete it first.", "info"); return;
+      showToast("You already have your own note. Replace or delete it first.", "info");
+      return;
     }
     if (alreadyInAnotherParty && Number(currentPartyId) !== Number(noteId)) {
-      showToast("You are already in another party. Leave it first.", "info"); return;
+      showToast("You are already in another party. Leave it first.", "info");
+      return;
     }
-    if (!authed) { showToast("Please sign in to join this party.", "info"); return; }
-    if (curr >= max) { showToast("Party is full", "error"); return; }
+    if (!authed) {
+      showToast("Please sign in to join this party.", "info");
+      return;
+    }
+    if (curr >= max) {
+      showToast("Party is full", "error");
+      return;
+    }
 
     try {
       setJoining(true);
@@ -216,36 +285,58 @@ export default function Popup({
         if (data?.error_code === "ALREADY_IN_PARTY") {
           setAlreadyInAnotherParty(true);
           setCurrentPartyId(data?.current_note_id ?? null);
-          showToast("You are already in another party. Leave it first.", "info"); return;
+          showToast("You are already in another party. Leave it first.", "info");
+          return;
         }
-        if (data?.error_code === "PARTY_FULL") { showToast("Party is full", "error"); return; }
-        showToast((data?.error || "Join failed").toString(), "error"); return;
+        if (data?.error_code === "PARTY_FULL") {
+          showToast("Party is full", "error");
+          return;
+        }
+        showToast((data?.error || "Join failed").toString(), "error");
+        return;
       }
+
       setJoined(true);
       if (typeof data?.data?.crr_party === "number") setCurr(Number(data.data.crr_party));
       if (typeof data?.data?.max_party === "number") setMax(Number(data.data.max_party));
       showToast("Joined party 🎉", "success");
 
+      // รีเฟรชสมาชิก + host image
       try {
         const m = await fetchJson(`http://localhost:8000/api/note/${noteId}/members`, {
-          headers: { ...authHeaders }, cache: "no-store",
+          headers: { ...authHeaders },
+          cache: "no-store",
         });
-        if (m.ok && m.data && Array.isArray(m.data.members)) {
-          const norm = m.data.members.map((x) => ({
-            user_id: x.user_id ?? x.id ?? x.uid,
-            user_name: x.user_name ?? x.name ?? "anonymous",
-            img: x.img ?? x.picture ?? null,
-          }));
-          setMembers(norm);
+        if (m.ok && m.data) {
+          const hostImg =
+            m.data?.host?.img ??
+            m.data?.owner?.img ??
+            m.data?.user?.img ??
+            m.data?.note?.owner?.img ??
+            null;
+          if (hostImg) setHostPfp(hostImg);
+
+          if (Array.isArray(m.data.members)) {
+            const norm = m.data.members.map((x) => ({
+              user_id: x.user_id ?? x.id ?? x.uid,
+              user_name: x.user_name ?? x.name ?? "anonymous",
+              img: x.img ?? x.picture ?? null,
+            }));
+            setMembers(norm);
+          }
           if (typeof m.data?.crr_party === "number") setCurr(Number(m.data.crr_party));
           if (typeof m.data?.max_party === "number") setMax(Number(m.data.max_party));
         }
       } catch {}
-    } finally { setJoining(false); }
+    } finally {
+      setJoining(false);
+    }
   }
 
   const canShowCTA =
-    isParty && !joined && !isFull &&
+    isParty &&
+    !joined &&
+    !isFull &&
     !alreadyInAnotherParty &&
     !(hasOwnNote && Number(ownNoteId) !== Number(noteId));
 
@@ -273,7 +364,7 @@ export default function Popup({
           <div className="px-6 pt-6 pb-0">
             <div className="flex justify-center">
               {isParty ? (
-                // PARTY: label + message ในก้อนเดียว (ดำ)
+                // PARTY: label + message (ดำ)
                 <div className="relative text-center">
                   <div className="inline-block rounded-[18px] bg-neutral-900 text-white px-5 py-3 shadow-md">
                     <div className="flex items-center justify-center gap-2 text-[13px] font-semibold text-fuchsia-300">
@@ -295,7 +386,7 @@ export default function Popup({
                   />
                 </div>
               ) : (
-                // REGULAR NOTE: bubble เขียว (ไม่มี label)
+                // REGULAR NOTE: bubble เขียว
                 <div className="relative text-center">
                   <div className="inline-block rounded-[18px] bg-green-100 text-gray-800 px-5 py-2.5 shadow-sm">
                     <div className="text-[16px] md:text-[17px] font-semibold leading-snug break-words">
@@ -411,19 +502,10 @@ export default function Popup({
             ) : (
               // REGULAR NOTE: comment section
               <div className="mt-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-inner">
+                {/* ✅ โพสต์คอมเมนต์จากป๊อปอัปได้: ส่ง noteId + userId ลงไปตรง ๆ */}
                 <CommentSection noteId={noteId} userId={viewerUserId} />
               </div>
             )}
-
-            {/* bottom close */}
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setShowPopup(false)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-              >
-                Close
-              </button>
-            </div>
           </div>
 
           <Toast toast={toast} onClose={() => setToast(null)} />

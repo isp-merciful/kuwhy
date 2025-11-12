@@ -46,6 +46,15 @@ function removeById(list, id) {
     .map((c) => ({ ...c, children: removeById(c.children || [], id) }));
 }
 
+/* ---------------- helpers: profile url ---------------- */
+const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/user"; 
+function buildProfileUrl(handle) {
+  if (!handle) return "/";
+  if (PROFILE_BASE === "root") return `/${handle}`;
+  if (PROFILE_BASE === "@root") return `/@${handle}`;
+  return `${PROFILE_BASE}/${handle}`;
+}
+
 /* ---------------- Single Comment ---------------- */
 function CommentItem({
   comment,
@@ -81,13 +90,18 @@ function CommentItem({
     return () => document.removeEventListener("click", onDoc);
   }, [comment.comment_id]);
 
+  // ✅ ตอนนี้ backend ส่งมาที่ field แบนๆ ชื่อ login_name แล้ว
   const loginName =
     comment.login_name ||
     comment?.users?.login_name ||
     comment?.user?.login_name ||
     "";
 
-  const name = comment.user_name || "anonymous";
+  const displayName =
+    comment.user_name ||
+    comment?.users?.user_name ||
+    "anonymous";
+
   const canOpenProfile =
     !!loginName && String(loginName).toLowerCase() !== "anonymous";
 
@@ -98,9 +112,11 @@ function CommentItem({
       <div className="flex gap-3 items-start">
         {/* avatar */}
         <button
+          type="button"
           onClick={() => canOpenProfile && onOpenProfile(loginName)}
-          className={cx("shrink-0", !canOpenProfile && "cursor-default")}
+          className={cx("shrink-0", canOpenProfile ? "cursor-pointer" : "cursor-default")}
           title={canOpenProfile ? `@${loginName}` : undefined}
+          aria-label={canOpenProfile ? `Open @${loginName}` : undefined}
         >
           <img
             src={avatar}
@@ -116,7 +132,7 @@ function CommentItem({
         {/* bubble (group for hover) */}
         <div className="flex-1 min-w-0">
           <div className="group relative inline-block max-w-full">
-            {/* three-dots (show on hover, centered Y, not flush-right) */}
+            {/* three-dots (owner only) */}
             {isMine && (
               <div
                 data-menu-anchor={comment.comment_id}
@@ -127,6 +143,7 @@ function CommentItem({
                 )}
               >
                 <button
+                  type="button"
                   onClick={() => setMenuOpen((v) => !v)}
                   className="rounded-full p-1.5 bg-white shadow-sm ring-1 ring-gray-300 hover:bg-gray-50"
                   aria-label="More"
@@ -144,6 +161,7 @@ function CommentItem({
                 {menuOpen && (
                   <div className="mt-1 w-32 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden text-sm">
                     <button
+                      type="button"
                       className="w-full px-3 py-2 text-left hover:bg-gray-50"
                       onClick={() => {
                         setMenuOpen(false);
@@ -154,6 +172,7 @@ function CommentItem({
                       Edit
                     </button>
                     <button
+                      type="button"
                       className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50"
                       onClick={async () => {
                         setMenuOpen(false);
@@ -171,9 +190,18 @@ function CommentItem({
             <div className="rounded-2xl bg-white ring-1 ring-gray-200 shadow-sm px-4 py-3 pr-9">
               {/* header: name • time */}
               <div className="flex items-baseline gap-2 text-[13px] text-gray-500">
-                <span className="font-semibold text-gray-800">
-                  {name}
-                </span>
+                {canOpenProfile ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenProfile(loginName)}
+                    className="font-semibold text-gray-800 hover:underline focus:outline-none"
+                    title={`@${loginName}`}
+                  >
+                    {displayName}
+                  </button>
+                ) : (
+                  <span className="font-semibold text-gray-800">{displayName}</span>
+                )}
                 <span>•</span>
                 <span title={new Date(comment.created_at).toLocaleString()}>
                   {relTime(comment.created_at)}
@@ -196,12 +224,14 @@ function CommentItem({
                   />
                   <div className="mt-2 flex items-center gap-2 justify-end">
                     <button
+                      type="button"
                       onClick={() => setEditing(false)}
                       className="px-3 py-1.5 rounded-lg border bg-white text-sm hover:bg-gray-50"
                     >
                       Cancel
                     </button>
                     <button
+                      type="button"
                       onClick={async () => {
                         const ok = await onEditSubmit(
                           comment.comment_id,
@@ -223,6 +253,7 @@ function CommentItem({
           {/* actions under bubble */}
           <div className="mt-1 ml-2 flex items-center gap-4 text-xs text-blue-600">
             <button
+              type="button"
               onClick={() => setShowReplyBox((v) => !v)}
               className="font-medium hover:underline"
             >
@@ -231,6 +262,7 @@ function CommentItem({
 
             {hasChildren && (
               <button
+                type="button"
                 onClick={() =>
                   setCollapsedMap((m) => ({
                     ...m,
@@ -239,7 +271,9 @@ function CommentItem({
                 }
                 className="text-gray-500 hover:underline"
               >
-                {expanded ? "Hide replies" : `View ${comment.children.length} repl${comment.children.length > 1 ? "ies" : "y"}`}
+                {expanded
+                  ? "Hide replies"
+                  : `View ${comment.children.length} repl${comment.children.length > 1 ? "ies" : "y"}`}
               </button>
             )}
           </div>
@@ -255,6 +289,7 @@ function CommentItem({
                 className="flex-1 rounded-full border px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
               />
               <button
+                type="button"
                 onClick={async () => {
                   if (!replyText.trim()) return;
                   await onReplySubmit(replyText, comment.comment_id);
@@ -268,7 +303,7 @@ function CommentItem({
             </div>
           )}
 
-          {/* children (collapsed/expanded) */}
+          {/* children */}
           {hasChildren && expanded && (
             <div className="ml-6 border-l pl-4">
               {comment.children.map((child) => (
@@ -396,7 +431,13 @@ export default function CommentSection({ noteId, userId }) {
   // open profile by handle (only when login_name exists)
   function openProfileByHandle(handle) {
     if (!handle) return;
-    router.push(`/user/${encodeURIComponent(handle)}`);
+    try {
+      const url = buildProfileUrl(handle);
+      router.push(url);
+    } catch (err) {
+      console.warn("navigate profile failed, fallback to note:", err);
+      if (noteId) router.push(`/note/${noteId}`);
+    }
   }
 
   return (
@@ -427,7 +468,7 @@ export default function CommentSection({ noteId, userId }) {
           ))}
       </div>
 
-      {/* input row (sticky to section bottom only; ไม่โดน scroll ทับ) */}
+      {/* input row */}
       <div className="mt-3 border-t pt-3 bg-white">
         <div className="flex items-center gap-2">
           <input
@@ -438,6 +479,7 @@ export default function CommentSection({ noteId, userId }) {
             className="flex-1 rounded-full border px-4 py-2 focus:ring-1 focus:ring-blue-500 outline-none"
           />
           <button
+            type="button"
             onClick={async () => {
               if (!newComment.trim()) return;
               await handleCreate(newComment.trim());
