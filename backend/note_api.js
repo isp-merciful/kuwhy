@@ -1,7 +1,8 @@
 // backend/note_api.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
-const { optionalAuth, requireMember,requireAuth } = require("./auth_mw");
+const { optionalAuth, requireMember, requireAuth } = require("./auth_mw");
+
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -20,22 +21,34 @@ function resolveActor(req) {
 
 /** ------------------------------------------
  * helper: upsert users ให้มีเสมอ (กัน P2025)
- * - สำหรับ anonymous: จะมี row ที่ user_id = anonId, role=anonymous (แล้วแต่ schema คุณ)
- * - สำหรับ auth: ปกติควรมีอยู่แล้วจากระบบสมัคร/ล็อกอิน แต่ upsert ก็ harmless
+ * - anonymous → ปล่อยให้ใช้ defaults ใน DB (role=anonymous ฯลฯ)
+ * - auth → ตั้ง role=member (ถ้าอยากส่ง login_name/email ก็ส่งผ่าน opts)
  * ------------------------------------------ */
-async function ensureUserExists(user_id, isAnon = false) {
-  await prisma.users.upsert({
-    where: { user_id },
-    update: {}, // ไม่เปลี่ยนชื่ออัตโนมัติใน upsert
-    create: {
-      user_id,
-      user_name: isAnon ? "anonymousAA" : "anonymousBBB", // ดีฟอลต์เป็น anonymous ไปก่อน
-      role: isAnon ? "anonymous" : "member",         // ถ้าเป็นผู้ใช้ยืนยันตัวตน ตั้ง role=member
-      img: "/images/pfp.png",
-      gender: "Not_Specified",
-      email: null,
-    },
+async function ensureUserExists(user_id, isAnon = false, opts = {}) {
+  // opts: { email, login_name, img, user_name }
+  const createData = clean({
+    user_id,                                  // ต้องมีเสมอ
+    ...(isAnon ? {} : { role: "member" }),    // auth → member
+    ...(isAnon ? {} : { login_name: opts.login_name }),
+    email: opts.email,
+    img: opts.img,
+    user_name: opts.user_name,
+    // ฟิลด์อื่น ๆ ปล่อยให้ default ใน DB ทำงาน เช่น phone/location/gender/ฯลฯ
   });
+
+  return prisma.users.upsert({
+    where: { user_id },
+    update: {},            // ถ้ามีอยู่แล้ว ไม่แตะอะไร
+    create: createData,
+  });
+}
+
+/** ลบคีย์ที่ undefined/null/"" ออก เพื่อไม่ไปทับ default ใน DB */
+function clean(obj) {
+  for (const k of Object.keys(obj)) {
+    if (obj[k] === undefined || obj[k] === null || obj[k] === "") delete obj[k];
+  }
+  return obj;
 }
 
 /* =========================================
@@ -61,10 +74,10 @@ router.get("/", async (_req, res) => {
  * ล่าสุดของ user (own → last joined)
  * ========================================= */
 router.get("/user/:id", async (req, res) => {
-  const userId = req.params.id;
+  const userId = String(req.params.id);
   try {
     const ownNote = await prisma.note.findFirst({
-      where: { user_id: userId }, // 🔧 CHANGED: ใช้คอลัมน์ user_id ให้เสมอต้นเสมอปลาย
+      where: { user_id: userId },
       orderBy: { note_id: "desc" },
     });
     if (ownNote) return res.json(ownNote);
@@ -118,12 +131,14 @@ router.post("/", optionalAuth, async (req, res) => {
   try {
     const { message } = req.body;
     let { max_party } = req.body;
-   // ถ้าส่ง Bearer มา แต่ verify ไม่ผ่าน → ปัดตกเลย (กันตกไป anon)
-   const hasBearer = typeof req.headers.authorization === "string" &&
-                     req.headers.authorization.startsWith("Bearer ");
-   if (hasBearer && !req.user) {
-     return res.status(401).json({ error: "Invalid or expired token" });
-   }
+
+    // ถ้าส่ง Bearer มา แต่ verify ไม่ผ่าน → ปัดตกเลย (กันตกไป anon)
+    const hasBearer =
+      typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ");
+    if (hasBearer && !req.user) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
 
     if (!message || String(message).trim() === "") {
       return res.status(400).json({ error: "ไม่มี notes" });
@@ -141,25 +156,24 @@ router.post("/", optionalAuth, async (req, res) => {
     const actor = resolveActor(req);
     if (!actor) return res.status(401).json({ error: "Missing user identity" });
 
-    // 🔧 CHANGED: party ต้องล็อกอิน
+    // party ต้องล็อกอิน
     if (max_party > 0 && actor.mode === "anon") {
       return res.status(401).json({ error: "Party note requires login" });
     }
 
-    // ✅ สร้าง/คงอยู่ของผู้ใช้เสมอ
+    // สร้าง/คงอยู่ของผู้ใช้เสมอ
     await ensureUserExists(actor.id, actor.mode === "anon");
 
     // นับคนโพสต์กรณีเป็นปาร์ตี้
     const crr_party = max_party > 0 ? 1 : 0;
 
-    // 🔧 CHANGED: บังคับใช้ actor.id เป็นเจ้าของเสมอ (ทับ user_id จาก client)
+    // บังคับใช้ actor.id เป็นเจ้าของเสมอ
     const newNote = await prisma.note.create({
       data: {
         message: String(message),
         max_party,
         crr_party,
-        user_id: actor.id,              // <— เจ้าของโพส (owner)
-        // users: { connect: { user_id: actor.id } }, // ความสัมพันธ์ (ถ้า schema กำหนด relation ชื่อ users)
+        user_id: actor.id,
       },
     });
 
@@ -177,7 +191,7 @@ router.post("/", optionalAuth, async (req, res) => {
 
 /* =========================================
  * DELETE /api/note/:id
- * - 🔧 CHANGED: จำกัดเฉพาะเจ้าของที่ล็อกอินเท่านั้น
+ * - จำกัดเฉพาะเจ้าของที่ล็อกอินเท่านั้น
  * ========================================= */
 router.delete("/:id", optionalAuth, async (req, res) => {
   try {
@@ -204,13 +218,13 @@ router.delete("/:id", optionalAuth, async (req, res) => {
 
 /* =========================================
  * POST /api/note/join
- * - requireMember: ต้องล็อกอิน
- * - 🔧 CHANGED: ทับ user_id ด้วย req.user.id เสมอ
+ * - ต้องล็อกอิน
+ * - ทับ user_id ด้วย req.user.id เสมอ
  * ========================================= */
 router.post("/join", requireAuth, async (req, res) => {
   try {
     const note_id = Number(req.body.note_id);
-    const user_id = String(req.user.id); // <— ทับเสมอ
+    const user_id = String(req.user.id);
 
     if (!Number.isFinite(note_id)) {
       return res.status(400).json({ error: "Missing or invalid note_id" });
@@ -259,7 +273,10 @@ router.post("/join", requireAuth, async (req, res) => {
   } catch (error) {
     console.error(error);
     if (error?.code === "P2002") {
-      return res.json({ success: true, message: "Already a member of this party." });
+      return res.json({
+        success: true,
+        message: "Already a member of this party.",
+      });
     }
     res.status(500).json({
       error: "Failed to add new party member and incremented party count.",
@@ -269,13 +286,13 @@ router.post("/join", requireAuth, async (req, res) => {
 
 /* =========================================
  * POST /api/note/leave
- * - requireMember: ต้องล็อกอิน
- * - 🔧 CHANGED: ทับ user_id ด้วย req.user.id เสมอ
+ * - ต้องล็อกอิน
+ * - ทับ user_id ด้วย req.user.id เสมอ
  * ========================================= */
 router.post("/leave", requireMember, async (req, res) => {
   try {
     const note_id = Number(req.body.note_id);
-    const user_id = String(req.user.id); // <— ทับเสมอ
+    const user_id = String(req.user.id);
 
     if (!Number.isFinite(note_id)) {
       return res.status(400).json({ error: "Missing or invalid note_id" });
@@ -290,7 +307,9 @@ router.post("/leave", requireMember, async (req, res) => {
       return res.status(400).json({ error: "This note is not a party." });
     }
     if (note.user_id === user_id) {
-      return res.status(400).json({ error: "Owner cannot leave. Delete the note instead." });
+      return res
+        .status(400)
+        .json({ error: "Owner cannot leave. Delete the note instead." });
     }
 
     const membership = await prisma.party_members.findFirst({
@@ -298,7 +317,11 @@ router.post("/leave", requireMember, async (req, res) => {
       select: { id: true },
     });
     if (!membership) {
-      return res.json({ success: true, message: "Already not a member.", data: note });
+      return res.json({
+        success: true,
+        message: "Already not a member.",
+        data: note,
+      });
     }
 
     const [, updatedNote] = await prisma.$transaction([
@@ -318,14 +341,13 @@ router.post("/leave", requireMember, async (req, res) => {
 
 /* =========================================
  * GET /api/note/party/is-member
- * - requireMember: ต้องล็อกอิน
- * - 🔧 CHANGED: ใช้ req.user.id เป็นหลัก
- * - 🔧 CHANGED: อ้าง owner ด้วย field user_id (ให้สอดคล้องกับ create)
+ * - ต้องล็อกอิน
+ * - ใช้ req.user.id เป็นหลัก
  * ========================================= */
 router.get("/party/is-member", requireMember, async (req, res) => {
   try {
     const note_id = Number(req.query.note_id);
-    const user_id = String(req.user.id); // <— ทับเสมอ
+    const user_id = String(req.user.id);
     if (!Number.isFinite(note_id)) {
       return res.status(400).json({ error: "Missing or invalid note_id" });
     }
