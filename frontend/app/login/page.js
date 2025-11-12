@@ -2,25 +2,60 @@
 
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+const ERROR_TEXT = {
+  CredentialsSignin: 'Invalid username or password.',
+  OAuthSignin: 'Could not sign you in. Please try again.',
+  OAuthCallback: 'Authentication failed. Please try again.',
+  OAuthAccountNotLinked: 'Account already exists with a different sign-in method.',
+  default: 'Something went wrong. Please try again.',
+};
 
 export default function LoginPage() {
   const { data: session } = useSession();
+  const router = useRouter();
+
+  // ----- state -----
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
 
-  // ✅ JS only (no TS generics)
   const [formData, setFormData] = useState({
     login_name: '',
-    user_name: '', // ใช้เฉพาะ register (ชื่อโชว์)
+    user_name: '',
     password: '',
   });
   const [errors, setErrors] = useState({});
   const [authError, setAuthError] = useState('');
 
-  useEffect(() => setMounted(true), []);
+  // ----- effects -----
+  useEffect(() => {
+    setMounted(true);
+
+    // อ่าน ?error=... แบบไม่ใช้ useSearchParams (กัน hook-order issues)
+    try {
+      const usp = new URLSearchParams(window.location.search);
+      const errKey = usp.get('error') || '';
+      if (errKey) setAuthError(ERROR_TEXT[errKey] || ERROR_TEXT.default);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      try {
+        const usp = new URLSearchParams(window.location.search);
+        const cb = usp.get('callbackUrl') || '/';
+        router.replace(cb);
+      } catch {
+        router.replace('/');
+      }
+    }
+  }, [session, router]);
+
   if (!mounted) return null;
 
+  // ----- handlers -----
   const switchAuthMode = (mode) => {
     setAuthMode(mode);
     setFormData({ login_name: '', user_name: '', password: '' });
@@ -44,33 +79,73 @@ export default function LoginPage() {
     return Object.keys(newErr).length === 0;
   };
 
-// ... ภายในไฟล์หน้า Login ของคุณ
-    const handleCredentialAuth = async (e) => {
-      e.preventDefault();
-      setAuthError('');
-      if (!validateForm()) return;
+const handleCredentialAuth = async (e) => {
+  e.preventDefault();
+  setAuthError('');
+  if (!validateForm()) return;
 
-      setIsLoading(true);
-      try {
-        await signIn('credentials', {
-          login_name: formData.login_name,
-          user_name: authMode === 'register' ? formData.user_name : '',
-          password: formData.password,
-          isRegister: authMode === 'register' ? 'true' : 'false',
-          callbackUrl: '/',   // ✅ ให้ NextAuth พาไป และรีเฟรช session ให้
-          redirect: true,     // ✅
-        });
-      } catch (err) {
-        setAuthError('An unexpected error occurred.');
+  setIsLoading(true);
+  try {
+    // อ่าน callbackUrl จาก query (เหมือนเดิม)
+    let callbackUrl = '/';
+    try {
+      const usp = new URLSearchParams(window.location.search);
+      callbackUrl = usp.get('callbackUrl') || '/';
+    } catch {}
+
+    // ✅ เพิ่ม: เช็ก username ซ้ำเฉพาะตอนสมัคร
+    if (authMode === 'register') {
+      const resp = await fetch(
+        `/api/check-username?login_name=${encodeURIComponent(formData.login_name)}`,
+        { cache: 'no-store' }
+      );
+      const data = await resp.json();
+      if (!data.ok) {
         setIsLoading(false);
+        setAuthError('Could not verify username availability. Please try again.');
+        return;
       }
-    };
+      if (data.exists) {
+        setIsLoading(false);
+        setErrors((p) => ({ ...p, login_name: 'This username is already taken. Please choose another one.' }));
+        return;
+      }
+    }
 
+    // ดำเนินการเดิม: signIn แบบ redirect:false
+    const res = await signIn('credentials', {
+      redirect: false,
+      login_name: formData.login_name,
+      user_name: authMode === 'register' ? formData.user_name : '',
+      password: formData.password,
+      isRegister: authMode === 'register' ? 'true' : 'false',
+      callbackUrl,
+    });
+
+    if (res?.error) {
+      // สำหรับ login พลาด หรือ register fail ด้วยเหตุอื่น
+      setFormData((p) => ({ ...p, password: '' }));
+      setAuthError(ERROR_TEXT[res.error] || ERROR_TEXT.default);
+      setIsLoading(false);
+      return;
+    }
+
+    router.replace(res?.url || callbackUrl);
+  } catch {
+    setAuthError('An unexpected error occurred.');
+    setIsLoading(false);
+  }
+};
 
   const handleGoogle = async () => {
     setAuthError('');
     setIsLoading(true);
-    await signIn('google');
+    let callbackUrl = '/';
+    try {
+      const usp = new URLSearchParams(window.location.search);
+      callbackUrl = usp.get('callbackUrl') || '/';
+    } catch {}
+    await signIn('google', { callbackUrl });
     setIsLoading(false);
   };
 
@@ -80,6 +155,7 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
+  // ----- render -----
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-[#f2fbf6] to-[#eef6ff]">
       <main className="mx-auto flex max-w-6xl justify-center px-4 py-10">
@@ -117,7 +193,11 @@ export default function LoginPage() {
                   </div>
 
                   {authError ? (
-                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                    <div
+                      className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600"
+                      role="alert"
+                      aria-live="polite"
+                    >
                       {authError}
                     </div>
                   ) : null}
@@ -127,7 +207,7 @@ export default function LoginPage() {
                     {/* login_name */}
                     <div>
                       <label htmlFor="login_name" className="mb-1 block text-sm text-gray-700">
-                        Username 
+                        Username
                       </label>
                       <input
                         id="login_name"
@@ -138,6 +218,7 @@ export default function LoginPage() {
                         className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
                           errors.login_name ? 'border-red-300 bg-red-50' : 'border-gray-200'
                         }`}
+                        autoComplete="username"
                       />
                       {errors.login_name && <p className="mt-1 text-xs text-red-600">{errors.login_name}</p>}
                     </div>
@@ -146,7 +227,7 @@ export default function LoginPage() {
                     {authMode === 'register' && (
                       <div>
                         <label htmlFor="user_name" className="mb-1 block text-sm text-gray-700">
-                          Display name 
+                          Display name
                         </label>
                         <input
                           id="user_name"
@@ -177,6 +258,7 @@ export default function LoginPage() {
                         className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
                           errors.password ? 'border-red-300 bg-red-50' : 'border-gray-200'
                         }`}
+                        autoComplete="current-password"
                       />
                       {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
                     </div>
@@ -192,8 +274,8 @@ export default function LoginPage() {
                           ? 'Creating account…'
                           : 'Signing in…'
                         : authMode === 'register'
-                          ? 'Sign up'
-                          : 'Sign in'}
+                        ? 'Sign up'
+                        : 'Sign in'}
                     </button>
                   </form>
 
@@ -234,13 +316,11 @@ export default function LoginPage() {
                     className="mx-auto mb-3 h-20 w-20 rounded-full border object-cover"
                   />
                   <div className="text-lg font-semibold">{session.user?.name ?? 'User'}</div>
-                  {session.user?.email && (
-                    <div className="text-sm text-gray-500">{session.user.email}</div>
-                  )}
+                  {session.user?.email && <div className="text-sm text-gray-500">{session.user.email}</div>}
 
                   <div className="mt-6 space-y-3">
                     <button
-                      onClick={() => (window.location.href = '/')}
+                      onClick={() => router.replace('/')}
                       className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-green-600 py-2.5 text-sm font-medium text-white shadow hover:from-blue-700 hover:to-green-700"
                     >
                       Go to Dashboard

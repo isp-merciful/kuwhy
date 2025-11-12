@@ -1,126 +1,88 @@
 // backend/auth_mw.js
-const { jwtVerify } = require("jose");
+const { jwtVerify /*, jwtDecrypt*/ } = require("jose");
 
-// ===== Secret (ต้องตั้ง NEXTAUTH_SECRET ให้ตรงกับ NextAuth) =====
-if (!process.env.NEXTAUTH_SECRET) {
-  console.warn("[auth_mw] Missing NEXTAUTH_SECRET env");
-}
-const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || "unset-secret");
+// === Secret (ต้องตรงกับ NextAuth เป๊ะ และ trim แล้ว) ===
+const RAW = (process.env.NEXTAUTH_SECRET || "").trim();
+if (!RAW) console.warn("[auth_mw] Missing NEXTAUTH_SECRET (ทุกเคสจะ 401)");
+const SECRET = new TextEncoder().encode(RAW);
 
-// ===== helpers =====
+// === helpers ===
 function getBearerToken(req) {
-  const h = req.headers.authorization || "";
-  return h.startsWith("Bearer ") ? h.slice(7) : "";
+  const h = req.headers.authorization || req.headers.Authorization || "";
+  return typeof h === "string" && h.startsWith("Bearer ") ? h.slice(7).trim() : "";
 }
 
-function getNextAuthCookieToken(req) {
-  // NextAuth ใช้ชื่อคุกกี้ต่างกันระหว่าง dev/prod
-  // - prod (https): __Secure-next-auth.session-token
-  // - dev:          next-auth.session-token
-  const cookies = req.cookies || {};
-  return (
-    cookies["__Secure-next-auth.session-token"] ||
-    cookies["next-auth.session-token"] ||
-    ""
-  );
+// ถ้าคุณยังไม่ได้ออก JWE จริง ๆ แนะนำ “ล็อก HS256 JWS เท่านั้น”
+async function verifyFromHeader(req) {
+  const token = getBearerToken(req);
+  if (!token) throw new Error("no token");
+
+  // --- รองรับ JWS HS256 เท่านั้น (ตรงกับที่ NextAuth ของคุณ sign) ---
+  const { payload, protectedHeader } = await jwtVerify(token, SECRET, {
+    algorithms: ["HS256"],
+    clockTolerance: 60, // กันนาฬิกาเพี้ยน
+  });
+
+  // sanity check: ต้องมี id
+  if (!payload?.id) throw new Error("no id in token");
+  // ใส่ข้อมูลไว้เผื่อดีบัก
+  req.tokenHeader = protectedHeader;
+  return payload; // { id, role, login_name, iat, exp }
 }
 
-async function verifyToken(token) {
-  // เผื่อ clock skew เล็กน้อย
-  const { payload } = await jwtVerify(token, secret, { clockTolerance: 60 });
-  // token จาก NextAuth callbacks เราอัด { id, role, login_name, ... }
-  return payload;
-}
-
-async function getTokenFromReq(req) {
-  // 1) พยายามอ่านจาก Authorization: Bearer <token>
-  let token = getBearerToken(req);
-  // 2) ถ้าไม่มี Bearer ให้ fallback ไปหาคุกกี้ NextAuth
-  if (!token) token = getNextAuthCookieToken(req);
-  return token || "";
-}
-
-// ===== middlewares =====
-
-/** แนบ req.user แบบ "ถ้ามี token" เท่านั้น (ไม่บังคับ) */
+// === middlewares ===
 async function optionalAuth(req, _res, next) {
   try {
-    const token = await getTokenFromReq(req);
-    if (token) {
-      req.user = await verifyToken(token);
-      req.token = token;
-    } else {
-      req.user = undefined;
-      req.token = undefined;
-    }
-  } catch {
-    // มี token แต่ verify ไม่ผ่าน → ถือว่า anonymous
-    req.user = undefined;
-    req.token = undefined;
+    req.user = await verifyFromHeader(req);
+  } catch (_) {
+    // ไม่มี token / verify fail ก็ไม่ผูก req.user เฉย ๆ
   }
   return next();
 }
 
-/** ต้องมี token และ verify ผ่านเท่านั้น */
 async function requireAuth(req, res, next) {
   try {
-    const token = await getTokenFromReq(req);
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    req.user = await verifyToken(token);
-    req.token = token;
+    req.user = await verifyFromHeader(req);
     return next();
   } catch (e) {
+    // เปิด log ตอน dev ให้เห็นชัดว่า fail เพราะอะไร
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[requireAuth] verify failed:", e?.message || e);
+    }
     return res.status(401).json({ error: "Unauthorized" });
   }
 }
 
-/** ต้องมีบทบาทตามที่กำหนด (ใช้ได้หลายกรณี) */
-function requireRoles(roles = []) {
-  return async (req, res, next) => {
-    return requireAuth(req, res, () => {
-      const r = req.user?.role;
-      if (roles.length === 0 || roles.includes(r)) return next();
-      return res.status(403).json({ error: "Forbidden" });
-    });
-  };
+async function requireMember(req, res, next) {
+  try {
+    req.user = await verifyFromHeader(req);
+  } catch (e) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[requireMember] verify failed:", e?.message || e);
+    }
+    return res.status(401).json({ error: "Unauthorized" }); // verify ไม่ผ่าน
+  }
+  const role = String(req.user?.role || "");
+  if (!["member", "admin"].includes(role)) {
+    return res.status(403).json({ error: "Forbidden (member only)" }); // role ไม่ถึง
+  }
+  return next();
 }
 
-/** member หรือ admin */
-const requireMember = requireRoles(["member", "admin"]);
-
-/** admin เท่านั้น */
-const requireAdmin = requireRoles(["admin"]);
-
-/** เจ้าของ param (เช่น /api/user/:userId) เท่านั้น */
-function requireOwnerParam(paramName = "userId") {
-  return async (req, res, next) => {
-    return requireAuth(req, res, () => {
-      if (req.user?.id === String(req.params[paramName])) return next();
-      return res.status(403).json({ error: "Forbidden: owner only" });
-    });
-  };
+async function requireAdmin(req, res, next) {
+  try {
+    req.user = await verifyFromHeader(req);
+  } catch (e) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[requireAdmin] verify failed:", e?.message || e);
+    }
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const role = String(req.user?.role || "");
+  if (role !== "admin") {
+    return res.status(403).json({ error: "Forbidden (admin only)" });
+  }
+  return next();
 }
 
-/** เจ้าตัวเอง หรือ admin */
-function requireSelfOrAdmin(paramName = "userId") {
-  return async (req, res, next) => {
-    return requireAuth(req, res, () => {
-      const isOwner = req.user?.id === String(req.params[paramName]);
-      const isAdmin = req.user?.role === "admin";
-      if (isOwner || isAdmin) return next();
-      return res.status(403).json({ error: "Forbidden" });
-    });
-  };
-}
-
-module.exports = {
-  // core
-  optionalAuth,
-  requireAuth,
-  requireMember,
-  requireAdmin,
-  // generic/extra
-  requireRoles,
-  requireOwnerParam,
-  requireSelfOrAdmin,
-};
+module.exports = { optionalAuth, requireAuth, requireMember, requireAdmin };

@@ -1,28 +1,31 @@
-'use client';
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 const ROUTES = {
-  getUser: (id) => `http://localhost:8000/api/user/${id}`,
-  updateUserSetting: (id) => `http://localhost:8000/api/settings/${id}`,
+  getUser: (id) => `${API_BASE}/api/user/${id}`,
+  updateUserSetting: (id) => `${API_BASE}/api/settings/${id}`,
 };
 
-export default function ProfilePage() {
-  const [mounted, setMounted] = useState(false);
-  const [userId, setUserId] = useState(null);
-
+export default function ProfileSettingsPage() {
+  const { data: session, status } = useSession(); // 'loading' | 'authenticated' | 'unauthenticated'
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
+  // ✅ ดึง uuid และ bearer จาก session
+  const userId = session?.user?.id || null;        // uuid จาก NextAuth (เราใส่ไว้แล้วในการคุยก่อนหน้า)
+  const apiToken = session?.apiToken || "";        // Bearer (HS256 แบบ 3 จุด) จาก callback ของ NextAuth
+
   const [formData, setFormData] = useState({
     name: "",          // full_name
-    display_name: "",  // ✅ user_name
+    display_name: "",  // user_name (public display)
     email: "",
     bio: "",
     location: "",
-    website: "",       // web (optional, no regex)
+    website: "",       // web (optional)
     phone: "",
     password: "",
   });
@@ -30,7 +33,10 @@ export default function ProfilePage() {
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
 
-  const disableActions = useMemo(() => isLoading || isLoadingProfile, [isLoading, isLoadingProfile]);
+  const disableActions = useMemo(
+    () => isLoading || isLoadingProfile || status !== "authenticated",
+    [isLoading, isLoadingProfile, status]
+  );
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -38,32 +44,46 @@ export default function ProfilePage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  // ✅ ไม่บังคับ website เป็น URL แล้ว
+  // ✅ ไม่ตรวจ website เป็น URL แล้ว
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Name is required";
     if (!formData.email.trim()) newErrors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Please enter a valid email";
-    // ไม่ตรวจ website เป็น URL อีกต่อไป
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // ✅ helper fetch ใส่ Bearer อัตโนมัติ
+  const authFetch = async (url, init = {}) => {
+    const headers = new Headers(init.headers || {});
+    headers.set("Content-Type", "application/json");
+    if (apiToken) headers.set("Authorization", `Bearer ${apiToken}`);
+    const res = await fetch(url, { ...init, headers, cache: "no-store" });
+    return res;
   };
 
   const fetchUserProfile = async (uid) => {
     if (!uid) return;
     setIsLoadingProfile(true);
     try {
-      const res = await fetch(ROUTES.getUser(uid), { cache: "no-store" });
+      const res = await authFetch(ROUTES.getUser(uid), { method: "GET" });
+
+      if (res.status === 401 || res.status === 403) {
+        setErrors({ general: "Unauthorized. Please sign in again." });
+        return;
+      }
       if (!res.ok) {
         setErrors({ general: res.status === 404 ? "User not found" : "Failed to load profile" });
         return;
       }
+
       const data = await res.json().catch(() => ({}));
       const u = data?.user || data || {};
 
       setFormData({
         name: u.full_name || "",
-        display_name: u.user_name || "", // ✅ map จาก DB -> form
+        display_name: u.user_name || "",
         email: u.email || "",
         bio: u.bio || "",
         location: u.location || "",
@@ -71,12 +91,7 @@ export default function ProfilePage() {
         phone: u.phone || "",
         password: "",
       });
-
-      if (u.user_id && u.user_id !== uid) {
-        setUserId(u.user_id);
-        try { localStorage.setItem("userId", u.user_id); } catch {}
-      }
-    } catch (e) {
+    } catch {
       setErrors({ general: "Unable to reach server" });
     } finally {
       setIsLoadingProfile(false);
@@ -88,27 +103,31 @@ export default function ProfilePage() {
     setSuccessMessage("");
     setErrors({});
     if (!validateForm()) return;
-    if (!userId) { setErrors({ general: "Missing userId (localStorage)." }); return; }
+    if (!userId) { setErrors({ general: "Missing userId (session)." }); return; }
 
     setIsLoading(true);
     try {
       const payload = {
         full_name: formData.name,
-        display_name: formData.display_name, // ✅ ส่งขึ้น API
+        display_name: formData.display_name, // map -> user_name ที่ฝั่ง BE
         email: formData.email,
         bio: formData.bio,
         location: formData.location,
         phone: formData.phone,
-        web: formData.website,               // ✅ ไม่เช็ค URL แล้ว
+        web: formData.website,
       };
 
-      const res = await fetch(ROUTES.updateUserSetting(userId), {
+      const res = await authFetch(ROUTES.updateUserSetting(userId), {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401 || res.status === 403) {
+        setErrors({ general: "Unauthorized. Your session may have expired—please sign in again." });
+        return;
+      }
       if (!res.ok) {
         setErrors({ general: data?.error || "Failed to update profile. Please try again." });
         return;
@@ -119,7 +138,7 @@ export default function ProfilePage() {
       setFormData((prev) => ({ ...prev, password: "" }));
       setTimeout(() => setSuccessMessage(""), 3000);
       fetchUserProfile(userId);
-    } catch (err) {
+    } catch {
       setErrors({ general: "An unexpected error occurred. Please try again." });
     } finally {
       setIsLoading(false);
@@ -136,25 +155,25 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => { console.log("New profile image (preview only):", ev.target?.result); };
+    reader.onload = (ev) => {
+      console.log("New profile image (preview only):", ev.target?.result);
+    };
     reader.readAsDataURL(file);
   };
 
+  // โหลดโปรไฟล์เมื่อ session พร้อมแล้ว
   useEffect(() => {
-    setMounted(true);
-    try {
-      let uid = localStorage.getItem("userId");
-      if (uid) uid = uid.replace(/"/g, "").trim();
-      setUserId(uid || null);
-      if (uid) fetchUserProfile(uid);
-      else setIsLoadingProfile(false);
-    } catch {
+    if (status === "authenticated" && userId) {
+      fetchUserProfile(userId);
+    }
+    if (status === "unauthenticated") {
       setIsLoadingProfile(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status, userId, apiToken]);
 
-  if (!mounted || isLoadingProfile) {
+  // ==== UI states ====
+  if (status === "loading" || isLoadingProfile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -165,14 +184,12 @@ export default function ProfilePage() {
     );
   }
 
-  if (!userId) {
+  if (status === "unauthenticated") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">No User ID</h1>
-          <p className="text-gray-600">
-            ไม่พบ <code>userId</code> ใน <code>localStorage</code>. โปรดเข้าสู่ระบบหรือสร้างผู้ใช้ให้เรียบร้อยก่อน
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">You're not logged in</h1>
+          <p className="text-gray-600">หน้านี้ต้องล็อกอินก่อนถึงเข้าได้</p>
           <a href="/login" className="inline-flex items-center mt-6 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
             Go to Login
           </a>
@@ -181,15 +198,21 @@ export default function ProfilePage() {
     );
   }
 
+  // ==== Main ====
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
         {/* header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
               <p className="text-gray-600 mt-2">Manage your account settings and preferences</p>
+              {/* ✅ แสดง debug เล็กน้อยจาก session */}
+              <p className="text-xs text-gray-500 mt-1">
+                Logged in as <b>{session?.user?.name || session?.user?.login_name || "—"}</b>
+              </p>
             </div>
             <a href="/" className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,7 +254,6 @@ export default function ProfilePage() {
                 </div>
 
                 <h3 className="text-lg font-medium text-gray-900 mt-4">
-                  {/* แสดง display_name ถ้ามี ไม่งั้น fallback เป็น full_name */}
                   {formData.display_name?.trim() || formData.name || "User"}
                 </h3>
                 <p className="text-gray-600">{formData.email || "-"}</p>
@@ -252,7 +274,7 @@ export default function ProfilePage() {
                 </button>
 
                 <button
-                  onClick={() => { try { localStorage.removeItem("userId"); } catch {} window.location.href = "/login"; }}
+                  onClick={() => signOut({ callbackUrl: "/login" })}
                   className="w-full flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -289,7 +311,7 @@ export default function ProfilePage() {
                   {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
                 </div>
 
-                {/* Display Name (user_name) */}
+                {/* Display Name */}
                 <div>
                   <label htmlFor="display_name" className="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
                   {isEditing ? (
@@ -347,7 +369,7 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Website (no URL validation) */}
+                {/* Website */}
                 <div>
                   <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">Website</label>
                   {isEditing ? (
@@ -358,12 +380,11 @@ export default function ProfilePage() {
                     />
                   ) : (
                     <p className="text-gray-900 py-3">
-                      {formData.website ? (
-                        // แสดงเป็นลิงก์ก็ต่อเมื่อเริ่มด้วย http(s)
-                        /^https?:\/\//i.test(formData.website)
+                      {formData.website
+                        ? (/^https?:\/\//i.test(formData.website)
                           ? <a href={formData.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{formData.website}</a>
-                          : formData.website
-                      ) : "Not provided"}
+                          : formData.website)
+                        : "Not provided"}
                     </p>
                   )}
                 </div>
@@ -382,7 +403,7 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Password (UI only) */}
+                {/* Password UI only */}
                 {isEditing && (
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">New Password (optional)</label>
@@ -397,7 +418,7 @@ export default function ProfilePage() {
 
                 {/* Actions */}
                 {isEditing && (
-                  <div className="flex flex-col sm:flex-row gap-4 pt-6 border-top border-gray-200">
+                  <div className="flex flex-col sm:flex-row gap-4 pt-6">
                     <button type="submit" disabled={disableActions}
                       className="flex-1 flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                       {isLoading ? (

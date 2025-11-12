@@ -1,40 +1,45 @@
-// frontend/app/components/useUserId.js (หรือไฟล์เดิมของคุณ)
+// frontend/app/components/useUserId.js
 "use client";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
+const ACTIVE_KEY = "userId";        // ใช้ทุกที่ในแอป
+const ANON_KEY   = "anon_user_id";  // เก็บ anon แยก
+
 export default function useUserId() {
   const { data: session, status } = useSession(); // 'loading' | 'authenticated' | 'unauthenticated'
-  const [userId, setUserId] = useState(null);
+  const [id, setId] = useState(null);
 
   useEffect(() => {
-    // รอจนรู้สถานะ session ก่อน
-    if (status === "loading") return;
+    if (status === "loading") return; // ยังโหลด session อยู่ → อย่าแตะอะไร
 
-    // 1) ถ้ามี session → ใช้ session.user.id (จริง) เสมอ
-    if (status === "authenticated" && session?.user?.id) {
-      const id = session.user.id;
-      setUserId(id);
-      // sync localStorage ให้เท่ากับ user ที่ล็อกอิน
+    const setActive = (next) => {
       try {
-        localStorage.setItem("userId", id);
+        const cur = localStorage.getItem(ACTIVE_KEY);
+        if (cur !== next) localStorage.setItem(ACTIVE_KEY, next);
       } catch {}
+      setId(next); // ← ใช้ตัวนี้ให้ตรงกับ useState
+    };
+
+    if (status === "authenticated" && session?.user?.id) {
+      // ล็อกอิน → ใช้ id จริง
+      setActive(String(session.user.id));
       return;
     }
 
-    // 2) ถ้า "ยังไม่ได้ล็อกอิน" → ใช้ anonymous id (คงเดิมถ้ามี)
+    // ไม่ได้ล็อกอิน → ใช้ anon id (สร้างครั้งแรก)
     try {
-      let anon = localStorage.getItem("userId");
+      let anon = localStorage.getItem(ANON_KEY);
       if (!anon) {
         anon = crypto.randomUUID();
-        localStorage.setItem("userId", anon);
+        localStorage.setItem(ANON_KEY, anon);
       }
-      setUserId(anon);
+      setActive(anon);
     } catch {
-      // fallback ถ้า localStorage พัง
-      setUserId(crypto.randomUUID());
+      const fallback = crypto.randomUUID();
+      setActive(fallback);
     }
   }, [status, session?.user?.id]);
 
-  return userId;
+  return id;
 }

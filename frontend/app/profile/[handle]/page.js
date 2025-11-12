@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 
-// ใช้ path แบบ relative ให้ตรงกับโฟลเดอร์จริงของคุณ
+// relative imports ให้ตรงโปรเจกต์จริงของคุณ
 import ActiveNoteViewer from "../../components/Note/ActiveNoteViewer";
 import BlogCard from "../../components/profile/BlogCard";
 
 export default function ProfilePage() {
-  const routerParams = useParams();                           // ✅ ดึงพารามิเตอร์จาก router
+  const { data: session } = useSession();
+  const routerParams = useParams();
   const handle = String(routerParams?.handle ?? "").toLowerCase();
 
   const [state, setState] = useState({
@@ -18,20 +20,14 @@ export default function ProfilePage() {
     blogs: [],
   });
 
-  // ... (ที่เหลือต่อจากโค้ดเดิมของคุณได้เลย)
-
-
-
   useEffect(() => {
     let ok = true;
 
     async function run() {
       try {
-        // 1) ดึงโปรไฟล์จาก backend โดย handle
+        // 1) โปรไฟล์จาก backend โดย handle
         const profRes = await fetch(
-          `http://localhost:8000/api/user/by-handle/${encodeURIComponent(
-            handle
-          )}`,
+          `http://localhost:8000/api/user/by-handle/${encodeURIComponent(handle)}`,
           { cache: "no-store" }
         );
         if (!ok) return;
@@ -39,21 +35,17 @@ export default function ProfilePage() {
         const prof = await profRes.json();
         const user = prof.user;
 
-        // 2) ดึงบล็อกทั้งหมด แล้วกรองเฉพาะของ user นี้ (รองรับหลายรูปแบบ)
+        // 2) ดึงบล็อกแล้วกรองเจ้าของเดียวกัน
         let blogs = [];
         try {
-          const r = await fetch(`http://localhost:8000/api/blog`, {
-            cache: "no-store",
-          });
+          const r = await fetch(`http://localhost:8000/api/blog`, { cache: "no-store" });
           if (r.ok) {
             const all = await r.json();
             blogs = all.filter((b) => {
               const byId = b.user_id && b.user_id === user.user_id;
               const byName = b.user_name && b.user_name === user.user_name;
-              const byUsersId =
-                b.users?.user_id && b.users.user_id === user.user_id;
-              const byUsersName =
-                b.users?.user_name && b.users.user_name === user.user_name;
+              const byUsersId = b.users?.user_id && b.users.user_id === user.user_id;
+              const byUsersName = b.users?.user_name && b.users.user_name === user.user_name;
               return byId || byName || byUsersId || byUsersName;
             });
           }
@@ -73,9 +65,7 @@ export default function ProfilePage() {
     }
 
     run();
-    return () => {
-      ok = false;
-    };
+    return () => { ok = false; };
   }, [handle]);
 
   if (state.loading) return <PageSkeleton />;
@@ -91,17 +81,14 @@ export default function ProfilePage() {
   }
 
   const u = state.user;
-  const coverUrl = "/images/profile-cover.jpg"; // เปลี่ยนได้ตามโปรเจกต์
+  const coverUrl = "/images/profile-cover.jpg"; // ปรับตามโปรเจกต์
+  const isOwner = session?.user?.id && session.user.id === u.user_id;
 
   return (
     <div className="mx-auto max-w-5xl pb-10">
       {/* Cover */}
       <div className="h-48 md:h-56 w-full rounded-b-2xl bg-gradient-to-r from-gray-100 to-gray-200 relative overflow-hidden">
-        <img
-          src={coverUrl}
-          alt="cover"
-          className="h-full w-full object-cover opacity-70"
-        />
+        <img src={coverUrl} alt="cover" className="h-full w-full object-cover opacity-70" />
       </div>
 
       {/* Header */}
@@ -112,38 +99,46 @@ export default function ProfilePage() {
             alt={u.user_name || u.login_name}
             className="h-28 w-28 md:h-32 md:w-32 rounded-full object-cover ring-4 ring-white shadow-md bg-white"
           />
-          {/* Active Note bubble ติดที่หัวโปรไฟล์ */}
-          <ActiveNoteViewer
-            userId={u.user_id}
-            className="absolute -bottom-3 left-24 md:left-32"
-          />
+          <ActiveNoteViewer userId={u.user_id} className="absolute -bottom-3 left-24 md:left-32" />
         </div>
 
         <div className="mt-3 md:mt-4">
-          <div className="text-2xl md:text-3xl font-bold">
-            {u.user_name || u.login_name}
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-2xl md:text-3xl font-bold">
+                {u.user_name || u.login_name}
+              </div>
+              <div className="text-gray-500">@{u.login_name}</div>
+            </div>
+
+            {/* ถ้าเป็นเจ้าของ ให้ลัดไปแก้ไขโปรไฟล์ */}
+            {isOwner && (
+              <a
+                href="/settings"
+                className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-black/80"
+              >
+                Edit Profile
+              </a>
+            )}
           </div>
-          <div className="text-gray-500">@{u.login_name}</div>
+
+          {/* ✅ Description จาก user.bio (สั้น ๆ ใต้ชื่อ) */}
+          {u.bio && (
+            <p className="mt-3 text-gray-700 whitespace-pre-wrap">
+              {u.bio}
+            </p>
+          )}
         </div>
 
         {/* Tabs */}
         <div className="mt-6 border-b flex gap-6 text-sm">
-          <a
-            href={`/note?owner=${u.user_id}`}
-            className="py-2 -mb-px border-b-2 border-transparent hover:border-gray-300"
-          >
+          <a href={`/note?owner=${u.user_id}`} className="py-2 -mb-px border-b-2 border-transparent hover:border-gray-300">
             Notes
           </a>
-          <a
-            href={`/blog?author=${u.user_id}`}
-            className="py-2 -mb-px border-b-2 border-transparent hover:border-gray-300"
-          >
+          <a href={`/blog?author=${u.user_id}`} className="py-2 -mb-px border-b-2 border-transparent hover:border-gray-300">
             Blog
           </a>
-          <a
-            href={`/party?user=${u.user_id}`}
-            className="py-2 -mb-px border-b-2 border-transparent hover:border-gray-300"
-          >
+          <a href={`/party?user=${u.user_id}`} className="py-2 -mb-px border-b-2 border-transparent hover:border-gray-300">
             Party
           </a>
         </div>
@@ -173,12 +168,7 @@ export default function ProfilePage() {
               {u.website && (
                 <div className="text-sm">
                   <span className="text-gray-500">Website </span>
-                  <a
-                    className="underline break-all"
-                    target="_blank"
-                    rel="noreferrer"
-                    href={u.website}
-                  >
+                  <a className="underline break-all" target="_blank" rel="noreferrer" href={u.website}>
                     {u.website}
                   </a>
                 </div>

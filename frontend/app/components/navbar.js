@@ -55,6 +55,13 @@ export default function Navbar() {
   const avatarSrc = (session?.user?.image && String(session.user.image)) || '/images/pfp.png';
   const displayName = session?.user?.name || 'User';
 
+  // ✅ ใช้ session ทำ handle สำหรับลิงก์ /profile/[handle]
+  const loginName =
+    session?.user?.login_name
+    || session?.user?.handle
+    || (session?.user?.email ? session.user.email.split('@')[0] : '')
+    || '';
+
   return (
     <header className="fixed inset-x-0 top-0 z-50">
       <div className="bg-white/85 supports-[backdrop-filter]:backdrop-blur-md border-b border-black/5">
@@ -92,7 +99,7 @@ export default function Navbar() {
                     <Underline />
                   </button>
 
-                  {/* guard gap */}
+                  {/* dropdown */}
                   <div
                     className={
                       `absolute right-0 top-[calc(100%+8px)] min-w-[240px] origin-top-right rounded-2xl border border-emerald-900/10 bg-white shadow-xl transition-[opacity,transform] duration-150 ease-out will-change-transform 
@@ -164,6 +171,7 @@ export default function Navbar() {
                   avatarSrc={avatarSrc}
                   displayName={displayName}
                   onLogout={handleLogout}
+                  loginName={loginName} 
                 />
               )}
             </div>
@@ -188,7 +196,7 @@ function ProfileMenu({
   avatarSrc,
   displayName,
   onLogout,
-  loginName,        // ✅ เพิ่ม
+  loginName,        // ✅ รับจาก session
 }) {
   const profileHref = loginName
     ? `/profile/${encodeURIComponent(String(loginName).toLowerCase())}`
@@ -227,7 +235,7 @@ function ProfileMenu({
         role="menu"
       >
         <div className="p-1">
-          {/* ✅ ใช้โปรไฟล์ของเราเอง */}
+          {/* ไปหน้าโปรไฟล์ของเราเอง (ใช้ handle จาก session) */}
           <MenuRow href={profileHref} onClick={handleGo}
                    icon={<UserCircleIcon className="h-4 w-4" />} text="Profile" />
           <Divider />
@@ -269,23 +277,11 @@ function NavLink({ href, children }) {
   );
 }
 
-function DDRow({ href, icon, text }) {
+function MenuRow({ href, icon, text, onClick }) {
   return (
     <a
       href={href}
-      className="w-full inline-flex justify-center items-center gap-2 px-2 h-9 text-[14px] text-gray-900 rounded-lg
-                 hover:bg-[rgba(0,0,0,0.04)] transition-colors"
-    >
-      {icon}
-      <span className="text-center">{text}</span>
-    </a>
-  );
-}
-
-function MenuRow({ href, icon, text }) {
-  return (
-    <a
-      href={href}
+      onClick={onClick}
       className="w-full inline-flex justify-center items-center gap-2 px-2 h-9 text-[14px] text-gray-900 rounded-lg
                  hover:bg-[rgba(0,0,0,0.04)] transition-colors"
     >
@@ -312,8 +308,6 @@ function MenuButton({ onClick, icon, text, danger = false }) {
 
 function Divider() {
   return <div className="h-px bg-black/10 my-1" />;
-
-
 }
 
 function DropdownItem({ href, icon, label, desc }) {
