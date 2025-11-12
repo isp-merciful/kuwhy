@@ -193,26 +193,21 @@ router.post("/", optionalAuth, async (req, res) => {
  * DELETE /api/note/:id
  * - จำกัดเฉพาะเจ้าของที่ล็อกอินเท่านั้น
  * ========================================= */
-router.delete("/:id", optionalAuth, async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     const noteId = Number(req.params.id);
-    const actorId = req.user?.id;
-    if (!actorId) return res.status(401).json({ error: "Login required" });
 
     const note = await prisma.note.findUnique({
       where: { note_id: noteId },
       select: { note_id: true, user_id: true },
     });
     if (!note) return res.status(404).json({ error: "Note not found" });
-    if (note.user_id !== actorId) {
-      return res.status(403).json({ error: "Not the owner" });
-    }
 
     await prisma.note.delete({ where: { note_id: noteId } });
     res.json("delete success");
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "can't deleted" });
+    res.status(500).json({ error: "can't delete" });
   }
 });
 

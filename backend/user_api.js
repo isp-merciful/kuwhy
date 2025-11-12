@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { prisma } = require('./lib/prisma.cjs');
 const bcrypt = require("bcrypt");
+const { optionalAuth } = require("./auth_mw");
 const settingRouter = require('./user_setting_api');
 
 // ===== Reserved & helpers =====
@@ -199,27 +200,62 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.put('/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { name } = req.body;
 
-    if (!name || !userId) {
-      return res.status(400).json({ error: "Missing name or userId" });
+
+router.put('/:userId',optionalAuth, async (req, res) => {
+  try {
+    const paramId = String(req.params.userId || "").trim();
+    const authedId = req.user?.id ? String(req.user.id) : null;
+    const targetId = authedId || paramId;
+
+    const { name, img } = req.body || {};
+    if (!targetId) {
+      return res.status(400).json({ error: "Missing userId" });
+    }
+    if (!name && !img) {
+      return res.status(400).json({ error: "Nothing to update (name or img required)" });
     }
 
-    const updatedUser = await prisma.users.update({
-      where: { user_id: userId },
-      data: { user_name: name },
+    // เตรียม patch
+    const data = {};
+    if (typeof name === "string" && name.trim()) data.user_name = name.trim();
+    if (typeof img === "string" && img.trim()) data.img = img.trim();
+
+    // ป้องกัน anonymous ไปแก้ user คนอื่นที่ไม่ใช่ anonymous
+    const existing = await prisma.users.findUnique({
+      where: { user_id: targetId },
+      select: { user_id: true, role: true, user_name: true },
     });
 
-    res.json({ message: "Name updated successfully", user_name: updatedUser.user_name });
-  } catch (err) {
-    if (err.code === 'P2025') {
-      return res.status(404).json({ error: "User not found" });
+    // ถ้าล็อกอิน → อนุญาตเสมอ (แต่ targetId จะถูก fix เป็นเจ้าของ token)
+    // ถ้าไม่ล็อกอิน:
+    //  - ถ้ายังไม่มีผู้ใช้ → อนุญาตสร้างเป็น anonymous
+    //  - ถ้ามีอยู่และ role != 'anonymous' → ห้ามแก้
+    if (!authedId && existing && existing.role !== "anonymous") {
+      return res.status(403).json({ error: "Forbidden: cannot update a non-anonymous user without auth" });
     }
-    console.error(err);
-    res.status(500).json({ error: "Failed to update user name" });
+
+    const createdRole = authedId ? "member" : "anonymous";
+    const createdName =
+      data.user_name ||
+      (authedId ? (req.user?.name || "anonymous") : "anonymous");
+
+    const updated = await prisma.users.upsert({
+      where: { user_id: targetId },
+      update: data,
+      create: {
+        user_id: targetId,
+        user_name: createdName,
+        img: data.img || null,
+        role: createdRole,
+      },
+      select: { user_id: true, user_name: true, img: true, role: true },
+    });
+
+    res.json({ ok: true, user: updated });
+  } catch (err) {
+    console.error("PUT /api/user/:userId error:", err);
+    return res.status(500).json({ error: "Failed to update user" });
   }
 });
 
