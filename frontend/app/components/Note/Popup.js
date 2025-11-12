@@ -304,11 +304,11 @@ export default function Popup({
                   </div>
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-green-100"
+                    className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full bg-green-100"
                   />
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-green-100"
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-x-3 w-2 h-2 rounded-full bg-green-100"
                     style={{ bottom: "-1.125rem" }}
                   />
                 </div>
