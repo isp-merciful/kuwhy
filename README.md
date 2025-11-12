@@ -59,10 +59,10 @@ The platform provides KU students with a **central hub** to:
 ```bash
 # 1. Clone the repository
 git clone https://github.com/isp-merciful/kuwhy.git
-cd FLEARN
+cd kuwhy
 
 # 2. Start all services with Docker
-docker compose up -d
+docker-compose up --build -d
 
 # 3. Access the application
 # Frontend: http://localhost:[FRONTEND_PORT]
