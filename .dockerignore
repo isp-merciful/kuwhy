@@ -1,0 +1,11 @@
+# .dockerignore 
+package-lock.json
+.git
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+.env*
+.DS_Store

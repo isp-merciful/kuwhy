@@ -7,6 +7,7 @@ const commentRouter = require("./comment_api");
 const noteRouter = require("./note_api");
 const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
+const partyChatApi = require("./party_chat_api");
 
 const app = express();
 app.use(bodyParser.json());
@@ -19,11 +20,11 @@ app.use(cors({
 
 
 app.use("/api/blog", blogRouter);
-app.use("/api/notification", notificationRouter);
+app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/note", noteRouter);
 app.use("/api/user", userRouter);
-
+app.use("/api/chat", partyChatApi);
 
 const port = process.env.PORT || 8000;
 
