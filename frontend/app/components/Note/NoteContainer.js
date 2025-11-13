@@ -110,7 +110,7 @@ export default function NoteContainer() {
             <NoteList notes={visibleNotes} onNoteClick={handleCardClick} />
           ) : (
             <p className="text-sm text-gray-500 mt-2">
-              ยังไม่มีโน้ตจากคนอื่นตอนนี้ ลองสร้างโน้ตแรกของคุณดูก่อน ✨
+              Looks like no notes yet. Why not add yours?✨
             </p>
           )}
         </div>
@@ -118,7 +118,7 @@ export default function NoteContainer() {
 
       {/* Popup comment / party detail */}
       {showPopup && selectedNote && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30  flex items-center justify-center z-50">
           <Popup
             showPopup={showPopup}
             setShowPopup={setShowPopup}
@@ -133,6 +133,16 @@ export default function NoteContainer() {
           />
         </div>
       )}
+
+        {/* {showPopup && selectedNote && (
+    <div className="fixed inset-0 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 shadow-xl">
+        <p className="font-semibold mb-2">Debug popup</p>
+        <p className="text-sm text-gray-600">{selectedNote.message}</p>
+      </div>
+    </div>
+)} */}
+
     </div>
   );
 }

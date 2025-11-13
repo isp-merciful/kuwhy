@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 /* ---------------- utils ---------------- */
 const API = "http://localhost:8000/api";
+const VISIBLE_ROOT_LIMIT = 20; // ✅ แสดง root comment ล่าสุดไม่เกิน 20 อัน (ถ้าเยอะกว่านี้มีปุ่มดูเพิ่ม)
 
 function cx(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -47,12 +48,28 @@ function removeById(list, id) {
 }
 
 /* ---------------- helpers: profile url ---------------- */
-const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/profile"; 
+const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/profile";
 function buildProfileUrl(handle) {
   if (!handle) return "/";
   if (PROFILE_BASE === "root") return `/${handle}`;
   if (PROFILE_BASE === "@root") return `/@${handle}`;
   return `${PROFILE_BASE}/${handle}`;
+}
+
+/* ---------------- Skeleton row (โหลดคอมเมนต์) ---------------- */
+function CommentSkeletonRow() {
+  return (
+    <div className="mt-3 ml-2 animate-pulse">
+      <div className="flex gap-3 items-start">
+        <div className="w-9 h-9 rounded-full bg-slate-200" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-24 bg-slate-200 rounded" />
+          <div className="h-3 w-40 bg-slate-100 rounded" />
+          <div className="h-3 w-32 bg-slate-100 rounded" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ---------------- Single Comment ---------------- */
@@ -90,7 +107,6 @@ function CommentItem({
     return () => document.removeEventListener("click", onDoc);
   }, [comment.comment_id]);
 
-  // ✅ ตอนนี้ backend ส่งมาที่ field แบนๆ ชื่อ login_name แล้ว
   const loginName =
     comment.login_name ||
     comment?.users?.login_name ||
@@ -98,9 +114,7 @@ function CommentItem({
     "";
 
   const displayName =
-    comment.user_name ||
-    comment?.users?.user_name ||
-    "anonymous";
+    comment.user_name || comment?.users?.user_name || "anonymous";
 
   const canOpenProfile =
     !!loginName && String(loginName).toLowerCase() !== "anonymous";
@@ -114,7 +128,10 @@ function CommentItem({
         <button
           type="button"
           onClick={() => canOpenProfile && onOpenProfile(loginName)}
-          className={cx("shrink-0", canOpenProfile ? "cursor-pointer" : "cursor-default")}
+          className={cx(
+            "shrink-0",
+            canOpenProfile ? "cursor-pointer" : "cursor-default"
+          )}
           title={canOpenProfile ? `@${loginName}` : undefined}
           aria-label={canOpenProfile ? `Open @${loginName}` : undefined}
         >
@@ -200,7 +217,9 @@ function CommentItem({
                     {displayName}
                   </button>
                 ) : (
-                  <span className="font-semibold text-gray-800">{displayName}</span>
+                  <span className="font-semibold text-gray-800">
+                    {displayName}
+                  </span>
                 )}
                 <span>•</span>
                 <span title={new Date(comment.created_at).toLocaleString()}>
@@ -273,7 +292,9 @@ function CommentItem({
               >
                 {expanded
                   ? "Hide replies"
-                  : `View ${comment.children.length} repl${comment.children.length > 1 ? "ies" : "y"}`}
+                  : `View ${comment.children.length} repl${
+                      comment.children.length > 1 ? "ies" : "y"
+                    }`}
               </button>
             )}
           </div>
@@ -333,6 +354,9 @@ export default function CommentSection({ noteId, userId }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [collapsedMap, setCollapsedMap] = useState({});
+  const [loading, setLoading] = useState(true); // ✅ โหลดคอมเมนต์อยู่ไหม
+  const [submitting, setSubmitting] = useState(false); // ✅ กำลังส่งอยู่ไหม
+  const [showAllRoots, setShowAllRoots] = useState(false); // ✅ toggle แสดงคอมเมนต์เก่ามาก ๆ
   const scrollRef = useRef(null);
 
   if (!userId) {
@@ -343,16 +367,25 @@ export default function CommentSection({ noteId, userId }) {
   // load comments
   useEffect(() => {
     if (!noteId) return;
+    let cancelled = false;
+
     (async () => {
       try {
+        setLoading(true);
         const res = await fetch(`${API}/comment/note/${noteId}`);
         const data = await res.json();
         const tree = Array.isArray(data.comment) ? data.comment : [];
-        setComments(tree);
+        if (!cancelled) setComments(tree);
       } catch (e) {
-        console.error("load comments failed", e);
+        if (!cancelled) console.error("load comments failed", e);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [noteId]);
 
   async function refresh() {
@@ -361,7 +394,9 @@ export default function CommentSection({ noteId, userId }) {
       const data = await res.json();
       const tree = Array.isArray(data.comment) ? data.comment : [];
       setComments(tree);
-    } catch {}
+    } catch (e) {
+      console.error("refresh comments failed", e);
+    }
   }
 
   // create new root
@@ -372,15 +407,26 @@ export default function CommentSection({ noteId, userId }) {
       note_id: noteId,
       parent_comment_id: null,
     };
-    const res = await fetch(`${API}/comment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) return;
-    await refresh();
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    try {
+      setSubmitting(true);
+      const res = await fetch(`${API}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) return;
+      await refresh();
+      // เลื่อนลงมาล่างสุดเพื่อเห็นคอมเมนต์ที่เพิ่งส่ง
+      if (scrollRef.current) {
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+        });
+      }
+      setShowAllRoots(true); // ส่งใหม่แล้ว แสดงทั้งหมดเพื่อให้เห็นตัวเอง
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -392,13 +438,17 @@ export default function CommentSection({ noteId, userId }) {
       note_id: noteId,
       parent_comment_id: parentId,
     };
-    const res = await fetch(`${API}/comment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) {
-      await refresh();
+    try {
+      const res = await fetch(`${API}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        await refresh();
+      }
+    } catch (e) {
+      console.error("reply failed", e);
     }
   }
 
@@ -411,7 +461,6 @@ export default function CommentSection({ noteId, userId }) {
         body: JSON.stringify({ message }),
       });
       if (!res.ok) return false;
-      // optimistic update
       setComments((prev) => updateMsg(prev, id, message));
       return true;
     } catch {
@@ -425,7 +474,9 @@ export default function CommentSection({ noteId, userId }) {
       const res = await fetch(`${API}/comment/${id}`, { method: "DELETE" });
       if (!res.ok) return;
       setComments((prev) => removeById(prev, id));
-    } catch {}
+    } catch (e) {
+      console.error("delete failed", e);
+    }
   }
 
   // open profile by handle (only when login_name exists)
@@ -440,36 +491,65 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
+  // root comments + จำกัดจำนวนให้ดูเหมือน facebook
+  const rootComments = comments.filter((c) => !c.parent_comment_id);
+  const rootCount = rootComments.length;
+  const visibleRoots =
+    showAllRoots || rootCount <= VISIBLE_ROOT_LIMIT
+      ? rootComments
+      : rootComments.slice(rootCount - VISIBLE_ROOT_LIMIT); // เอาอันท้ายสุด
+
   return (
-    <div className="flex flex-col h-full">
+    // ✅ สูงสุดไม่เกิน 70% ของจอ, มี min-height ให้ดูสมส่วน
+    <div className="flex flex-col max-h-[70vh] min-h-[260px]">
       {/* scroll area */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto pr-1 space-y-1"
+        className="flex-1 overflow-y-auto pr-1 space-y-1 pb-3"
       >
-        {!comments?.length && (
-          <p className="text-gray-400 text-sm text-center mt-2">No comments yet</p>
-        )}
+        {loading ? (
+          <>
+            <CommentSkeletonRow />
+            <CommentSkeletonRow />
+          </>
+        ) : rootCount === 0 ? (
+          <p className="text-gray-400 text-sm text-center mt-2">
+            No comments yet
+          </p>
+        ) : (
+          <>
+            {/* ปุ่มดูคอมเมนต์เก่า ถ้ามีเยอะเกิน limit */}
+            {rootCount > VISIBLE_ROOT_LIMIT && !showAllRoots && (
+              <div className="flex justify-center my-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAllRoots(true)}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  View older comments ({rootCount - VISIBLE_ROOT_LIMIT} more)
+                </button>
+              </div>
+            )}
 
-        {comments
-          .filter((c) => !c.parent_comment_id)
-          .map((c) => (
-            <CommentItem
-              key={c.comment_id}
-              comment={c}
-              meId={userId}
-              onReplySubmit={handleReply}
-              onEditSubmit={handleEdit}
-              onDeleteSubmit={handleDelete}
-              onOpenProfile={openProfileByHandle}
-              collapsedMap={collapsedMap}
-              setCollapsedMap={setCollapsedMap}
-            />
-          ))}
+            {visibleRoots.map((c) => (
+              <CommentItem
+                key={c.comment_id}
+                comment={c}
+                meId={userId}
+                onReplySubmit={handleReply}
+                onEditSubmit={handleEdit}
+                onDeleteSubmit={handleDelete}
+                onOpenProfile={openProfileByHandle}
+                collapsedMap={collapsedMap}
+                setCollapsedMap={setCollapsedMap}
+              />
+            ))}
+          </>
+        )}
       </div>
 
-      {/* input row */}
-      <div className="mt-3 border-t pt-3 bg-white">
+      {/* input row – ติดขอบล่างเสมอ */}
+      <div className="mt-2 border-t pt-3 bg-white">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -481,13 +561,15 @@ export default function CommentSection({ noteId, userId }) {
           <button
             type="button"
             onClick={async () => {
-              if (!newComment.trim()) return;
-              await handleCreate(newComment.trim());
+              const text = newComment.trim();
+              if (!text) return;
+              await handleCreate(text);
               setNewComment("");
             }}
-            className="px-4 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700"
+            disabled={submitting || !newComment.trim()}
+            className="px-4 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Send
+            {submitting ? "Sending..." : "Send"}
           </button>
         </div>
       </div>

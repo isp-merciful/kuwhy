@@ -70,11 +70,11 @@ export default function NoteCard({ note, onClick }) {
         {/* หางบับเบิ้ลแบบจุดกลมสองชั้น */}
         <span
           aria-hidden
-          className={`pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full shadow-sm ${tailBgClass} ${tailBorderClass}`}
+          className={`pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-7 w-3 h-3 rounded-full shadow-sm ${tailBgClass} ${tailBorderClass}`}
         />
         <span
           aria-hidden
-          className={`pointer-events-none absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full ${tailBgClass} ${tailBorderClass}`}
+          className={`pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-x-5 w-2 h-2 rounded-full ${tailBgClass} ${tailBorderClass}`}
           style={{ bottom: "-1.125rem" }}
         />
       </div>
