@@ -33,10 +33,12 @@ export default function NotePage() {
               transition={{ duration: 0.5 }}
               className="w-full mt-12"
             >
-              <h2 className="text-xl font-semibold mb-4 text-gray-800">
+              <h2 className="text-xl font-semibold text-gray-800">
                 Community Notes
               </h2>
-              <NoteContainer />
+              <div className="p-6">
+                <NoteContainer />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
