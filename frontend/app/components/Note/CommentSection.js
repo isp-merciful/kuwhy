@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 /* ---------------- utils ---------------- */
 const API = "http://localhost:8000/api";
-const VISIBLE_ROOT_LIMIT = 20; // ✅ แสดง root comment ล่าสุดไม่เกิน 20 อัน (ถ้าเยอะกว่านี้มีปุ่มดูเพิ่ม)
+const VISIBLE_ROOT_LIMIT = 20; // จำนวน root comments ที่แสดงล่าสุด
 
 function cx(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -41,6 +41,7 @@ function updateMsg(list, id, message) {
       : { ...c, children: updateMsg(c.children || [], id, message) }
   );
 }
+
 function removeById(list, id) {
   return list
     .filter((c) => c.comment_id !== id)
@@ -56,7 +57,7 @@ function buildProfileUrl(handle) {
   return `${PROFILE_BASE}/${handle}`;
 }
 
-/* ---------------- Skeleton row (โหลดคอมเมนต์) ---------------- */
+/* ---------------- Skeleton row (ตอนโหลดคอมเมนต์) ---------------- */
 function CommentSkeletonRow() {
   return (
     <div className="mt-3 ml-2 animate-pulse">
@@ -92,6 +93,14 @@ function CommentItem({
 
   const hasChildren = (comment.children || []).length > 0;
   const expanded = collapsedMap[comment.comment_id] ?? false;
+
+  // helper: save edit
+  const handleSaveEdit = async () => {
+    const value = draft.trim();
+    if (!value) return;
+    const ok = await onEditSubmit(comment.comment_id, value);
+    if (ok) setEditing(false);
+  };
 
   // close dropdown on outside click
   useEffect(() => {
@@ -154,8 +163,8 @@ function CommentItem({
               <div
                 data-menu-anchor={comment.comment_id}
                 className={cx(
-                  "absolute top-1/2 -translate-y-1/2",
-                  "right-3 md:right-3",
+                  // วางเมนูที่มุมขวาบนของ bubble
+                  "absolute top-2 right-3 md:right-3",
                   "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition"
                 )}
               >
@@ -240,29 +249,43 @@ function CommentItem({
                     rows={2}
                     placeholder="Edit your comment..."
                     className="w-[min(560px,78vw)] max-w-full rounded-xl border px-3 py-2 text-[15px] focus:ring-1 focus:ring-blue-500 outline-none"
+                    // keyboard shortcut: Esc = cancel, Enter = save (ไม่กด Shift)
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setEditing(false);
+                        setDraft(comment.message || "");
+                      } else if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSaveEdit();
+                      }
+                    }}
                   />
-                  <div className="mt-2 flex items-center gap-2 justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setEditing(false)}
-                      className="px-3 py-1.5 rounded-lg border bg-white text-sm hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const ok = await onEditSubmit(
-                          comment.comment_id,
-                          draft.trim()
-                        );
-                        if (ok) setEditing(false);
-                      }}
-                      disabled={!draft.trim()}
-                      className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
-                    >
-                      Save
-                    </button>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    {/* hint ให้ user */}
+                    <span className="hidden sm:block text-[11px] text-gray-400">
+                      escape to cancel • enter to save
+                    </span>
+                    <div className="flex items-center gap-2 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditing(false);
+                          setDraft(comment.message || "");
+                        }}
+                        className="px-3 py-1.5 rounded-lg border bg-white text-sm hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveEdit}
+                        disabled={!draft.trim()}
+                        className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -354,13 +377,13 @@ export default function CommentSection({ noteId, userId }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [collapsedMap, setCollapsedMap] = useState({});
-  const [loading, setLoading] = useState(true); // ✅ โหลดคอมเมนต์อยู่ไหม
-  const [submitting, setSubmitting] = useState(false); // ✅ กำลังส่งอยู่ไหม
-  const [showAllRoots, setShowAllRoots] = useState(false); // ✅ toggle แสดงคอมเมนต์เก่ามาก ๆ
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showAllRoots, setShowAllRoots] = useState(false);
   const scrollRef = useRef(null);
 
   if (!userId) {
-    // ไม่รู้ตัวตน → ไม่เรนเดอร์
+    // ไม่รู้ตัวตน → ไม่เรนเดอร์ (เหมือนของเดิม)
     return null;
   }
 
@@ -399,7 +422,7 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
-  // create new root
+  // create new root comment
   async function handleCreate(message) {
     const payload = {
       user_id: userId,
@@ -416,7 +439,7 @@ export default function CommentSection({ noteId, userId }) {
       });
       if (!res.ok) return;
       await refresh();
-      // เลื่อนลงมาล่างสุดเพื่อเห็นคอมเมนต์ที่เพิ่งส่ง
+      // scroll ลงมาล่างสุด
       if (scrollRef.current) {
         requestAnimationFrame(() => {
           if (scrollRef.current) {
@@ -424,7 +447,7 @@ export default function CommentSection({ noteId, userId }) {
           }
         });
       }
-      setShowAllRoots(true); // ส่งใหม่แล้ว แสดงทั้งหมดเพื่อให้เห็นตัวเอง
+      setShowAllRoots(true);
     } finally {
       setSubmitting(false);
     }
@@ -479,7 +502,7 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
-  // open profile by handle (only when login_name exists)
+  // open profile by handle
   function openProfileByHandle(handle) {
     if (!handle) return;
     try {
@@ -491,16 +514,16 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
-  // root comments + จำกัดจำนวนให้ดูเหมือน facebook
+  // root comments & limit
   const rootComments = comments.filter((c) => !c.parent_comment_id);
   const rootCount = rootComments.length;
   const visibleRoots =
     showAllRoots || rootCount <= VISIBLE_ROOT_LIMIT
       ? rootComments
-      : rootComments.slice(rootCount - VISIBLE_ROOT_LIMIT); // เอาอันท้ายสุด
+      : rootComments.slice(rootCount - VISIBLE_ROOT_LIMIT);
 
   return (
-    // ✅ สูงสุดไม่เกิน 70% ของจอ, มี min-height ให้ดูสมส่วน
+    // สูงสุดไม่เกิน 70% ของจอ, มี min-height
     <div className="flex flex-col max-h-[70vh] min-h-[260px]">
       {/* scroll area */}
       <div
@@ -518,7 +541,6 @@ export default function CommentSection({ noteId, userId }) {
           </p>
         ) : (
           <>
-            {/* ปุ่มดูคอมเมนต์เก่า ถ้ามีเยอะเกิน limit */}
             {rootCount > VISIBLE_ROOT_LIMIT && !showAllRoots && (
               <div className="flex justify-center my-1">
                 <button
@@ -548,7 +570,7 @@ export default function CommentSection({ noteId, userId }) {
         )}
       </div>
 
-      {/* input row – ติดขอบล่างเสมอ */}
+      {/* input row */}
       <div className="mt-2 border-t pt-3 bg-white">
         <div className="flex items-center gap-2">
           <input
