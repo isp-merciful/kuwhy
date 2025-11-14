@@ -57,6 +57,20 @@ export default function NoteBubble() {
   const [currParty, setCurrParty] = useState(0);
   const [joinedMemberOnly, setJoinedMemberOnly] = useState(false);
 
+const toggleParty = () => {
+  setIsParty((prev) => {
+    const next = !prev;
+
+    setMaxParty((old) => {
+      if (!next) return 0; // ปิดปาร์ตี้ → 0
+      const base = Number(old) || 2;
+      return Math.max(2, Math.min(20, base));
+    });
+
+    return next;
+  });
+};
+
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -522,50 +536,77 @@ export default function NoteBubble() {
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-<div className="inline-flex items-center gap-2 text-sm bg-white/70 backdrop-blur rounded-full px-3 py-1 border border-gray-200 shadow-sm">
-  <span className="select-none">🎉 Party</span>
-  {PartySwitch}
-  <span className={`text-gray-500 ${!isParty ? "opacity-50" : ""}`}>max</span>
-
-  <div className="flex items-center gap-1">
-    <input
-      type="number"
-      min={2}
-      max={20}
-      step={1}
-      value={isParty ? Number(maxParty) || 2 : 0}
-      onChange={(e) => {
-        if (!isParty) return;
-        let v = Math.floor(Math.abs(Number(e.target.value) || 0));
-        if (v < 2) v = 2;
-        if (v > 20) v = 20;
-        setMaxParty(v);
-      }}
-      className="w-14 text-center bg-transparent outline-none border rounded-md py-1"
-      disabled={!isParty}
-      aria-label="จำนวนสมาชิกสูงสุด"
-    />
-
-    {/* ปุ่ม + ชิดเลข */}
-    <button
-      type="button"
-      onClick={() => {
-        if (!isParty) return;
-        setMaxParty((prev) => {
-          const n = Math.max(2, Math.min(20, Number(prev) || 2));
-          return Math.min(20, n + 1);
-        });
-      }}
-      className={`w-8 h-8 grid place-items-center rounded-md border transition
-                  ${isParty ? "hover:bg-white active:scale-95" : "opacity-50 cursor-not-allowed"}`}
-      disabled={!isParty}
-      aria-label="เพิ่มจำนวน"
-      title="เพิ่มจำนวน"
+{/* CREATE PARTY + Party size */}
+<div className="flex items-center justify-between gap-4 bg-white/90 border border-sky-100 rounded-2xl px-4 py-2 shadow-sm">
+  {/* SLIDER BUTTON */}
+  <button
+    type="button"
+    aria-pressed={isParty}
+    onClick={toggleParty}
+    className={`
+      relative flex items-center justify-center
+      w-[190px] h-10 rounded-full overflow-hidden
+      transition-all duration-300 ease-out
+      ${
+        isParty
+          ? "bg-gradient-to-r from-emerald-400 to-green-500 shadow-md"
+          : "bg-gradient-to-r from-sky-400 to-blue-500 shadow-md"
+      }
+      active:scale-[0.97]
+    `}
+  >
+    {/* label – Create party / Woo! */}
+    <span
+      className={`
+        relative z-10 select-none text-white
+        text-sm sm:text-base font-medium
+        transition-transform duration-300
+        ${isParty ? "-translate-x-4" : "translate-x-0"}
+      `}
     >
-      +
-    </button>
+      {isParty ? "Woo!" : "Create party"}
+    </span>
 
-    {/* ปุ่ม − อยู่ขวาสุด */}
+    {/* knob กลม + สัญลักษณ์อยู่กลาง */}
+    <span
+      className={`
+        absolute inset-y-1 left-1 flex items-center
+        transition-transform duration-300 ease-out
+        ${isParty ? "translate-x-[148px]" : "translate-x-0"}
+      `}
+    >
+      <span
+        className={`
+          h-8 w-8 rounded-full bg-white flex items-center justify-center
+          shadow-sm ring-[3px]
+          ${isParty ? "ring-emerald-500" : "ring-sky-400"}
+        `}
+      >
+        <span
+          className={`
+            text-lg font-semibold leading-none
+            ${isParty ? "text-emerald-600" : "text-sky-500"}
+          `}
+        >
+          {isParty ? "✓" : ">"}
+        </span>
+      </span>
+    </span>
+  </button>
+
+  {/* PARTY SIZE – text ด้านบนแบบไม่เบียดปุ่ม */}
+  <div className="relative flex items-center gap-1 pr-1">
+    {/* label แบบลอย (absolute) เลยไม่ดัน - 0 + ลงไป */}
+    <span
+      className={`
+        absolute -top-3 right-0 text-[7px] font-medium tracking-wide
+        ${isParty ? "text-gray-600" : "text-gray-400"}
+      `}
+    >
+      Party size
+    </span>
+
+    {/* - 0 + */}
     <button
       type="button"
       onClick={() => {
@@ -575,16 +616,70 @@ export default function NoteBubble() {
           return Math.max(2, n - 1);
         });
       }}
-      className={`w-8 h-8 grid place-items-center rounded-md border transition
-                  ${isParty ? "hover:bg-white active:scale-95" : "opacity-50 cursor-not-allowed"}`}
       disabled={!isParty}
       aria-label="ลดจำนวน"
-      title="ลดจำนวน"
+      className={`
+        w-7 h-7 grid place-items-center rounded-md border text-xs
+        transition-all duration-150
+        ${
+          isParty
+            ? "bg-white hover:bg-sky-50 active:scale-95 border-gray-200 text-gray-700"
+            : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+        }
+      `}
     >
       −
     </button>
+
+    <div
+      className={`
+        min-w-[2.1rem] h-7 grid place-items-center rounded-md
+        text-xs font-medium border bg-white
+        transition-colors duration-150
+        ${
+          isParty
+            ? "border-emerald-300 text-gray-800"
+            : "border-gray-200 text-gray-400"
+        }
+      `}
+    >
+      {isParty
+        ? Math.max(2, Math.min(20, Number(maxParty) || 2))
+        : 0}
+    </div>
+
+    <button
+      type="button"
+      onClick={() => {
+        if (!isParty) return;
+        setMaxParty((prev) => {
+          const n = Math.max(2, Math.min(20, Number(prev) || 2));
+          return Math.min(20, n + 1);
+        });
+      }}
+      disabled={!isParty}
+      aria-label="เพิ่มจำนวน"
+      className={`
+        w-7 h-7 grid place-items-center rounded-md border text-xs
+        transition-all duration-150
+        ${
+          isParty
+            ? "bg-sky-500 text-white hover:bg-sky-600 active:scale-95 border-sky-500"
+            : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+        }
+      `}
+    >
+      +
+    </button>
   </div>
 </div>
+
+
+
+
+
+
+
 
               </motion.div>
             )}
