@@ -222,7 +222,7 @@ export default function LandingPage() {
 
       {/* Apple-Style Features Section */}
       <section className="py-24 bg-gray-50">
-        <div className="mx-auto max-w-6xl px-6">
+      <div className="w-full px-6 md:px-12">
           <div className="text-center mb-16">
             <h2 className="text-5xl font-thin text-gray-900 mb-6">
               Everything you need
@@ -231,10 +231,10 @@ export default function LandingPage() {
               Powerful features designed specifically for the KU community
             </p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+  
+          <div className="flex space-x-6 overflow-x-auto pb-10 snap-x snap-mandatory no-scrollbar">          
             {/* Notes & Polls */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/chat.png" alt="Notes & Polls" className="w-15 h-15" />
               </div>
@@ -251,7 +251,7 @@ export default function LandingPage() {
             </div>
 
             {/* Blogs & Q&A */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/qa.png" alt="Blogs & Q&A" className="w-15 h-15" />
               </div>
@@ -267,8 +267,22 @@ export default function LandingPage() {
               </a>
             </div>
 
+            {/* Party */}
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/event.png" alt="Notifications" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Create Party</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Available in Notes. Create or join student groups for events, activities, group chat, or study sessions.
+              </p>
+              <span className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Meetup
+              </span>
+            </div>
+
             {/* Notifications */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/notification.png" alt="Notifications" className="w-15 h-15" />
               </div>
@@ -278,10 +292,38 @@ export default function LandingPage() {
               </p>
               <span className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
                 Always Connected
-                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5l-5 5-5-5h5" />
-                </svg>
               </span>
+            </div>
+
+            {/* Upload File */}
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/upload.png" alt="Notifications" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Upload File</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Upload files (PDF, PNG, etc.) in Blogs to get help and share resources with KU students.
+              </p>
+              <span className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Collaborate
+              </span>
+            </div>
+
+          {/* Edit Profile*/}
+          <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/usersetting.png" alt="Notifications" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Edit Profile</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Signed-in users can update their own profile, update your profile and view others by clicking their names.
+              </p>
+              <a href="/profile" className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Edit & View
+                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
             </div>
           </div>
         </div>
