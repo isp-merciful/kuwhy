@@ -1,5 +1,6 @@
-// frontend/app/components/NoteBubble.js 
+// frontend/app/components/NoteBubble.js
 "use client";
+
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,8 +61,9 @@ export default function NoteBubble() {
   const [currParty, setCurrParty] = useState(0);
   const [joinedMemberOnly, setJoinedMemberOnly] = useState(false);
 
+  // toast สำหรับ login
   const [showLoginToast, setShowLoginToast] = useState(false);
-  
+
   const toggleParty = () => {
     setIsParty((prev) => {
       const next = !prev;
@@ -94,6 +96,13 @@ export default function NoteBubble() {
 
   const charCount = text.length;
   const showCharWarning = isComposing && charCount >= WARNING_THRESHOLD;
+
+  // toast auto-hide หลังแสดงสักพัก
+  useEffect(() => {
+    if (!showLoginToast) return;
+    const t = setTimeout(() => setShowLoginToast(false), 4000);
+    return () => clearTimeout(t);
+  }, [showLoginToast]);
 
   // --------------------------
   // helpers
@@ -278,10 +287,12 @@ export default function NoteBubble() {
     if (!ready) return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
     if (!userId) return alert("ไม่พบผู้ใช้ กรุณารีเฟรชหน้า");
     if (!text.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง!");
-    if (isParty && !authed){
-    setShowLoginToast(true);   
-    return;
+
+    if (isParty && !authed) {
+      setShowLoginToast(true);
+      return;
     }
+
     setLoading(true);
     try {
       const payload = {
@@ -477,7 +488,6 @@ export default function NoteBubble() {
             transition={{ duration: 0.4 }}
             className="w-full max-w-md flex flex-col items-center relative p-4 pt-12"
           >
-            {/* Back button – แสดงเฉพาะตอน compose และกดได้เสมอ */}
             {/* Back button – pill กลาง ๆ สวยขึ้น */}
             <button
               type="button"
@@ -510,7 +520,7 @@ export default function NoteBubble() {
               isCompose={true}
             />
 
-            {/* char limiter แบบ IG note – ชิดขวาล่างของบับเบิล ไม่โดนหางบัง */}
+            {/* char limiter แบบ IG note – ชิดขวาล่างของบับเบิล */}
             <div className="mt-2 min-h-[1rem] flex items-center justify-end w-full max-w-xs mx-auto pr-2">
               {showCharWarning && (
                 <span className="text-xs font-semibold text-red-500">
@@ -550,19 +560,56 @@ export default function NoteBubble() {
               </div>
             </div>
 
-            {/* ปุ่มโพสต์ */}
+            {/* ปุ่มโพสต์ + toast login ติดกับปุ่ม */}
             {!isPosted && (
-              <button
-                onClick={handlePost}
-                disabled={!buttonEnabled || loading}
-                className={`px-6 py-2 rounded-full text-white mt-4 transition ${
-                  buttonEnabled
-                    ? "bg-[#2FA2FF] hover:bg-[#1d8de6]"
-                    : "bg-gray-300 cursor-not-allowed"
-                }`}
-              >
-                Post
-              </button>
+              <div className="mt-4 relative flex flex-col items-center">
+                <button
+                  onClick={handlePost}
+                  disabled = {!buttonEnabled || loading}
+                  className={`px-6 py-2 rounded-full text-white transition ${
+                    buttonEnabled
+                      ? "bg-[#2FA2FF] hover:bg-[#1d8de6]"
+                      : "bg-gray-300 cursor-not-allowed"
+                  }`}
+                >
+                  Post
+                </button>
+
+                <AnimatePresence>
+                  {showLoginToast && (
+                    <motion.div
+                      key="login-toast"
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full mt-2 z-20"
+                    >
+                      <div className="flex items-center gap-3 bg-sky-500 text-white text-xs sm:text-sm px-3 py-2 rounded-2xl shadow-lg">
+                        <span className="font-semibold whitespace-nowrap">
+                          Please sign in to create a party.
+                        </span>
+
+                        <a
+                          href="/login"
+                          onClick={() => setShowLoginToast(false)}
+                          className="text-xs sm:text-sm font-semibold underline"
+                        >
+                          Login
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowLoginToast(false)}
+                          className="text-xs sm:text-sm opacity-80 hover:opacity-100"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
 
             {/* แผงปาร์ตี้เล็ก */}
@@ -576,89 +623,76 @@ export default function NoteBubble() {
                 className="mt-3"
               >
                 {/* CREATE PARTY + Party size */}
-                <div className="flex items-center justify-between gap-4 bg-white/90 border border-sky-100 rounded-2xl px-4 py-2 shadow-sm">
-                  {/* SLIDER BUTTON */}
-                  <button
-                    type="button"
-                    aria-pressed={isParty}
-                    onClick={toggleParty}
+              <div className="flex items-center justify-between gap-4 bg-white/90 border border-sky-100 rounded-2xl px-4 py-2 shadow-sm">
+                {/* SLIDER BUTTON */}
+                <button
+                  type="button"
+                  aria-pressed={isParty}
+                  onClick={toggleParty}
+                  className={`
+                    relative flex items-center justify-center
+                    w-[190px] h-10 rounded-full overflow-hidden
+                    transition-all duration-300 ease-out
+                    ${
+                      isParty
+                        ? "bg-gradient-to-r from-emerald-400 to-green-500 shadow-md"
+                        : "bg-gradient-to-r from-sky-400 to-blue-500 shadow-md"
+                    }
+                    active:scale-[0.97]
+                  `}
+                >
+                  {/* label – Create party / Woo! */}
+                  <span
                     className={`
-                      relative flex items-center justify-center
-                      w-[190px] h-10 rounded-full overflow-hidden
-                      transition-all duration-300 ease-out
-                      ${
-                        isParty
-                          ? "bg-gradient-to-r from-emerald-400 to-green-500 shadow-md"
-                          : "bg-gradient-to-r from-sky-400 to-blue-500 shadow-md"
-                      }
-                      active:scale-[0.97]
+                      relative z-10 select-none text-white
+                      text-sm sm:text-base font-medium
+                      transition-transform duration-300
+                      inline-flex items-center
+                      pl-7  /* <<< ดันข้อความออกจากวงกลมทางซ้าย */
+                      ${isParty ? "-translate-x-3" : "translate-x-0"}
                     `}
                   >
-                    {/* label – Create party / Woo! */}
-                    <span
-                      className={`
-                        relative z-10 select-none text-white
-                        text-sm sm:text-base font-medium
-                        transition-transform duration-300
-                        ${isParty ? "-translate-x-4" : "translate-x-0"}
-                      `}
-                    >
-                      {isParty ? "Woo!" : "Create party"}
-                    </span>
+                    {isParty ? "Woo!" : "Create party"}
+                  </span>
 
-                    {/* knob กลม + สัญลักษณ์อยู่กลาง */}
+                  {/* knob กลม + สัญลักษณ์อยู่กลาง */}
+                  <span
+                    className={`
+                      absolute inset-y-1 left-1 flex items-center
+                      transition-transform duration-300 ease-out
+                      ${isParty ? "translate-x-[148px]" : "translate-x-0"}
+                    `}
+                  >
                     <span
                       className={`
-                        absolute inset-y-1 left-1 flex items-center
-                        transition-transform duration-300 ease-out
-                        ${
-                          isParty
-                            ? "translate-x-[148px]"
-                            : "translate-x-0"
-                        }
+                        h-8 w-8 rounded-full bg-white flex items-center justify-center
+                        shadow-sm ring-[3px]
+                        ${isParty ? "ring-emerald-500" : "ring-sky-400"}
                       `}
                     >
                       <span
                         className={`
-                          h-8 w-8 rounded-full bg-white flex items-center justify-center
-                          shadow-sm ring-[3px]
-                          ${
-                            isParty
-                              ? "ring-emerald-500"
-                              : "ring-sky-400"
-                          }
+                          text-lg font-semibold leading-none
+                          ${isParty ? "text-emerald-600" : "text-sky-500"}
                         `}
                       >
-                        <span
-                          className={`
-                            text-lg font-semibold leading-none
-                            ${
-                              isParty
-                                ? "text-emerald-600"
-                                : "text-sky-500"
-                            }
-                          `}
-                        >
-                          {isParty ? "✓" : ">"}
-                        </span>
+                        {isParty ? "✓" : ">"}
                       </span>
                     </span>
-                  </button>
+                  </span>
+                </button>
 
-                  {/* PARTY SIZE – text ด้านบนแบบไม่เบียดปุ่ม */}
-                  <div className="relative flex items-center gap-1 pr-1">
-                    {/* label แบบลอย (absolute) เลยไม่ดัน - 0 + ลงไป */}
-                    <span
-                      className={`
-                        absolute -top-3 left-1/2 -translate-x-1/2
-                        text-[7px] sm:text-[6px] font-medium tracking-wide
-                        ${
-                          isParty ? "text-gray-600" : "text-gray-400"
-                        }
-                      `}
-                    >
-                      Party size
-                    </span>
+                {/* PARTY SIZE – text ด้านบนแบบไม่เบียดปุ่ม */}
+                <div className="relative flex items-center gap-1 pr-1">
+                  <span
+                    className={`
+                      absolute -top-3 left-1/2 -translate-x-1/2
+                      text-[10px] sm:text-[8px] font-medium tracking-wide
+                      ${isParty ? "text-gray-600" : "text-gray-400"}
+                    `}
+                  >
+                    Party size
+                  </span>
 
                     {/* - 0 + */}
                     <button
@@ -817,35 +851,6 @@ export default function NoteBubble() {
           </motion.div>
         )}
       </AnimatePresence>
-
-
-      {/* === Toast: require login to create party === */}
-      {showLoginToast && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999]">
-          <div className="flex items-center gap-4 bg-sky-500 text-white text-sm px-4 py-2 rounded-2xl shadow-lg">
-            <span className="font-semibold">
-              Please sign in to create a party.
-            </span>
-
-          <a
-            href="/login"
-            onClick={() => setShowLoginToast(false)}
-            className="text-xs font-semibold underline"
-          >
-            Login
-          </a>
-
-          <button
-            type="button"
-            onClick={() => setShowLoginToast(false)}
-            className="text-xs opacity-80 hover:opacity-100"
-          >
-            Close
-          </button>
-          </div>
-        </div>
-      )}
-
 
       {/* === Dialogs === */}
       <ConfirmReplaceDialog

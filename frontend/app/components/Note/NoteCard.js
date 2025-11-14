@@ -80,7 +80,7 @@ export default function NoteCard({ note, onClick }) {
       </div>
 
       {/* Avatar + ชื่อด้านล่าง */}
-      <div className="h-[120px] my-3 flex flex-col items-center justify-center gap-2">
+      <div className="my-3 flex flex-col items-center justify-center gap-2 min-h-[110px]">
         {note.img ? (
           <img
             src={note.img}
