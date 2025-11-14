@@ -8,6 +8,12 @@ export default function LandingPage() {
         
         {/* Subtle geometric shapes */}
         <div className="absolute inset-0 overflow-hidden">
+          {/* Enhanced Floating Elements */}
+          <div className="absolute top-20 left-10 w-20 h-20 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full opacity-20 animate-bounce"></div>
+          <div className="absolute top-40 right-20 w-16 h-16 bg-gradient-to-r from-green-400 to-green-600 rounded-full opacity-20 animate-bounce" style={{animationDelay: '1s'}}></div>
+          <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-gradient-to-r from-green-400 to-green-600 rounded-full opacity-20 animate-bounce" style={{animationDelay: '2s'}}></div>
+          <div className="absolute top-1/2 right-1/3 w-8 h-8 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full opacity-20 animate-bounce" style={{animationDelay: '3s'}}></div>
+          
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/5 rounded-full blur-3xl"></div>
           <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-green-400/5 rounded-full blur-3xl"></div>
         </div>
@@ -17,7 +23,7 @@ export default function LandingPage() {
           <div className="space-y-12">
             {/* Apple-style headline */}
             <div className="space-y-6">
-              <h1 className="text-7xl md:text-8xl font-bold text-gray-900 mb-6 leading-tight">
+              <h1 className="text-7xl md:text-8xl font-bold text-gray-900 mb-6 leading-tight">    
               <span className="bg-gradient-to-r from-blue-600 via-green-600 to-teal-600 bg-clip-text text-transparent animate-pulse">KU WHY</span>
               </h1>
               <p className="text-xl md:text-3xl font-medium text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
