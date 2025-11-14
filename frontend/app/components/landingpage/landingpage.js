@@ -32,11 +32,11 @@ export default function LandingPage() {
             </p>
             
             {/* Apple-style buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <a href="#share-ways" className="inline-flex items-center justify-center rounded-full bg-white text-black px-8 py-4 text-lg font-medium hover:bg-gray-100 transition-all duration-300">
-                Get Started
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+              <a href="/note" className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-teal-600 text-white font-semibold rounded-full hover:from-blue-700 hover:to-teal-700 transform hover:scale-105 transition-all duration-300 shadow-lg">
+              Get Started
               </a>
-              <a href="/about" className="inline-flex items-center justify-center rounded-full border border-gray-600 text-black px-8 py-4 text-lg font-medium hover:bg-white/5 transition-all duration-300">
+              <a href="#team" className="inline-flex items-center justify-center px-8 py-4 border-2 border-gray-600 text-gray-700 font-semibold rounded-full hover:border-blue-500 hover:text-blue-600 transition-all duration-300">
                 Learn More
                 <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
@@ -287,10 +287,9 @@ export default function LandingPage() {
             <p className="text-xl text-gray-700 font-light max-w-3xl mx-auto mb-12 leading-relaxed">
               Join Kasetsart University students who are sharing, learning, and growing together on KU WHY.
             </p>
+            
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/note"
-                className="inline-flex items-center justify-center rounded-full bg-blue-600 text-white px-8 py-4 text-lg font-medium hover:bg-blue-700 transition-all duration-300">
+              <a href="/note" className="inline-flex items-center justify-center rounded-full bg-blue-600 text-white px-8 py-4 text-lg font-medium hover:bg-blue-700 transition-all duration-300">
                 Get Started
               </a>
               <a href="/about"
