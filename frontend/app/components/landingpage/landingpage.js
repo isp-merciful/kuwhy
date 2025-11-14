@@ -20,7 +20,7 @@ export default function LandingPage() {
               <h1 className="text-7xl md:text-8xl font-bold text-gray-900 mb-6 leading-tight">
               <span className="bg-gradient-to-r from-blue-600 via-green-600 to-teal-600 bg-clip-text text-transparent animate-pulse">KU WHY</span>
               </h1>
-              <p className="text-xl md:text-3xl font-bold text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
+              <p className="text-xl md:text-3xl font-medium text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
               <span className="font-semibold text-blue-600"> Connect</span>, 
               <span className="font-semibold text-green-600"> ask</span>, and 
               <span className="font-semibold text-teal-600"> share</span> at Kasetsart University
@@ -28,7 +28,7 @@ export default function LandingPage() {
             </div>
             
             {/* Apple-style description */}
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xl text-gray-500 front-normal max-w-2xl mx-auto leading-relaxed">
               Write notes, post thoughts, and spark meaningful conversations across campus. 
               Built by students, for students.
             </p>
@@ -38,7 +38,7 @@ export default function LandingPage() {
               <a href="/note" className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-teal-600 text-white font-semibold rounded-full hover:from-blue-700 hover:to-teal-700 transform hover:scale-105 transition-all duration-300 shadow-lg">
               Get Started
               </a>
-              <a href="#team" className="inline-flex items-center justify-center px-8 py-4 border-2 border-gray-600 text-gray-700 font-semibold rounded-full hover:border-blue-500 hover:text-blue-600 transition-all duration-300">
+              <a href="#team" className="inline-flex items-center justify-center px-8 py-4 border-1 border-gray-600 text-gray-700 font-semibold rounded-full hover:border-blue-500 hover:text-blue-600 transition-all duration-300">
                 Learn More
                 <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
