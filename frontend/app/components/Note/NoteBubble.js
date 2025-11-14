@@ -1,4 +1,4 @@
-// frontend/app/components/NoteBubble.js
+// frontend/app/components/NoteBubble.js 
 "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
@@ -12,6 +12,9 @@ import PartyChat from "./PartyChat";
 import useUserId from "./useUserId";
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
 import ConfirmReplaceDialog from "./ConfirmReplaceDialog";
+
+const MAX_NOTE_CHARS = 60;
+const WARNING_THRESHOLD = 55;
 
 export default function NoteBubble() {
   // --- session / token ---
@@ -57,19 +60,19 @@ export default function NoteBubble() {
   const [currParty, setCurrParty] = useState(0);
   const [joinedMemberOnly, setJoinedMemberOnly] = useState(false);
 
-const toggleParty = () => {
-  setIsParty((prev) => {
-    const next = !prev;
+  const toggleParty = () => {
+    setIsParty((prev) => {
+      const next = !prev;
 
-    setMaxParty((old) => {
-      if (!next) return 0; // ปิดปาร์ตี้ → 0
-      const base = Number(old) || 2;
-      return Math.max(2, Math.min(20, base));
+      setMaxParty((old) => {
+        if (!next) return 0; // ปิดปาร์ตี้ → 0
+        const base = Number(old) || 2;
+        return Math.max(2, Math.min(20, base));
+      });
+
+      return next;
     });
-
-    return next;
-  });
-};
+  };
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -78,7 +81,17 @@ const toggleParty = () => {
       mountedRef.current = false;
     };
   }, []);
+
   const buttonEnabled = text.trim().length > 0;
+
+  // helper สำหรับ limit ตัวอักษร
+  const handleChangeText = (value) => {
+    if (typeof value !== "string") return;
+    setText(value.slice(0, MAX_NOTE_CHARS));
+  };
+
+  const charCount = text.length;
+  const showCharWarning = isComposing && charCount >= WARNING_THRESHOLD;
 
   // --------------------------
   // helpers
@@ -205,7 +218,7 @@ const toggleParty = () => {
 
         if (data?.note_id) {
           setNoteId(data.note_id);
-          setText(data?.message ?? "");
+          setText((data?.message ?? "").slice(0, MAX_NOTE_CHARS));
           setIsPosted(true);
 
           const mp = Number(data?.max_party) || 0;
@@ -263,7 +276,8 @@ const toggleParty = () => {
     if (!ready) return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
     if (!userId) return alert("ไม่พบผู้ใช้ กรุณารีเฟรชหน้า");
     if (!text.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง!");
-    if (isParty && !authed) return alert("You need to log in first before creating a party.");
+    if (isParty && !authed)
+      return alert("You need to log in first before creating a party.");
 
     setLoading(true);
     try {
@@ -315,11 +329,12 @@ const toggleParty = () => {
   const handleDelete = async () => {
     if (!noteId) return;
     if (joinedMemberOnly)
-      return alert("You have joined this party and cannot delete other people's notes.");
+      return alert(
+        "You have joined this party and cannot delete other people's notes."
+      );
     try {
       const res = await fetch(`http://localhost:8000/api/note/${noteId}`, {
         method: "DELETE",
-        
       });
       if (res.ok) {
         setText("");
@@ -363,7 +378,7 @@ const toggleParty = () => {
   };
 
   // --------------------------
-  // UI helpers
+  // UI helpers (ยังไม่ใช้ แต่ไว้เผื่อ)
   // --------------------------
   const PartySwitch = useMemo(
     () => (
@@ -421,7 +436,7 @@ const toggleParty = () => {
           >
             <MessageInput
               text={text}
-              setText={setText}
+              setText={handleChangeText}
               isPosted={isPosted}
               isCompose={false}
               variant="collapsed"
@@ -459,19 +474,31 @@ const toggleParty = () => {
             transition={{ duration: 0.4 }}
             className="w-full max-w-md flex flex-col items-center relative p-4 pt-12"
           >
-            {/* Back button */}
+            {/* Back button – แสดงเฉพาะตอน compose และกดได้เสมอ */}
+            {/* Back button – pill กลาง ๆ สวยขึ้น */}
             <button
-              onClick={() => setIsComposing(false)}
-              className="absolute top-2 left-2 flex items-center space-x-1 text-gray-700 hover:text-gray-900"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsComposing(false);
+              }}
+              className="
+                absolute top-3 left-3 z-30
+                inline-flex h-9 items-center justify-center gap-2
+                px-4 rounded-full
+                bg-white/90 border border-gray-200 shadow-sm
+                text-gray-700 hover:bg-white hover:text-gray-900
+                active:scale-95 pointer-events-auto
+              "
             >
-              <span className="text-xl">←</span>
-              <span>Back</span>
+              <span className="text-base leading-none">←</span>
+              <span className="text-sm font-medium">Back</span>
             </button>
 
             {/* Input */}
             <MessageInput
               text={text}
-              setText={setText}
+              setText={handleChangeText}
               isPosted={isPosted}
               handlePost={handlePost}
               loading={loading}
@@ -479,6 +506,15 @@ const toggleParty = () => {
               showButton={false}
               isCompose={true}
             />
+
+            {/* char limiter แบบ IG note – ชิดขวาล่างของบับเบิล ไม่โดนหางบัง */}
+            <div className="mt-2 min-h-[1rem] flex items-center justify-end w-full max-w-xs mx-auto pr-2">
+              {showCharWarning && (
+                <span className="text-xs font-semibold text-red-500">
+                  {charCount}/{MAX_NOTE_CHARS}
+                </span>
+              )}
+            </div>
 
             {/* Avatar + FABs */}
             <div className="relative mt-5">
@@ -536,144 +572,167 @@ const toggleParty = () => {
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-{/* CREATE PARTY + Party size */}
-<div className="flex items-center justify-between gap-4 bg-white/90 border border-sky-100 rounded-2xl px-4 py-2 shadow-sm">
-  {/* SLIDER BUTTON */}
-  <button
-    type="button"
-    aria-pressed={isParty}
-    onClick={toggleParty}
-    className={`
-      relative flex items-center justify-center
-      w-[190px] h-10 rounded-full overflow-hidden
-      transition-all duration-300 ease-out
-      ${
-        isParty
-          ? "bg-gradient-to-r from-emerald-400 to-green-500 shadow-md"
-          : "bg-gradient-to-r from-sky-400 to-blue-500 shadow-md"
-      }
-      active:scale-[0.97]
-    `}
-  >
-    {/* label – Create party / Woo! */}
-    <span
-      className={`
-        relative z-10 select-none text-white
-        text-sm sm:text-base font-medium
-        transition-transform duration-300
-        ${isParty ? "-translate-x-4" : "translate-x-0"}
-      `}
-    >
-      {isParty ? "Woo!" : "Create party"}
-    </span>
+                {/* CREATE PARTY + Party size */}
+                <div className="flex items-center justify-between gap-4 bg-white/90 border border-sky-100 rounded-2xl px-4 py-2 shadow-sm">
+                  {/* SLIDER BUTTON */}
+                  <button
+                    type="button"
+                    aria-pressed={isParty}
+                    onClick={toggleParty}
+                    className={`
+                      relative flex items-center justify-center
+                      w-[190px] h-10 rounded-full overflow-hidden
+                      transition-all duration-300 ease-out
+                      ${
+                        isParty
+                          ? "bg-gradient-to-r from-emerald-400 to-green-500 shadow-md"
+                          : "bg-gradient-to-r from-sky-400 to-blue-500 shadow-md"
+                      }
+                      active:scale-[0.97]
+                    `}
+                  >
+                    {/* label – Create party / Woo! */}
+                    <span
+                      className={`
+                        relative z-10 select-none text-white
+                        text-sm sm:text-base font-medium
+                        transition-transform duration-300
+                        ${isParty ? "-translate-x-4" : "translate-x-0"}
+                      `}
+                    >
+                      {isParty ? "Woo!" : "Create party"}
+                    </span>
 
-    {/* knob กลม + สัญลักษณ์อยู่กลาง */}
-    <span
-      className={`
-        absolute inset-y-1 left-1 flex items-center
-        transition-transform duration-300 ease-out
-        ${isParty ? "translate-x-[148px]" : "translate-x-0"}
-      `}
-    >
-      <span
-        className={`
-          h-8 w-8 rounded-full bg-white flex items-center justify-center
-          shadow-sm ring-[3px]
-          ${isParty ? "ring-emerald-500" : "ring-sky-400"}
-        `}
-      >
-        <span
-          className={`
-            text-lg font-semibold leading-none
-            ${isParty ? "text-emerald-600" : "text-sky-500"}
-          `}
-        >
-          {isParty ? "✓" : ">"}
-        </span>
-      </span>
-    </span>
-  </button>
+                    {/* knob กลม + สัญลักษณ์อยู่กลาง */}
+                    <span
+                      className={`
+                        absolute inset-y-1 left-1 flex items-center
+                        transition-transform duration-300 ease-out
+                        ${
+                          isParty
+                            ? "translate-x-[148px]"
+                            : "translate-x-0"
+                        }
+                      `}
+                    >
+                      <span
+                        className={`
+                          h-8 w-8 rounded-full bg-white flex items-center justify-center
+                          shadow-sm ring-[3px]
+                          ${
+                            isParty
+                              ? "ring-emerald-500"
+                              : "ring-sky-400"
+                          }
+                        `}
+                      >
+                        <span
+                          className={`
+                            text-lg font-semibold leading-none
+                            ${
+                              isParty
+                                ? "text-emerald-600"
+                                : "text-sky-500"
+                            }
+                          `}
+                        >
+                          {isParty ? "✓" : ">"}
+                        </span>
+                      </span>
+                    </span>
+                  </button>
 
-  {/* PARTY SIZE – text ด้านบนแบบไม่เบียดปุ่ม */}
-  <div className="relative flex items-center gap-1 pr-1">
-    {/* label แบบลอย (absolute) เลยไม่ดัน - 0 + ลงไป */}
-    <span
-      className={`
-      absolute -top-3 left-1/2 -translate-x-1/2
-      text-[7px] sm:text-[6px] font-medium tracking-wide
-      ${isParty ? "text-gray-600" : "text-gray-400"}
-      `}
-    >
-      Party size
-    </span>
+                  {/* PARTY SIZE – text ด้านบนแบบไม่เบียดปุ่ม */}
+                  <div className="relative flex items-center gap-1 pr-1">
+                    {/* label แบบลอย (absolute) เลยไม่ดัน - 0 + ลงไป */}
+                    <span
+                      className={`
+                        absolute -top-3 left-1/2 -translate-x-1/2
+                        text-[7px] sm:text-[6px] font-medium tracking-wide
+                        ${
+                          isParty ? "text-gray-600" : "text-gray-400"
+                        }
+                      `}
+                    >
+                      Party size
+                    </span>
 
-    {/* - 0 + */}
-    <button
-      type="button"
-      onClick={() => {
-        if (!isParty) return;
-        setMaxParty((prev) => {
-          const n = Math.max(2, Math.min(20, Number(prev) || 2));
-          return Math.max(2, n - 1);
-        });
-      }}
-      disabled={!isParty}
-      aria-label="ลดจำนวน"
-      className={`
-        w-7 h-7 grid place-items-center rounded-md border text-xs
-        transition-all duration-150
-        ${
-          isParty
-            ? "bg-white hover:bg-sky-50 active:scale-95 border-gray-200 text-gray-700"
-            : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-        }
-      `}
-    >
-      −
-    </button>
+                    {/* - 0 + */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isParty) return;
+                        setMaxParty((prev) => {
+                          const n = Math.max(
+                            2,
+                            Math.min(20, Number(prev) || 2)
+                          );
+                          return Math.max(2, n - 1);
+                        });
+                      }}
+                      disabled={!isParty}
+                      aria-label="ลดจำนวน"
+                      className={`
+                        w-7 h-7 grid place-items-center rounded-md border text-xs
+                        transition-all duration-150
+                        ${
+                          isParty
+                            ? "bg-white hover:bg-sky-50 active:scale-95 border-gray-200 text-gray-700"
+                            : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                        }
+                      `}
+                    >
+                      −
+                    </button>
 
-    <div
-      className={`
-        min-w-[2.1rem] h-7 grid place-items-center rounded-md
-        text-xs font-medium border bg-white
-        transition-colors duration-150
-        ${
-          isParty
-            ? "border-emerald-300 text-gray-800"
-            : "border-gray-200 text-gray-400"
-        }
-      `}
-    >
-      {isParty
-        ? Math.max(2, Math.min(20, Number(maxParty) || 2))
-        : 0}
-    </div>
+                    <div
+                      className={`
+                        min-w-[2.1rem] h-7 grid place-items-center rounded-md
+                        text-xs font-medium border bg-white
+                        transition-colors duration-150
+                        ${
+                          isParty
+                            ? "border-emerald-300 text-gray-800"
+                            : "border-gray-200 text-gray-400"
+                        }
+                      `}
+                    >
+                      {isParty
+                        ? Math.max(
+                            2,
+                            Math.min(20, Number(maxParty) || 2)
+                          )
+                        : 0}
+                    </div>
 
-    <button
-      type="button"
-      onClick={() => {
-        if (!isParty) return;
-        setMaxParty((prev) => {
-          const n = Math.max(2, Math.min(20, Number(prev) || 2));
-          return Math.min(20, n + 1);
-        });
-      }}
-      disabled={!isParty}
-      aria-label="เพิ่มจำนวน"
-      className={`
-        w-7 h-7 grid place-items-center rounded-md border text-xs
-        transition-all duration-150
-        ${
-          isParty
-            ? "bg-sky-500 text-white hover:bg-sky-600 active:scale-95 border-sky-500"
-            : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-        }
-      `}
-    >
-      +
-    </button>
-  </div>
-</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isParty) return;
+                        setMaxParty((prev) => {
+                          const n = Math.max(
+                            2,
+                            Math.min(20, Number(prev) || 2)
+                          );
+                          return Math.min(20, n + 1);
+                        });
+                      }}
+                      disabled={!isParty}
+                      aria-label="เพิ่มจำนวน"
+                      className={`
+                        w-7 h-7 grid place-items-center rounded-md border text-xs
+                        transition-all duration-150
+                        ${
+                          isParty
+                            ? "bg-sky-500 text-white hover:bg-sky-600 active:scale-95 border-sky-500"
+                            : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                        }
+                      `}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -710,20 +769,19 @@ const toggleParty = () => {
             </div>
 
             {/* คำอธิบาย */}
-{!isPosted && (
-  <motion.p
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.15 }}
-    className="text-gray-500 text-sm mt-3 text-center max-w-md mx-auto leading-relaxed"
-  >
-    <span>Share quick notes or start a party.</span>
-    <span className="block">
-      All notes disappear after 24 hours.(Log in to host parties)
-    </span>
-  </motion.p>
-)}
-
+            {!isPosted && (
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="text-gray-500 text-sm mt-3 text-center max-w-md mx-auto leading-relaxed"
+              >
+                <span>Share quick notes or start a party.</span>
+                <span className="block">
+                  All notes disappear after 24 hours. Log in to host parties.
+                </span>
+              </motion.p>
+            )}
 
             {/* ส่วนล่าง */}
             {isPosted && noteId && (
@@ -745,7 +803,11 @@ const toggleParty = () => {
                     </div>
                   </div>
                 ) : (
-                  <CommentSection key={`note-${noteId}`} noteId={noteId} userId={userId} />
+                  <CommentSection
+                    key={`note-${noteId}`}
+                    noteId={noteId}
+                    userId={userId}
+                  />
                 )}
               </div>
             )}
