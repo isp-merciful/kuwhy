@@ -84,9 +84,9 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 ">
             {/* Apple-style Notes Card */}
-            <div className="group bg-gray-50 rounded-3xl p-12 hover:bg-gray-100 transition-all duration-500">
+            <div className="group bg-gray-50 rounded-3xl p-12 hover:bg-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="space-y-6">
                 <div className="w-16 h-16 bg-blue-300 rounded-2xl flex items-center justify-center">
                   <span className="text-2xl font-bold text-white">N</span>
@@ -108,7 +108,7 @@ export default function LandingPage() {
             </div>
 
             {/* Apple-style Blog Card */}
-            <div className="group bg-gray-50 rounded-3xl p-12 hover:bg-gray-100 transition-all duration-500">
+            <div className="group bg-gray-50 rounded-3xl p-12 hover:bg-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="space-y-6">
                 <div className="w-16 h-16 bg-blue-300 rounded-2xl flex items-center justify-center">
                   <span className="text-2xl font-bold text-white">B</span>
@@ -134,7 +134,7 @@ export default function LandingPage() {
 
       {/* Apple-Style About Us Section */}
       <section className="py-24 bg-gray-50">
-        <div className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto max-w-6xl px-6 transform hover:scale-105 transition-transform duration-300">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             {/* Left side - Image */}
             <div className="flex justify-center lg:justify-start">
@@ -146,7 +146,7 @@ export default function LandingPage() {
             </div>
 
             {/* Right side - Content */}
-            <div className="space-y-8">
+            <div className="space-y-8 ">
               <div className="space-y-6">
                 <h2 className="text-5xl font-thin text-gray-900">
                   Built for KU
@@ -223,7 +223,7 @@ export default function LandingPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Notes & Polls */}
-            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/chat.png" alt="Notes & Polls" className="w-15 h-15" />
               </div>
@@ -240,7 +240,7 @@ export default function LandingPage() {
             </div>
 
             {/* Blogs & Q&A */}
-            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/qa.png" alt="Blogs & Q&A" className="w-15 h-15" />
               </div>
@@ -257,7 +257,7 @@ export default function LandingPage() {
             </div>
 
             {/* Notifications */}
-            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/notification.png" alt="Notifications" className="w-15 h-15" />
               </div>
