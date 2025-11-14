@@ -7,6 +7,7 @@ const multer = require("multer");
 const { prisma } = require("./lib/prisma.cjs");
 
 // Ensure uploads folder exists
+// In container this resolves to /app/backend/uploads (because cwd=/app/backend)
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -20,10 +21,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Helper (kept for later when you add attachments to DB)
+// Helper: convert Multer files -> attachment objects for JSON column
 function filesToAttachments(files = []) {
   return files.map((f) => ({
-    url: `/uploads/${f.filename}`,
+    url: `/uploads/${f.filename}`,   // will be served by index.js: app.use("/uploads", express.static(uploadDir))
     name: f.originalname,
     type: f.mimetype,
     size: f.size,
@@ -35,9 +36,6 @@ function filesToAttachments(files = []) {
  * Accepts:
  * - multipart/form-data (fields: user_id, blog_title, message; files: attachments[])
  * - OR application/json
- *
- * HOTFIX: we do NOT persist attachments to DB (no migration yet).
- * Files still upload to /uploads; we return them in the response only.
  */
 router.post("/", upload.array("attachments", 10), async (req, res) => {
   try {
@@ -46,6 +44,7 @@ router.post("/", upload.array("attachments", 10), async (req, res) => {
       return res.status(400).json({ error: "Missing fields" });
     }
 
+    // If request is multipart and has files, build attachment JSON
     const uploaded = filesToAttachments(req.files || []);
 
     const created = await prisma.blog.create({
@@ -53,7 +52,8 @@ router.post("/", upload.array("attachments", 10), async (req, res) => {
         user_id,
         blog_title,
         message,
-        // attachments: <omitted on purpose>  // hotfix: no JSON column yet
+        // store attachments JSON in DB if we have any
+        attachments: uploaded.length ? uploaded : undefined,
       },
     });
 
@@ -61,8 +61,7 @@ router.post("/", upload.array("attachments", 10), async (req, res) => {
       message: "inserted",
       insertedId: created.blog_id,
       data: created,
-      // return uploaded file info for debugging/preview; not stored in DB yet
-      uploaded_attachments: uploaded,
+      uploaded_attachments: uploaded, // optional: useful to debug
     });
   } catch (error) {
     console.error("POST /api/blog failed:", error);
@@ -71,8 +70,9 @@ router.post("/", upload.array("attachments", 10), async (req, res) => {
 });
 
 /**
- * GET /api/blog  (hotfix: select only existing columns)
- * Uses relation name "users" per your schema
+ * GET /api/blog
+ * Now returns attachments as well.
+ * Uses relation name "users" per your Prisma schema.
  */
 router.get("/", async (_req, res) => {
   try {
@@ -87,6 +87,7 @@ router.get("/", async (_req, res) => {
         user_id: true,
         created_at: true,
         updated_at: true,
+        attachments: true, // <- NEW
         users: { select: { img: true, user_name: true } },
       },
     });
@@ -98,7 +99,7 @@ router.get("/", async (_req, res) => {
       img: b.users?.img || null,
       user_name: b.users?.user_name || "anonymous",
       created_at: b.created_at,
-      // attachments omitted (no column yet)
+      attachments: Array.isArray(b.attachments) ? b.attachments : [], // <- NEW
     }));
 
     res.json(blogs);
@@ -109,7 +110,8 @@ router.get("/", async (_req, res) => {
 });
 
 /**
- * GET /api/blog/:id  (hotfix: select only existing columns)
+ * GET /api/blog/:id
+ * Single post, with attachments.
  */
 router.get("/:id", async (req, res) => {
   try {
@@ -127,6 +129,7 @@ router.get("/:id", async (req, res) => {
         user_id: true,
         created_at: true,
         updated_at: true,
+        attachments: true, // <- NEW
         users: { select: { img: true, user_name: true } },
       },
     });
@@ -139,7 +142,7 @@ router.get("/:id", async (req, res) => {
       img: b.users?.img || null,
       user_name: b.users?.user_name || "anonymous",
       created_at: b.created_at,
-      // attachments omitted (no column yet)
+      attachments: Array.isArray(b.attachments) ? b.attachments : [], // <- NEW
     });
   } catch (error) {
     console.error("GET /api/blog/:id failed:", error);
@@ -149,6 +152,7 @@ router.get("/:id", async (req, res) => {
 
 /**
  * PUT /api/blog
+ * (Message update only, unchanged)
  */
 router.put("/", async (req, res) => {
   try {

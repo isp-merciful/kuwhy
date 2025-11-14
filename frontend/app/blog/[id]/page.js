@@ -3,7 +3,6 @@ import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
 
-
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -36,8 +35,14 @@ function formatDate(iso) {
   } catch {
     const d = new Date(iso);
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} `
-      + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+    return (
+      `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(
+        d.getUTCDate()
+      )} ` +
+      `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(
+        d.getUTCSeconds()
+      )} UTC`
+    );
   }
 }
 
@@ -81,7 +86,7 @@ async function fetchAllPosts() {
 }
 
 export default async function BlogPostPage({ params }) {
-  const { id } = params;
+  const { id } = params; // ✅ no await
   const [post, allPosts] = await Promise.all([fetchPost(id), fetchAllPosts()]);
 
   if (!post) {
@@ -91,7 +96,10 @@ export default async function BlogPostPage({ params }) {
         <p className="mt-2 text-gray-600">
           We couldn’t find a blog post with ID <code>{id}</code>.
         </p>
-        <Link href="/blog" className="mt-4 inline-block text-sm text-blue-600 underline">
+        <Link
+          href="/blog"
+          className="mt-4 inline-block text-sm text-blue-600 underline"
+        >
           ← Back to Community Blog
         </Link>
       </div>
@@ -102,8 +110,16 @@ export default async function BlogPostPage({ params }) {
     .filter((p) => String(p.blog_id) !== String(id))
     .slice(0, 8);
 
-  // Ensure attachments array is normalized (hotfix-safe)
-  const atts = Array.isArray(post.attachments) ? post.attachments : [];
+  // Ensure attachments array is normalized (handles string / null safely)
+  let rawAtts = post.attachments;
+  if (typeof rawAtts === "string") {
+    try {
+      rawAtts = JSON.parse(rawAtts);
+    } catch {
+      rawAtts = [];
+    }
+  }
+  const atts = Array.isArray(rawAtts) ? rawAtts : [];
 
   return (
     <div className="mx-auto max-w-5xl py-10">
@@ -130,19 +146,24 @@ export default async function BlogPostPage({ params }) {
             <p className="whitespace-pre-wrap">{post.message}</p>
           </section>
 
-          {/* Attachments (works even during hotfix: if backend later returns JSON, it renders; if not, nothing breaks) */}
-          {(atts.length > 0) || post.file_url ? (
+          {/* Attachments */}
+          {(atts.length > 0 || post.file_url) && (
             <section className="mt-6">
-              <h3 className="text-sm font-semibold text-gray-700">Attachments</h3>
+              <h3 className="text-sm font-semibold text-gray-700">
+                Attachments
+              </h3>
 
               {/* Multiple attachments */}
-              {atts.length > 0 ? (
+              {atts.length > 0 && (
                 <ul className="mt-3 space-y-2">
                   {atts.map((att, idx) => {
                     const url = toAbs(att.url);
                     const isImg = (att.type || "").startsWith("image/");
                     return (
-                      <li key={idx} className="rounded-md border border-gray-200 p-3">
+                      <li
+                        key={idx}
+                        className="rounded-md border border-gray-200 p-3"
+                      >
                         {isImg ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -155,6 +176,7 @@ export default async function BlogPostPage({ params }) {
                             href={url}
                             target="_blank"
                             rel="noreferrer"
+                            download
                             className="text-blue-600 underline break-all"
                           >
                             {att.name || url}
@@ -169,7 +191,7 @@ export default async function BlogPostPage({ params }) {
                     );
                   })}
                 </ul>
-              ) : null}
+              )}
 
               {/* Legacy single file_url */}
               {post.file_url && !post.attachments && (
@@ -178,6 +200,7 @@ export default async function BlogPostPage({ params }) {
                     href={toAbs(post.file_url)}
                     target="_blank"
                     rel="noreferrer"
+                    download
                     className="text-blue-600 underline break-all"
                   >
                     Download attachment
@@ -185,7 +208,7 @@ export default async function BlogPostPage({ params }) {
                 </div>
               )}
             </section>
-          ) : null}
+          )}
 
           {/* Likes / Dislikes */}
           <footer className="mt-6 flex items-center gap-4 text-sm text-gray-700">
@@ -201,10 +224,9 @@ export default async function BlogPostPage({ params }) {
         </article>
 
         {/* Sidebar: Other posts (with search) */}
-<aside className="lg:col-span-1">
-  <OtherPostsSearch posts={otherPosts} />
-</aside>
-
+        <aside className="lg:col-span-1">
+          <OtherPostsSearch posts={otherPosts} />
+        </aside>
       </div>
     </div>
   );
