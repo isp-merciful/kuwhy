@@ -599,8 +599,9 @@ const toggleParty = () => {
     {/* label แบบลอย (absolute) เลยไม่ดัน - 0 + ลงไป */}
     <span
       className={`
-        absolute -top-3 right-0 text-[7px] font-medium tracking-wide
-        ${isParty ? "text-gray-600" : "text-gray-400"}
+      absolute -top-3 left-1/2 -translate-x-1/2
+      text-[7px] sm:text-[6px] font-medium tracking-wide
+      ${isParty ? "text-gray-600" : "text-gray-400"}
       `}
     >
       Party size
@@ -673,14 +674,6 @@ const toggleParty = () => {
     </button>
   </div>
 </div>
-
-
-
-
-
-
-
-
               </motion.div>
             )}
 
@@ -717,16 +710,20 @@ const toggleParty = () => {
             </div>
 
             {/* คำอธิบาย */}
-            {!isPosted && (
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="text-gray-500 text-sm mt-3 text-center max-w-sm"
-              >
-                Share quick thoughts or start group activities (login required) that disappear in 24 hours.
-              </motion.p>
-            )}
+{!isPosted && (
+  <motion.p
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.15 }}
+    className="text-gray-500 text-sm mt-3 text-center max-w-md mx-auto leading-relaxed"
+  >
+    <span>Share quick notes or start a party.</span>
+    <span className="block">
+      All notes disappear after 24 hours.(Log in to host parties)
+    </span>
+  </motion.p>
+)}
+
 
             {/* ส่วนล่าง */}
             {isPosted && noteId && (
