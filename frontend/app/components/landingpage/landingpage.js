@@ -20,8 +20,10 @@ export default function LandingPage() {
               <h1 className="text-7xl md:text-8xl font-bold text-gray-900 mb-6 leading-tight">
               <span className="bg-gradient-to-r from-blue-600 via-green-600 to-teal-600 bg-clip-text text-transparent animate-pulse">KU WHY</span>
               </h1>
-              <p className="text-2xl md:text-3xl font-light text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                Connect, ask, share at Kasetsart University
+              <p className="text-xl md:text-3xl font-bold text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
+              <span className="font-semibold text-blue-600"> Connect</span>, 
+              <span className="font-semibold text-green-600"> ask</span>, and 
+              <span className="font-semibold text-teal-600"> share</span> at Kasetsart University
               </p>
             </div>
             
