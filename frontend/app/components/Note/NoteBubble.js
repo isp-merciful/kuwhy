@@ -60,6 +60,8 @@ export default function NoteBubble() {
   const [currParty, setCurrParty] = useState(0);
   const [joinedMemberOnly, setJoinedMemberOnly] = useState(false);
 
+  const [showLoginToast, setShowLoginToast] = useState(false);
+  
   const toggleParty = () => {
     setIsParty((prev) => {
       const next = !prev;
@@ -276,9 +278,10 @@ export default function NoteBubble() {
     if (!ready) return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
     if (!userId) return alert("ไม่พบผู้ใช้ กรุณารีเฟรชหน้า");
     if (!text.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง!");
-    if (isParty && !authed)
-      return alert("You need to log in first before creating a party.");
-
+    if (isParty && !authed){
+    setShowLoginToast(true);   
+    return;
+    }
     setLoading(true);
     try {
       const payload = {
@@ -814,6 +817,35 @@ export default function NoteBubble() {
           </motion.div>
         )}
       </AnimatePresence>
+
+
+      {/* === Toast: require login to create party === */}
+      {showLoginToast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999]">
+          <div className="flex items-center gap-4 bg-sky-500 text-white text-sm px-4 py-2 rounded-2xl shadow-lg">
+            <span className="font-semibold">
+              Please sign in to create a party.
+            </span>
+
+          <a
+            href="/login"
+            onClick={() => setShowLoginToast(false)}
+            className="text-xs font-semibold underline"
+          >
+            Login
+          </a>
+
+          <button
+            type="button"
+            onClick={() => setShowLoginToast(false)}
+            className="text-xs opacity-80 hover:opacity-100"
+          >
+            Close
+          </button>
+          </div>
+        </div>
+      )}
+
 
       {/* === Dialogs === */}
       <ConfirmReplaceDialog
