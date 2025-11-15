@@ -6,13 +6,12 @@ import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// Resolve API base (Docker: set NEXT_PUBLIC_API_BASE=http://backend:8000)
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.API_BASE ||
-  "http://localhost:8000";
+/* ---------------------- API base ---------------------- */
 
-// Helper: prefix backend base for /uploads/* paths
+const API_BASE = "http://localhost:8000"; // 👈 ตามที่ขอ
+
+/* ---------------------- helpers ---------------------- */
+
 function toAbs(url) {
   if (!url) return "";
   return url.startsWith("http") ? url : `${API_BASE}${url}`;
@@ -70,19 +69,11 @@ async function fetchJSON(url) {
 function normalizeOne(json) {
   if (!json) return null;
 
-  // { data: {...} }
   if (json.data && !Array.isArray(json.data)) return json.data;
-
-  // { blog: {...} }
   if (json.blog && !Array.isArray(json.blog)) return json.blog;
-
-  // { post: {...} }
   if (json.post && !Array.isArray(json.post)) return json.post;
-
-  // [ {...} ] → เอาอันแรก
   if (Array.isArray(json)) return json[0] ?? null;
 
-  // assume เป็น object ของ blog อยู่แล้ว
   return json;
 }
 
@@ -98,15 +89,13 @@ function normalizeMany(json) {
 }
 
 async function fetchPost(id) {
-  // Prefer /api/blog/:id; fall back to /api/blog?id=
   const candidates = [
     `${API_BASE}/api/blog/${encodeURIComponent(id)}`,
-    `${API_BASE}/api/blog?id=${encodeURIComponent(id)}`,
+    `${API_BASE}/api/blog?id=${encodeURIComponent(id)}`, // เผื่อมีเส้น query เก่า
   ];
 
   for (const u of candidates) {
     const one = normalizeOne(await fetchJSON(u));
-    // normalizeOne จะคืน object ของ blog แล้ว → ถ้ามีอะไรก็ใช้เลย
     if (one) return one;
   }
   return null;
@@ -116,16 +105,25 @@ async function fetchAllPosts() {
   return normalizeMany(await fetchJSON(`${API_BASE}/api/blog`));
 }
 
-export default async function BlogPostPage({ params }) {
-  const { id } = params;
-  const [post, allPosts] = await Promise.all([fetchPost(id), fetchAllPosts()]);
+/* ---------------------- page component ---------------------- */
+
+// 👇 ตรงนี้คือจุดสำคัญ: ห้ามใช้ params.id ตรง ๆ ต้อง await ก่อน
+export default async function BlogPostPage(props) {
+  // props เองเป็น object ปกติ แต่ props.params เป็น Promise ใน Next 15
+  const { params } = props;
+  const { id } = await params; // ✅ ได้ id หลัง await แล้ว
+
+  const [post, allPosts] = await Promise.all([
+    fetchPost(id),
+    fetchAllPosts(),
+  ]);
 
   if (!post) {
     return (
       <div className="mx-auto max-w-2xl py-10">
         <h1 className="text-xl font-semibold">Post not found</h1>
         <p className="mt-2 text-gray-600">
-          We couldn&rsquo;t find a blog post with ID <code>{id}</code>.
+          We couldn&apos;t find a blog post with ID <code>{id}</code>.
         </p>
         <Link
           href="/blog"
@@ -184,7 +182,6 @@ export default async function BlogPostPage({ params }) {
                 Attachments
               </h3>
 
-              {/* Multiple attachments */}
               {atts.length > 0 && (
                 <ul className="mt-3 space-y-2">
                   {atts.map((att, idx) => {
@@ -224,7 +221,6 @@ export default async function BlogPostPage({ params }) {
                 </ul>
               )}
 
-              {/* Legacy single file_url */}
               {post.file_url && !post.attachments && (
                 <div className="mt-3 rounded-md border border-gray-200 p-3">
                   <a
