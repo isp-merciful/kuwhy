@@ -151,12 +151,9 @@ cd kuwhy
 docker-compose up --build -d
 
 # 3. Access the application
-# Frontend: http://localhost:[FRONTEND_PORT]
-# Backend: http://localhost:[API_PORT]
+# Frontend: http://localhost:[FRONTEND_PORT] -- to be add
+# Backend: http://localhost:[API_PORT] -- to be add
 ```
-
-💡 Tip:
-Replace [FRONTEND_PORT] and [API_PORT] with your actual port numbers from .env file.
 
 ## Environment Configuration
 Before running the app, create a .env file in the project root

@@ -42,7 +42,7 @@ export default function AboutUsPage() {
               <a href="/note" className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-teal-600 text-white font-semibold rounded-full hover:from-blue-700 hover:to-teal-700 transform hover:scale-105 transition-all duration-300 shadow-lg">
                 Start Connecting
               </a>
-              <a href="#team" className="inline-flex items-center justify-center px-8 py-4 border-2 border-gray-300 text-gray-700 font-semibold rounded-full hover:border-blue-500 hover:text-blue-600 transition-all duration-300">
+              <a href="#team" className="inline-flex items-center justify-center px-8 py-4 border-1 border-gray-600 text-gray-700 font-semibold rounded-full hover:border-blue-500 hover:text-blue-600 transition-all duration-300">
                 Meet Our Team
               </a>
             </div>
