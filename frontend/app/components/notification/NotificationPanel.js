@@ -34,7 +34,7 @@ export default function NotificationPanel({ notifications }) {
       <div className="absolute right-0 mt-2 w-80 max-h-[70vh] overflow-y-auto bg-white shadow-lg rounded-xl p-3 z-50">
         <h3 className="font-bold mb-2">Notifications</h3>
         {notifications.length === 0 ? (
-          <p className="text-gray-400 text-sm">ยังไม่มีการแจ้งเตือน</p>
+          <p className="text-gray-400 text-sm">No notifications yet.</p>
         ) : (
           <ul className="space-y-2">
             {notifications.map(noti => (
@@ -53,7 +53,7 @@ export default function NotificationPanel({ notifications }) {
                 <div className="flex-1 text-sm">
                   <p>
                     <span className="font-semibold">{noti.sender_name}</span>{" "}
-                    คอมเม้นโพสต์ของคุณ
+                    comment your note
                   </p>
                   <span className="text-gray-400 text-xs">
                     {new Date(noti.created_at).toLocaleString()}

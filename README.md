@@ -112,7 +112,8 @@ kuwhy/
 * [Iteration 1 Presentation](https://www.youtube.com/watch?v=-kIwVKTTAkA)
 * [Iteration 2 Presentation](https://youtu.be/FUl6rNU6EiE?si=ku89KkIwvy0TvFfR)
 * [Iteration 3 Presentation](https://youtu.be/1fFkATymeag?si=36GwJlWetsgoUnSg)
-
+* [Iteration 4 Presentation](https://youtu.be/PTpsgiO_zYg?si=j5RhgKzcmZZ5wcGa)
+* [Iteration 5 Presentation](https://youtu.be/oZNtN2JFQoU?si=msE1ztLNJFdoCxTS)
 ---
 
 ## 💻 Getting Started
@@ -133,9 +134,47 @@ cd kuwhy/frontend && npm install
 
 * Backend:
 
+## Getstarted
+### 🧩 Prerequisites
+- [Docker](https://www.docker.com/)
+- [Docker Compose](https://docs.docker.com/compose/)
+- [Node.js v18+](https://nodejs.org/)
+- [Git](https://git-scm.com/)
+
+### ⚙️ Get Started in 3 Steps
 ```bash
-cd kuwhy/backend && npm install
+# 1. Clone the repository
+git clone https://github.com/isp-merciful/kuwhy.git
+cd kuwhy
+
+# 2. Start all services with Docker
+docker-compose up --build -d
+
+# 3. Access the application
+# Frontend: http://localhost:[FRONTEND_PORT] -- to be add
+# Backend: http://localhost:[API_PORT] -- to be add
 ```
+
+## Environment Configuration
+Before running the app, create a .env file in the project root
+# Backend server port
+PORT=3000
+
+# Database connection
+DATABASE_URL="mysql://root:yourpassword@localhost:yourport/yourdatabase"
+
+# Frontend settings (optional)
+FRONTEND_PORT=5173
+
+# JWT or API secrets (if needed)
+JWT_SECRET="your-secret-key"
+
+## Docker Compose Example
+- db container port and .env database_url must same
+- backend container port must same as .envport
+
+**📖 Documentation**
+-  [Project Document (Google Docs)](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)  
 
 3. **Configure environment**
    Create a `.env` file for backend settings (DB credentials, OAuth keys).

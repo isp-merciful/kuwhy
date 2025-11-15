@@ -1,25 +1,63 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useMemo, useRef, useEffect } from "react";
 
-const personIcons = ["/images/avatar1.png", "/images/avatar2.png", "/images/avatar3.png"];
+const normalizeStyle = (s) => String(s || "").trim().toLowerCase();
 
-export default function Avatar({ center = true, size = 150 }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+export default function Avatar({
+  center = true,
+  size = 150,
+  style = "random",
+  seed,
+  className = "",
+  onUrlReady,
+  src,
+}) {
+  const chosenStyle = useMemo(() => {
+    if (style !== "random") return normalizeStyle(style);
+    const arr = ["thumbs", "dylan"];
+    return arr[Math.floor(Math.random() * arr.length)];
+  }, [style]);
+
+  const seedRef = useRef(
+    seed ||
+      (typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Math.random()))
+  );
+
+  const build = ({ style, seed, size = 150, png = true }) => {
+    const fmt = png ? "png" : "svg";
+    const params = new URLSearchParams({
+      seed,
+      size: String(size),
+      radius: "50",
+      backgroundType: "gradientLinear",
+    });
+    const slug = normalizeStyle(style); 
+    return `https://api.dicebear.com/9.x/${slug}/${fmt}?${params.toString()}`;
+  };
+
+  const url = useMemo(
+    () => src || build({ style: chosenStyle, seed: seedRef.current, size, png: true }),
+    [src, chosenStyle, size]
+  );
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % personIcons.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!src && onUrlReady) onUrlReady(url);
+  }, [url, src, onUrlReady]);
 
   return (
-    <div className={center ? "mt-1 flex justify-center w-full" : "mt-1"}>
+    <div className={`${center ? "mt-1 flex justify-center w-full" : "mt-1"} ${className}`}>
       <img
-        src={personIcons[currentIndex]}
-        alt="person"
-        style={{ width: `${size}px`, height: `${size}px` }}
-        className="rounded-full object-cover border border-gray-300"
+        src={url}
+        alt="avatar"
+        width={size}
+        height={size}
+        className="rounded-full object-cover border border-gray-300 bg-gray-100"
+        onError={(e) => {
+          if (src) return;
+          e.currentTarget.src = build({ style: "thumbs", seed: seedRef.current, size, png: true });
+        }}
       />
     </div>
   );

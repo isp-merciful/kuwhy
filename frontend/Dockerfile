@@ -3,6 +3,7 @@
 FROM node:20-alpine AS deps
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
+RUN apk add --no-cache openssl ca-certificates
 RUN npm ci
 
 FROM node:20-alpine AS builder

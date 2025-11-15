@@ -1,54 +1,45 @@
-'use client';
-import { useState, useEffect } from "react";
+// frontend/app/components/useUserId.js
+"use client";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
+const ACTIVE_KEY = "userId";        // ใช้ทุกที่ในแอป
+const ANON_KEY   = "anon_user_id";  // เก็บ anon แยก
+
 export default function useUserId() {
-  const { data: session } = useSession();
-  const [userId, setUserId] = useState(null);
+  const { data: session, status } = useSession(); // 'loading' | 'authenticated' | 'unauthenticated'
+  const [id, setId] = useState(null);
 
   useEffect(() => {
-    const generateAnonymousId = () => {
-    let newId = crypto.randomUUID();
-    localStorage.setItem("userId", newId);
-    return newId;
+    if (status === "loading") return; // ยังโหลด session อยู่ → อย่าแตะอะไร
+
+    const setActive = (next) => {
+      try {
+        const cur = localStorage.getItem(ACTIVE_KEY);
+        if (cur !== next) localStorage.setItem(ACTIVE_KEY, next);
+      } catch {}
+      setId(next); // ← ใช้ตัวนี้ให้ตรงกับ useState
     };
-    
-    let currentId = localStorage.getItem("userId");
-    if (currentId) currentId = currentId.replace(/"/g, "").trim();
 
-    if (session?.user?.id) {
-      // case: user login
-      const loginId = session.user.id;
-
-      
-      // merge anonymous -> user (ไม่เปลี่ยน primary key)
-      if (currentId && currentId !== loginId) {
-        fetch("http://localhost:8000/api/user/merge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: loginId,
-            anonymous_id: currentId,
-            user_name: session.user.name,
-            email: session.user.email,
-            image: session.user.image,
-            role: "member",
-          }),
-        });
-      }
-
-      // update localStorage ให้เป็น userId ของ session
-      localStorage.setItem("userId", loginId);
-      currentId = loginId;
-    } else {
-      // case: anonymous
-      if (!currentId) {
-        currentId = generateAnonymousId();
-      }
+    if (status === "authenticated" && session?.user?.id) {
+      // ล็อกอิน → ใช้ id จริง
+      setActive(String(session.user.id));
+      return;
     }
 
-    setUserId(currentId);
-  }, [session]);
+    // ไม่ได้ล็อกอิน → ใช้ anon id (สร้างครั้งแรก)
+    try {
+      let anon = localStorage.getItem(ANON_KEY);
+      if (!anon) {
+        anon = crypto.randomUUID();
+        localStorage.setItem(ANON_KEY, anon);
+      }
+      setActive(anon);
+    } catch {
+      const fallback = crypto.randomUUID();
+      setActive(fallback);
+    }
+  }, [status, session?.user?.id]);
 
-  return userId; 
+  return id;
 }

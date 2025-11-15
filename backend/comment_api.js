@@ -27,9 +27,7 @@ function CommentTree(comments) {
   roots.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   function sortChildren(node) {
     if (!node.children || node.children.length === 0) return;
-    node.children.sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at)
-    );
+    node.children.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     node.children.forEach(sortChildren);
   }
   roots.forEach(sortChildren);
@@ -40,29 +38,29 @@ function CommentTree(comments) {
 /* --------------------------------------------
    GET /api/comment     (โหลดทั้งหมด)
 --------------------------------------------- */
-router.get("/", async (req, res) => {
+router.get("/", async (_req, res) => {
   try {
     const rows = await prisma.comment.findMany({
       orderBy: { created_at: "asc" },
       include: {
-        users: { select: { user_id: true, user_name: true, img: true } },
+        // ✅ ต้องมี login_name ด้วย
+        users: { select: { user_id: true, user_name: true, img: true, login_name: true } },
       },
     });
 
-    // map ให้มี user_name, img เหมือน SQL เดิม
+    // ✅ map ให้ออกมาเป็นฟิลด์แบน ๆ รวมถึง login_name
     const flat = rows.map((r) => ({
       ...r,
       user_name: r.users?.user_name ?? null,
       img: r.users?.img ?? null,
+      login_name: r.users?.login_name ?? null,
     }));
 
     const tree = CommentTree(flat);
     res.json({ message: "getallcomment", comment: tree });
   } catch (error) {
     console.error("❌ Fetch error:", error);
-    res
-      .status(500)
-      .json({ error: error.message, message: "can't fetch note comment" });
+    res.status(500).json({ error: error.message, message: "can't fetch note comment" });
   }
 });
 
@@ -77,7 +75,8 @@ router.get("/note/:note_id", async (req, res) => {
       where: { note_id: noteId },
       orderBy: { created_at: "asc" },
       include: {
-        users: { select: { user_id: true, user_name: true, img: true } },
+        // ❗ เดิมขาด login_name → ทำให้กดโปรไฟล์ไม่ได้
+        users: { select: { user_id: true, user_name: true, img: true, login_name: true } },
       },
     });
 
@@ -85,15 +84,15 @@ router.get("/note/:note_id", async (req, res) => {
       ...r,
       user_name: r.users?.user_name ?? null,
       img: r.users?.img ?? null,
+      // ✅ ต้อง map ออกมาด้วย
+      login_name: r.users?.login_name ?? null,
     }));
 
     const tree = CommentTree(flat);
     res.json({ message: "getnote", comment: tree });
   } catch (error) {
     console.error("❌ Fetch error:", error);
-    res
-      .status(500)
-      .json({ error: error.message, message: "can't fetch note comment" });
+    res.status(500).json({ error: error.message, message: "can't fetch note comment" });
   }
 });
 
@@ -108,7 +107,8 @@ router.get("/blog/:blog_id", async (req, res) => {
       where: { blog_id: blogId },
       orderBy: { created_at: "asc" },
       include: {
-        users: { select: { user_id: true, user_name: true, img: true } },
+        // ✅ ใส่ login_name ให้ครบเหมือนกัน
+        users: { select: { user_id: true, user_name: true, img: true, login_name: true } },
       },
     });
 
@@ -116,15 +116,14 @@ router.get("/blog/:blog_id", async (req, res) => {
       ...r,
       user_name: r.users?.user_name ?? null,
       img: r.users?.img ?? null,
+      login_name: r.users?.login_name ?? null,
     }));
 
     const tree = CommentTree(flat);
     res.json({ message: "getblog", comment: tree });
   } catch (error) {
     console.error("❌ Fetch error:", error);
-    res
-      .status(500)
-      .json({ error: error.message, message: "can't fetch blog comment" });
+    res.status(500).json({ error: error.message, message: "can't fetch blog comment" });
   }
 });
 
@@ -159,23 +158,16 @@ router.post("/", async (req, res) => {
 
     const newComment = await prisma.comment.create({
       data: {
-        // สำคัญ! user_id ต้องเป็น STRING 36 ตัว (UUID) ตาม schema
         user_id: String(user_id),
-
         message: String(message),
-
-        // note_id / blog_id เป็น Int? ใน schema → แปลงเป็น Number หรือ null
         note_id:
           note_id !== undefined && note_id !== null && note_id !== ""
             ? Number(note_id)
             : null,
-
         blog_id:
           blog_id !== undefined && blog_id !== null && blog_id !== ""
             ? Number(blog_id)
             : null,
-
-        // parent_comment_id เป็น Int?
         parent_comment_id:
           parent_comment_id !== undefined &&
           parent_comment_id !== null &&
@@ -192,21 +184,25 @@ router.post("/", async (req, res) => {
     res.status(500).json({ error: error.message || "Prisma create comment failed" });
   }
 });
-/* --------------------------------------------
-   PUT /api/comment
-   body: { comment_id, message }
---------------------------------------------- */
-router.put("/", async (req, res) => {
-  try {
-    const { message, comment_id } = req.body;
 
-    if (!comment_id) {
-      return res.status(400).json({ error: "ต้องมี comment_id" });
+/* --------------------------------------------
+   PUT /api/comment/:id
+   body: { message }
+   ❗ แก้ให้ใช้ params.id (ตรงกับ FE ที่เรียก PUT /comment/${id})
+--------------------------------------------- */
+router.put("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { message } = req.body;
+
+    if (!id) return res.status(400).json({ error: "ต้องมี comment_id (จาก params)" });
+    if (typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({ error: "message ต้องเป็นข้อความที่ไม่ว่าง" });
     }
 
     await prisma.comment.update({
-      where: { comment_id: Number(comment_id) },
-      data: { message },
+      where: { comment_id: id },
+      data: { message: String(message.trim()) },
     });
 
     res.json({ message: "updatesuccess" });
@@ -240,8 +236,7 @@ router.delete("/:id", async (req, res) => {
   try {
     const commentId = Number(req.params.id);
     await prisma.comment.delete({ where: { comment_id: commentId } });
-    // ถ้า schema ตั้ง onDelete: Cascade ไว้ จะลบลูก ๆ ให้อัตโนมัติ
-    res.json("delete success");
+    res.json({ message: "delete success" });
   } catch (error) {
     console.error("❌ delete error:", error);
     res.status(500).json({ error: "can't deleted" });

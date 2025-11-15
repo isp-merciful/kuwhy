@@ -1,15 +1,79 @@
 // backend/note_api.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
-
+const { optionalAuth, requireMember,requireAuth } = require("./auth_mw");
 const prisma = new PrismaClient();
 const router = express.Router();
 
+/** ------------------------------------------
+ * helper: ตัดสินว่า "ใคร" เป็นคนยิงคำสั่ง
+ * - ถ้ามี req.user.id (ผ่าน optionalAuth/requireMember) → ใช้เป็นผู้กระทำ (auth)
+ * - ถ้าไม่มี → ใช้ user_id จาก body เป็น anonymous
+ *   (หมายเหตุ: ฝั่ง create note แบบ party จะบังคับต้องเป็น auth เท่านั้น)
+ * ------------------------------------------ */
+function resolveActor(req) {
+  if (req.user?.id) return { id: String(req.user.id), mode: "auth" };
+  const bodyId = String(req.body?.user_id || "").trim();
+  if (!bodyId) return null; // ไม่รู้ว่าใครเลย
+  return { id: bodyId, mode: "anon" };
+}
+
+/** ------------------------------------------
+ * helper: upsert users ให้มีเสมอ (กัน P2025)
+ * - สำหรับ anonymous: จะมี row ที่ user_id = anonId, role=anonymous (แล้วแต่ schema คุณ)
+ * - สำหรับ auth: ปกติควรมีอยู่แล้วจากระบบสมัคร/ล็อกอิน แต่ upsert ก็ harmless
+ * ------------------------------------------ */
+async function ensureUserExists(user_id, isAnon = false) {
+  await prisma.users.upsert({
+    where: { user_id },
+    update: {}, // ไม่เปลี่ยนชื่ออัตโนมัติใน upsert
+    create: {
+      user_id,
+      user_name: isAnon ? "anonymousAA" : "anonymousBBB", // ดีฟอลต์เป็น anonymous ไปก่อน
+      role: isAnon ? "anonymous" : "member",         // ถ้าเป็นผู้ใช้ยืนยันตัวตน ตั้ง role=member
+      img: "/images/pfp.png",
+      gender: "Not_Specified",
+      email: null,
+    },
+  });
+}
+
+async function getActivePartyForUser(userId, excludeNoteId) {
+  // as host
+  const hosting = await prisma.note.findFirst({
+    where: {
+      user_id: String(userId),
+      max_party: { gt: 0 },
+      ...(excludeNoteId ? { NOT: { note_id: Number(excludeNoteId) } } : {}),
+    },
+    select: { note_id: true, message: true, max_party: true },
+  });
+  if (hosting) return { role: "host", note_id: hosting.note_id };
+
+  // as member
+  const membership = await prisma.party_members.findFirst({
+    where: {
+      user_id: String(userId),
+      ...(excludeNoteId ? { NOT: { note_id: Number(excludeNoteId) } } : {}),
+    },
+    select: { note_id: true },
+  });
+  if (membership) {
+    const n = await prisma.note.findUnique({
+      where: { note_id: membership.note_id },
+      select: { max_party: true },
+    });
+    if (n && n.max_party > 0) {
+      return { role: "member", note_id: membership.note_id };
+    }
+  }
+  return null;
+}
+
 /* =========================================
  * GET /api/note
- * รายการโน้ตทั้งหมด (ใหม่อยู่บน)
  * ========================================= */
-router.get("/", async (req, res) => {
+router.get("/", async (_req, res) => {
   try {
     const notes = await prisma.note.findMany({
       orderBy: { note_id: "desc" },
@@ -26,45 +90,30 @@ router.get("/", async (req, res) => {
 
 /* =========================================
  * GET /api/note/user/:id
- * โน้ตล่าสุดของ user
- * - ถ้าไม่มีโน้ตของตัวเอง → fallback ไปโน้ตของปาร์ตี้ที่ user เคย join ล่าสุด
- * - ถ้าไม่มีเลย → 200 { note: null }
+ * ล่าสุดของ user (own → last joined)
  * ========================================= */
 router.get("/user/:id", async (req, res) => {
   const userId = req.params.id;
   try {
-    // 1) โน้ตที่ผู้ใช้ "โพสต์เอง" ล่าสุด
     const ownNote = await prisma.note.findFirst({
-      where: { user_id: userId },
+      where: { user_id: userId }, // 🔧 CHANGED: ใช้คอลัมน์ user_id ให้เสมอต้นเสมอปลาย
       orderBy: { note_id: "desc" },
     });
     if (ownNote) return res.json(ownNote);
 
-    // 2) ไม่มี → หา membership ล่าสุดที่เคย join
     const lastMembership = await prisma.party_members.findFirst({
       where: { user_id: userId },
-      orderBy: { id: "desc" }, // ถ้ามี created_at ใช้อันนั้นได้
+      orderBy: { id: "desc" },
       select: { note_id: true },
     });
+    if (!lastMembership) return res.json({ note: null });
 
-    if (!lastMembership) {
-      return res.json({ note: null });
-    }
-
-    // 3) ดึงโน้ตที่เคย join ล่าสุด
     const joinedNote = await prisma.note.findUnique({
       where: { note_id: lastMembership.note_id },
-      // ต้องการ users? เปิดคอมเมนต์ข้างล่างได้
-      // include: { users: { select: { user_id: true, user_name: true, img: true } } },
     });
-
     if (!joinedNote) return res.json({ note: null });
 
-    // 4) ระบุว่าเป็นโน้ตที่ได้จากการเข้าร่วม ไม่ใช่ของตัวเอง
-    return res.json({
-      ...joinedNote,
-      joined_member_only: true,
-    });
+    return res.json({ ...joinedNote, joined_member_only: true });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Fetch note failed" });
@@ -75,7 +124,7 @@ router.get("/user/:id", async (req, res) => {
  * GET /api/note/:id
  * ========================================= */
 router.get("/:id", async (req, res) => {
-  const noteId = parseInt(req.params.id, 10);
+  const noteId = Number(req.params.id);
   try {
     const note = await prisma.note.findUnique({
       where: { note_id: noteId },
@@ -83,11 +132,7 @@ router.get("/:id", async (req, res) => {
         users: { select: { user_id: true, user_name: true, img: true } },
       },
     });
-
-    if (!note) {
-      return res.status(404).json({ error: "Note not found" });
-    }
-
+    if (!note) return res.status(404).json({ error: "Note not found" });
     res.json(note);
   } catch (error) {
     console.error(error);
@@ -97,44 +142,56 @@ router.get("/:id", async (req, res) => {
 
 /* =========================================
  * POST /api/note
- * - upsert ผู้ใช้ก่อน → ป้องกัน P2025
- * - บังคับ max_party: 0 หรือ [2..20]
- * - ถ้าเป็นปาร์ตี้ → crr_party = 1 (นับคนโพสต์)
+ * - ทับตัวตนด้วย req.user.id เมื่อมี (กันโพสเป็น anonymous ทั้งที่ล็อกอิน)
+ * - party note ต้องล็อกอินเท่านั้น
+ * - upsert users กัน P2025
  * ========================================= */
-router.post("/", async (req, res) => {
+router.post("/", optionalAuth, async (req, res) => {
   try {
-    const { message, user_id } = req.body;
+    const { message } = req.body;
     let { max_party } = req.body;
+   // ถ้าส่ง Bearer มา แต่ verify ไม่ผ่าน → ปัดตกเลย (กันตกไป anon)
+   const hasBearer = typeof req.headers.authorization === "string" &&
+                     req.headers.authorization.startsWith("Bearer ");
+   if (hasBearer && !req.user) {
+     return res.status(401).json({ error: "Invalid or expired token" });
+   }
 
-    if (!message) {
+    if (!message || String(message).trim() === "") {
       return res.status(400).json({ error: "ไม่มี notes" });
     }
-    if (!user_id) {
-      return res.status(400).json({ error: "Missing user_id" });
-    }
 
-    // Clean & enforce: 0 (ไม่ใช่ปาร์ตี้) หรือ [2..20]
+    // Clean & enforce: 0 หรือ [2..20]
     max_party = Number(max_party) || 0;
     if (max_party > 0) {
       max_party = Math.min(20, Math.max(2, Math.floor(max_party)));
     } else {
       max_party = 0;
     }
+
+    // ตัดสิน "ผู้โพส"
+    const actor = resolveActor(req);
+    if (!actor) return res.status(401).json({ error: "Missing user identity" });
+
+    // 🔧 CHANGED: party ต้องล็อกอิน
+    if (max_party > 0 && actor.mode === "anon") {
+      return res.status(401).json({ error: "Party note requires login" });
+    }
+
+    // ✅ สร้าง/คงอยู่ของผู้ใช้เสมอ
+    await ensureUserExists(actor.id, actor.mode === "anon");
+
+    // นับคนโพสต์กรณีเป็นปาร์ตี้
     const crr_party = max_party > 0 ? 1 : 0;
 
-    // ✅ ป้องกัน P2025: ให้แน่ใจว่ามี users record เสมอ
-    await prisma.users.upsert({
-      where: { user_id },
-      update: {},
-      create: { user_id, user_name: "anonymous" }, // เติม field ที่จำเป็นอื่น ๆ ถ้ามี
-    });
-
+    // 🔧 CHANGED: บังคับใช้ actor.id เป็นเจ้าของเสมอ (ทับ user_id จาก client)
     const newNote = await prisma.note.create({
       data: {
-        message,
+        message: String(message),
         max_party,
         crr_party,
-        users: { connect: { user_id } },
+        user_id: actor.id,              // <— เจ้าของโพส (owner)
+        // users: { connect: { user_id: actor.id } }, // ความสัมพันธ์ (ถ้า schema กำหนด relation ชื่อ users)
       },
     });
 
@@ -142,7 +199,7 @@ router.post("/", async (req, res) => {
       message: "add note success",
       note_id: newNote.note_id,
       note: newNote,
-      value: newNote, // backward compatibility
+      value: newNote, // BC
     });
   } catch (error) {
     console.error(error);
@@ -152,176 +209,179 @@ router.post("/", async (req, res) => {
 
 /* =========================================
  * DELETE /api/note/:id
- * (หมายเหตุ: endpoint นี้ยังไม่เช็ค owner)
+ * - 🔧 CHANGED: จำกัดเฉพาะเจ้าของที่ล็อกอินเท่านั้น
  * ========================================= */
 router.delete("/:id", async (req, res) => {
-  const noteId = parseInt(req.params.id, 10);
   try {
+    const noteId = Number(req.params.id);
+
+    const note = await prisma.note.findUnique({
+      where: { note_id: noteId },
+      select: { note_id: true, user_id: true },
+    });
+    if (!note) return res.status(404).json({ error: "Note not found" });
+
     await prisma.note.delete({ where: { note_id: noteId } });
     res.json("delete success");
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "can't deleted" });
+    res.status(500).json({ error: "can't delete" });
   }
 });
 
 /* =========================================
  * POST /api/note/join
- * - upsert ผู้ใช้
- * - ตรวจว่าเป็นปาร์ตี้/ไม่เต็ม
- * - กันซ้ำ: ถ้าเป็นสมาชิกอยู่แล้ว → 200 success + message
- * - ทำในธุรกรรมเดียว ลด race
+ * - requireMember: ต้องล็อกอิน
+ * - 🔧 CHANGED: ทับ user_id ด้วย req.user.id เสมอ
  * ========================================= */
-router.post("/join", async (req, res) => {
+router.post("/join", requireAuth, async (req, res) => {
   try {
-    const { note_id, user_id } = req.body;
+    const userId = String(req.user.id);
+    const noteId = Number(req.body.note_id);
 
-    if (!note_id || !user_id) {
-      return res.status(400).json({ error: "Missing note_id or user_id" });
+    if (!Number.isFinite(noteId) || noteId <= 0) {
+      return res.status(400).json({ ok: false, error: "Invalid note_id" });
     }
 
-    // ✅ ให้มีผู้ใช้เสมอ (กรณี join โดยยังไม่เคย register)
-    await prisma.users.upsert({
-      where: { user_id },
-      update: {},
-      create: { user_id, user_name: "anonymous" },
-    });
-
-    // ดึงโน้ต
     const note = await prisma.note.findUnique({
-      where: { note_id: Number(note_id) },
-      select: { note_id: true, max_party: true, crr_party: true },
+      where: { note_id: noteId },
+      select: { note_id: true, user_id: true, max_party: true, crr_party: true },
     });
-    if (!note) return res.status(404).json({ error: "Note not found" });
-    if (!note.max_party || note.max_party <= 0) {
-      return res.status(400).json({ error: "This note is not a party." });
+    if (!note) return res.status(404).json({ ok: false, error: "Note not found" });
+    if (note.max_party <= 0) {
+      return res.status(400).json({ ok: false, error: "This note is not a party" });
     }
 
-    // เช็คเป็นสมาชิกแล้ว?
-    const existing = await prisma.party_members.findFirst({
-      where: { note_id: Number(note_id), user_id },
-      select: { id: true },
-    });
-    if (existing) {
+    // already the host of THIS party
+    if (String(note.user_id) === userId) {
       return res.json({
-        success: true,
-        message: "Already a member of this party.",
-        data: note, // ส่งสถานะปัจจุบัน
+        ok: true,
+        data: { crr_party: note.crr_party, max_party: note.max_party },
+        info: "already host",
       });
     }
 
-    // เช็คเต็ม
+    // already a member of THIS party
+    const alreadyHere = await prisma.party_members.findUnique({
+      where: { note_id_user_id: { note_id: noteId, user_id: userId } },
+      select: { note_id: true },
+    });
+    if (alreadyHere) {
+      return res.json({
+        ok: true,
+        data: { crr_party: note.crr_party, max_party: note.max_party },
+        info: "already joined",
+      });
+    }
+
+    // at most one active party at a time (host or member)
+    const inAnother = await getActivePartyForUser(userId, noteId);
+    if (inAnother) {
+      return res.status(409).json({
+        ok: false,
+        error: "You are already in another party. Leave it first.",
+        error_code: "ALREADY_IN_PARTY",
+        current_note_id: inAnother.note_id,
+        as: inAnother.role,
+      });
+    }
+
+    // capacity check
     if (note.crr_party >= note.max_party) {
-      return res.status(400).json({ error: "Party is full" });
-    }
-
-    // ทำธุรกรรม: สร้างสมาชิก + เพิ่ม crr_party
-    const [_, updatedNote] = await prisma.$transaction([
-      prisma.party_members.create({
-        data: { note_id: Number(note_id), user_id },
-      }),
-      prisma.note.update({
-        where: {
-          note_id: Number(note_id),
-        },
-        data: { crr_party: { increment: 1 } },
-      }),
-    ]);
-
-    res.json({
-      success: true,
-      message: "Added new party member and incremented party count.",
-      data: updatedNote,
-    });
-  } catch (error) {
-    console.error(error);
-
-    // กรณี unique constraint ที่ party_members (ถ้าคุณตั้ง @@unique([note_id, user_id]))
-    // จะวิ่งเข้า error นี้ → ถือว่าเป็นสมาชิกแล้ว
-    if (error?.code === "P2002") {
-      return res.json({
-        success: true,
-        message: "Already a member of this party.",
+      return res.status(409).json({
+        ok: false,
+        error: "Party is full",
+        error_code: "PARTY_FULL",
       });
     }
 
-    res.status(500).json({
-      error: "Failed to add new party member and incremented party count.",
+    // join
+    await prisma.party_members.create({
+      data: { note_id: noteId, user_id: userId },
     });
+
+    const updated = await prisma.note.update({
+      where: { note_id: noteId },
+      data: { crr_party: { increment: 1 } },
+      select: { crr_party: true, max_party: true },
+    });
+
+    return res.json({ ok: true, data: updated });
+  } catch (err) {
+    console.error("[POST /note/join] error:", err);
+    return res.status(500).json({ ok: false, error: "Join failed" });
   }
 });
-
-
-router.post("/leave", async (req, res) => {
+/* =========================================
+ * POST /api/note/leave
+ * - requireMember: ต้องล็อกอิน
+ * - 🔧 CHANGED: ทับ user_id ด้วย req.user.id เสมอ
+ * ========================================= */
+router.post("/leave", requireMember, async (req, res) => {
   try {
-    const { note_id, user_id } = req.body;
-    if (!note_id || !user_id) {
-      return res.status(400).json({ error: "Missing note_id or user_id" });
+    const note_id = Number(req.body.note_id);
+    const user_id = String(req.user.id); // <— ทับเสมอ
+
+    if (!Number.isFinite(note_id)) {
+      return res.status(400).json({ error: "Missing or invalid note_id" });
     }
 
     const note = await prisma.note.findUnique({
-      where: { note_id: Number(note_id) },
+      where: { note_id },
       select: { note_id: true, max_party: true, crr_party: true, user_id: true },
     });
     if (!note) return res.status(404).json({ error: "Note not found" });
     if (!note.max_party || note.max_party <= 0) {
       return res.status(400).json({ error: "This note is not a party." });
     }
-    // เจ้าของห้องไม่อนุญาตให้ออก (ต้องลบโน้ตแทน)
     if (note.user_id === user_id) {
       return res.status(400).json({ error: "Owner cannot leave. Delete the note instead." });
     }
 
     const membership = await prisma.party_members.findFirst({
-      where: { note_id: Number(note_id), user_id },
+      where: { note_id, user_id },
       select: { id: true },
     });
     if (!membership) {
-      // ไม่ได้เป็นสมาชิกอยู่แล้ว ถือว่าสำเร็จแบบปลอดภัย
       return res.json({ success: true, message: "Already not a member.", data: note });
     }
 
     const [, updatedNote] = await prisma.$transaction([
       prisma.party_members.delete({ where: { id: membership.id } }),
       prisma.note.update({
-        where: { note_id: Number(note_id) },
-        data: {
-          crr_party: note.crr_party > 0 ? { decrement: 1 } : undefined,
-        },
+        where: { note_id },
+        data: { crr_party: note.crr_party > 0 ? { decrement: 1 } : undefined },
       }),
     ]);
 
-    // ถ้า client มีแนวคิด active note ฝั่งผู้ใช้ อาจเคลียร์ได้ด้วย (ปล่อยไว้เฉย ๆ ก็ได้)
-    // await prisma.users.updateMany({ where: { active_note_id: Number(note_id), user_id }, data: { active_note_id: null } });
-
-    res.json({
-      success: true,
-      message: "Left the party.",
-      data: updatedNote,
-    });
+    res.json({ success: true, message: "Left the party.", data: updatedNote });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to leave party" });
   }
 });
 
-
-router.get("/party/is-member", async (req, res) => {
+/* =========================================
+ * GET /api/note/party/is-member
+ * - requireMember: ต้องล็อกอิน
+ * - 🔧 CHANGED: ใช้ req.user.id เป็นหลัก
+ * - 🔧 CHANGED: อ้าง owner ด้วย field user_id (ให้สอดคล้องกับ create)
+ * ========================================= */
+router.get("/party/is-member", requireMember, async (req, res) => {
   try {
     const note_id = Number(req.query.note_id);
-    const user_id = String(req.query.user_id || "");
-    if (!Number.isFinite(note_id) || !user_id) {
-      return res.status(400).json({ error: "Missing or invalid note_id/user_id" });
+    const user_id = String(req.user.id); // <— ทับเสมอ
+    if (!Number.isFinite(note_id)) {
+      return res.status(400).json({ error: "Missing or invalid note_id" });
     }
 
     const note = await prisma.note.findUnique({
       where: { note_id },
-      select: { note_id: true, max_party: true, crr_party: true, owner_id: true },
+      select: { note_id: true, max_party: true, crr_party: true, user_id: true },
     });
     if (!note) return res.status(404).json({ error: "Note not found" });
 
-    // owner = member by definition
-    if (note.owner_id && note.owner_id === user_id) {
+    if (note.user_id === user_id) {
       return res.json({
         is_member: true,
         is_owner: true,
@@ -347,5 +407,65 @@ router.get("/party/is-member", async (req, res) => {
   }
 });
 
+router.get("/:id/members", async (req, res) => {
+  try {
+    const noteId = Number(req.params.id);
+    if (!Number.isFinite(noteId) || noteId <= 0) {
+      return res.status(400).json({ ok: false, error: "Invalid note_id" });
+    }
+
+    // 1) เอา note เพื่อรู้ host และดูว่าเป็น party ไหม
+    const note = await prisma.note.findUnique({
+      where: { note_id: noteId },
+      select: { note_id: true, user_id: true, max_party: true },
+    });
+    if (!note) return res.status(404).json({ ok: false, error: "Note not found" });
+
+    // 2) host user
+    const host = await prisma.users.findUnique({
+      where: { user_id: note.user_id },
+      select: { user_id: true, user_name: true, img: true },
+    });
+
+    // 3) party members (กรณีเป็นปาร์ตี้เท่านั้น)
+    let members = [];
+    if (note.max_party > 0) {
+      // อ่านแถวสมาชิก
+      const rows = await prisma.party_members.findMany({
+        where: { note_id: noteId },
+        select: { user_id: true },
+        orderBy: { id: "asc" },
+      });
+
+      const ids = rows.map(r => r.user_id).filter(Boolean);
+      const users = ids.length
+        ? await prisma.users.findMany({
+            where: { user_id: { in: ids } },
+            select: { user_id: true, user_name: true, img: true },
+          })
+        : [];
+
+      const byId = new Map(users.map(u => [u.user_id, u]));
+      members = ids
+        .filter(uid => uid !== note.user_id) 
+        .map(uid => byId.get(uid) || { user_id: uid, user_name: "anonymous", img: null });
+    }
+
+
+    const crr_party = note.max_party > 0 ? 1 + members.length : 0;
+
+    return res.json({
+      ok: true,
+      note_id: note.note_id,
+      max_party: note.max_party,
+      crr_party,
+      host: host || { user_id: note.user_id, user_name: "anonymous", img: null },
+      members,
+    });
+  } catch (err) {
+    console.error("[GET /note/:id/members] error:", err);
+    return res.status(500).json({ ok: false, error: "failed to fetch members" });
+  }
+});
 
 module.exports = router;

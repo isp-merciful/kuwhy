@@ -1,5 +1,7 @@
+// frontend/app/components/NoteBubble.js
 "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import MessageInput from "./MessageInput";
 import Avatar from "./Avatar";
@@ -8,10 +10,33 @@ import CommentSection from "./CommentSection";
 import { TrashIcon, PlusIcon } from "@heroicons/react/24/outline";
 import PartyChat from "./PartyChat";
 import useUserId from "./useUserId";
+import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
+import ConfirmReplaceDialog from "./ConfirmReplaceDialog";
 
 export default function NoteBubble() {
-  const userId = useUserId();
+  // --- session / token ---
+  const { data: session, status } = useSession();
+  const authed = status === "authenticated" && !!session?.user?.id;
+  const ready = status !== "loading";
+  const apiToken = authed ? session?.apiToken : null;
+  const authHeaders = useMemo(
+    () => (apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+    [apiToken]
+  );
 
+  // --- user id: ตรึงให้เสถียร ---
+  const localOrAuthId = useUserId(); // อาจเป็น anonymous หรือ id จริง
+  const stableUserIdRef = useRef(null);
+  useEffect(() => {
+    if (authed && session.user.id) {
+      stableUserIdRef.current = String(session.user.id);
+    } else if (!stableUserIdRef.current) {
+      stableUserIdRef.current = String(localOrAuthId || "");
+    }
+  }, [authed, session?.user?.id, localOrAuthId]);
+  const userId = stableUserIdRef.current || localOrAuthId || null;
+
+  // --- ui states ---
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState("anonymous");
@@ -20,29 +45,90 @@ export default function NoteBubble() {
   const [isComposing, setIsComposing] = useState(false);
   const [editNameOnExpand, setEditNameOnExpand] = useState(false);
 
-  // Party states
+  // dialog box
+  const [showDelete, setShowDelete] = useState(false);
+  const [showReplace, setShowReplace] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [replacing, setReplacing] = useState(false);
+
+  // --- party states ---
   const [isParty, setIsParty] = useState(false);
   const [maxParty, setMaxParty] = useState(0);
   const [currParty, setCurrParty] = useState(0);
-
-  // เคสแสดงโน้ตจากการ join (ไม่ใช่เราโพสต์เอง)
   const [joinedMemberOnly, setJoinedMemberOnly] = useState(false);
 
   const mountedRef = useRef(true);
-  const buttonEnabled = text.trim().length > 0;
-
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
+  const buttonEnabled = text.trim().length > 0;
 
-  // -------------------------
-  // โหลด user + note
-  // -------------------------
+  // --------------------------
+  // helpers
+  // --------------------------
+  const extractServerName = (u) => {
+    const candidate =
+      u?.user_name ??
+      u?.user?.user_name ??
+      u?.users?.user_name ??
+      u?.value?.user_name ??
+      u?.name;
+    return typeof candidate === "string" ? candidate : null;
+  };
+  const extractServerImg = (u) => {
+    const candidate = u?.img ?? u?.user?.img ?? u?.users?.img ?? u?.value?.img;
+    return typeof candidate === "string" ? candidate : null;
+  };
+
+  // --------------------------
+  // Avatar persistence
+  // --------------------------
+  const [serverImg, setServerImg] = useState(null);
+  const pendingAvatarUrlRef = useRef(null);
+
+  const handleAvatarUrlReady = (url) => {
+    if (!serverImg && url) pendingAvatarUrlRef.current = url;
+  };
+
+  const persistAvatarIfNeeded = async () => {
+    if (serverImg) return;
+    const url = pendingAvatarUrlRef.current;
+    if (!url || !userId) return;
+
+    try {
+      const targetId = authed ? session.user.id : userId;
+      const res = await fetch(
+        `http://localhost:8000/api/user/${encodeURIComponent(targetId)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ img: url }),
+        }
+      );
+      if (res.ok) {
+        setServerImg(url);
+      } else {
+        console.warn("[avatar] persist failed:", await res.text());
+      }
+    } catch (e) {
+      console.warn("[avatar] persist error:", e);
+    }
+  };
+
   useEffect(() => {
-    if (!userId) return;
+    pendingAvatarUrlRef.current = null;
+  }, [userId]);
 
-    // reset เฉพาะ state ของ note/party (ไม่แตะ name เดิม)
+  // --------------------------
+  // initial load (profile + note)
+  // --------------------------
+  useEffect(() => {
+    if (!userId || !ready) return;
+
+    // reset note/party states (ไม่แตะ name)
     setText("");
     setNoteId(null);
     setIsPosted(false);
@@ -53,25 +139,22 @@ export default function NoteBubble() {
 
     const controller = new AbortController();
 
-    // helper: ดึงชื่อจาก payload หลากรูปแบบ
-    const extractServerName = (u) => {
-      const candidate =
-        u?.user_name ??
-        u?.user?.user_name ??
-        u?.users?.user_name ??
-        u?.value?.user_name ??
-        u?.name;
-      return typeof candidate === "string" ? candidate : null;
-    };
+    if (
+      authed &&
+      session?.user?.name &&
+      session.user.name.toLowerCase() !== "anonymous"
+    ) {
+      setName(session.user.name);
+    }
 
     async function fetchUserOnce() {
       try {
         const res = await fetch(`http://localhost:8000/api/user/${userId}`, {
           signal: controller.signal,
           cache: "no-store",
+          headers: { ...authHeaders },
         });
-        if (!mountedRef.current) return null;
-        if (!res.ok) return null;
+        if (!mountedRef.current || !res.ok) return null;
         const data = await res.json();
         if (!mountedRef.current) return null;
         return data;
@@ -80,24 +163,16 @@ export default function NoteBubble() {
       }
     }
 
-    // สร้าง user เฉพาะกรณีไม่พบ
-    async function registerUser() {
-      try {
-        await fetch("http://localhost:8000/api/user/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: userId, user_name: "anonymous" }),
-          signal: controller.signal,
-        });
-      } catch { /* ignore */ }
-    }
-
     async function fetchNote() {
       try {
-        const res = await fetch(`http://localhost:8000/api/note/user/${userId}`, {
-          signal: controller.signal,
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `http://localhost:8000/api/note/user/${userId}`,
+          {
+            signal: controller.signal,
+            cache: "no-store",
+            headers: { ...authHeaders },
+          }
+        );
         if (!mountedRef.current) return;
 
         if (!res.ok) {
@@ -147,49 +222,48 @@ export default function NoteBubble() {
     }
 
     (async () => {
-      // 1) ลองดึงผู้ใช้ก่อน
-      let u = await fetchUserOnce();
-
-      // 2) ถ้าไม่เจอ → register แล้วดึงใหม่
-      if (!u) {
-        await registerUser();
-        u = await fetchUserOnce();
-      }
-
-      // 3) ตั้งชื่อจาก DB (อย่ารีเซ็ตทับถ้าไม่มีข้อมูล)
-      if (mountedRef.current) {
+      const u = await fetchUserOnce();
+      if (mountedRef.current && u) {
         const serverName = extractServerName(u);
-        if (serverName && serverName.trim()) {
+        if (
+          serverName &&
+          serverName.trim() &&
+          serverName.toLowerCase() !== "anonymous"
+        ) {
           setName(serverName.trim());
-        } else if (!u) {
-          // ตั้ง anonymous เฉพาะเคสหา user ไม่เจอจริง ๆ
-          setName("anonymous");
         }
+        const img = extractServerImg(u);
+        if (img && typeof img === "string") setServerImg(img);
+        else setServerImg(null);
       }
-
-      // 4) โหลดโน้ต
       await fetchNote();
     })();
 
     return () => controller.abort();
-  }, [userId]);
+  }, [userId, ready, authed, session?.user?.name, authHeaders]);
 
-  // -------------------------
+  // --------------------------
   // Actions
-  // -------------------------
+  // --------------------------
   const handlePost = async () => {
+    if (!ready) return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
+    if (!userId) return alert("ไม่พบผู้ใช้ กรุณารีเฟรชหน้า");
     if (!text.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง!");
+    if (isParty && !authed) return alert("You need to log in first before creating a party.");
+
     setLoading(true);
     try {
       const payload = {
         user_id: userId,
         message: text,
-        max_party: isParty ? Math.min(20, Math.max(2, Number(maxParty) || 2)) : 0,
+        max_party: isParty
+          ? Math.min(20, Math.max(2, Number(maxParty) || 2))
+          : 0,
       };
 
       const res = await fetch("http://localhost:8000/api/note", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify(payload),
       });
 
@@ -201,7 +275,9 @@ export default function NoteBubble() {
         const serverMax =
           result?.note?.max_party ?? result?.value?.max_party ?? 0;
         const serverCurr =
-          result?.note?.crr_party ?? result?.value?.crr_party ?? (serverMax > 0 ? 1 : 0);
+          result?.note?.crr_party ??
+          result?.value?.crr_party ??
+          (serverMax > 0 ? 1 : 0);
 
         setNoteId(newNoteId ?? null);
         setIsPosted(true);
@@ -209,11 +285,9 @@ export default function NoteBubble() {
         setIsParty((Number(serverMax) || 0) > 0);
         setMaxParty(Number(serverMax) || 0);
         setCurrParty(Number(serverCurr) || 0);
-
-        // โพสต์เอง → ไม่ใช่ joined
         setJoinedMemberOnly(false);
 
-        alert("เพิ่มโน้ตสำเร็จ!");
+        await persistAvatarIfNeeded();
       } else {
         alert(result?.error || "ไม่สามารถโพสต์ได้");
       }
@@ -226,12 +300,12 @@ export default function NoteBubble() {
 
   const handleDelete = async () => {
     if (!noteId) return;
-    if (joinedMemberOnly) {
-      return alert("คุณเข้าร่วมปาร์ตี้นี้ไว้ ไม่สามารถลบโน้ตของผู้อื่นได้");
-    }
+    if (joinedMemberOnly)
+      return alert("You have joined this party and cannot delete other people's notes.");
     try {
       const res = await fetch(`http://localhost:8000/api/note/${noteId}`, {
         method: "DELETE",
+        
       });
       if (res.ok) {
         setText("");
@@ -242,7 +316,10 @@ export default function NoteBubble() {
         setMaxParty(0);
         setCurrParty(0);
         setJoinedMemberOnly(false);
-      } else alert("ไม่สามารถลบโน้ตได้");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data?.error || "ไม่สามารถลบโน้ตได้");
+      }
     } catch {
       alert("ลบไม่สำเร็จ");
     }
@@ -253,13 +330,12 @@ export default function NoteBubble() {
     try {
       const res = await fetch("http://localhost:8000/api/note/leave", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ note_id: Number(noteId), user_id: userId }),
       });
       const data = await res.json();
       if (!res.ok) return alert(data?.error || "Leave failed");
 
-      // หลังออกจากปาร์ตี้ กลับเป็นไม่มีโน้ต
       setText("");
       setNoteId(null);
       setIsPosted(false);
@@ -272,9 +348,9 @@ export default function NoteBubble() {
     }
   };
 
-  // -------------------------
+  // --------------------------
   // UI helpers
-  // -------------------------
+  // --------------------------
   const PartySwitch = useMemo(
     () => (
       <button
@@ -339,7 +415,11 @@ export default function NoteBubble() {
             />
 
             <div className="relative mt-4">
-              <Avatar />
+              {/* ถ้ามีรูปใน DB แล้ว → ใช้ src, ถ้าไม่มีก็ให้ Avatar สุ่มแล้วส่ง url กลับ */}
+              <Avatar
+                src={serverImg || undefined}
+                onUrlReady={!serverImg ? handleAvatarUrlReady : undefined}
+              />
             </div>
 
             <UserNameEditor
@@ -389,30 +469,26 @@ export default function NoteBubble() {
             {/* Avatar + FABs */}
             <div className="relative mt-5">
               <div className="relative inline-block">
-                <Avatar />
+                <Avatar
+                  src={serverImg || undefined}
+                  onUrlReady={!serverImg ? handleAvatarUrlReady : undefined}
+                />
                 {isPosted && !joinedMemberOnly && (
                   <div className="absolute -bottom-2 -right-2 flex space-x-2">
+                    {/* + = replace (ยืนยันก่อน) */}
                     <button
-                      onClick={async () => {
-                        await handleDelete();
-                        setIsPosted(false);
-                        setText("");
-                        setNoteId(null);
-                        setIsComposing(true);
-                        setIsParty(false);
-                        setMaxParty(0);
-                        setCurrParty(0);
-                        setJoinedMemberOnly(false);
-                      }}
+                      onClick={() => setShowReplace(true)}
                       className="w-7 h-7 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow"
                       title="Add New Note"
                     >
                       <PlusIcon className="w-5 h-5" />
                     </button>
+                    {/* 🗑 = delete (ยืนยันก่อน) */}
                     <button
-                      onClick={handleDelete}
-                      className="w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow"
+                      onClick={() => setShowDelete(true)}
+                      className="w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow disabled:opacity-50"
                       title="Delete"
+                      disabled={!noteId}
                     >
                       <TrashIcon className="w-5 h-5" />
                     </button>
@@ -446,66 +522,70 @@ export default function NoteBubble() {
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-                <div className="inline-flex items-center gap-2 text-sm bg-white/70 backdrop-blur rounded-full px-3 py-1 border border-gray-200 shadow-sm">
-                  <span className="select-none">🎉 Party</span>
-                  {PartySwitch}
-                  <span className={`text-gray-500 ${!isParty ? "opacity-50" : ""}`}>
-                    max
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isParty) return;
-                        setMaxParty((prev) => {
-                          const n = Math.max(2, Math.min(20, Number(prev) || 2));
-                          return Math.max(2, n - 1);
-                        });
-                      }}
-                      className={`w-6 h-6 grid place-items-center rounded-md border ${
-                        isParty ? "hover:bg-white" : "opacity-50 cursor-not-allowed"
-                      }`}
-                      disabled={!isParty}
-                      aria-label="ลดจำนวน"
-                    >
-                      −
-                    </button>
-                    <input
-                      type="number"
-                      min={2}
-                      max={20}
-                      step={1}
-                      value={isParty ? (Number(maxParty) || 2) : 0}
-                      onChange={(e) => {
-                        if (!isParty) return;
-                        let v = Math.floor(Math.abs(Number(e.target.value) || 0));
-                        if (v < 2) v = 2;
-                        if (v > 20) v = 20;
-                        setMaxParty(v);
-                      }}
-                      className="w-12 text-center bg-transparent outline-none border rounded-md py-0.5"
-                      disabled={!isParty}
-                      aria-label="จำนวนสมาชิกสูงสุด"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isParty) return;
-                        setMaxParty((prev) => {
-                          const n = Math.max(2, Math.min(20, Number(prev) || 2));
-                          return Math.min(20, n + 1);
-                        });
-                      }}
-                      className={`w-6 h-6 grid place-items-center rounded-md border ${
-                        isParty ? "hover:bg-white" : "opacity-50 cursor-not-allowed"
-                      }`}
-                      disabled={!isParty}
-                      aria-label="เพิ่มจำนวน"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
+<div className="inline-flex items-center gap-2 text-sm bg-white/70 backdrop-blur rounded-full px-3 py-1 border border-gray-200 shadow-sm">
+  <span className="select-none">🎉 Party</span>
+  {PartySwitch}
+  <span className={`text-gray-500 ${!isParty ? "opacity-50" : ""}`}>max</span>
+
+  <div className="flex items-center gap-1">
+    <input
+      type="number"
+      min={2}
+      max={20}
+      step={1}
+      value={isParty ? Number(maxParty) || 2 : 0}
+      onChange={(e) => {
+        if (!isParty) return;
+        let v = Math.floor(Math.abs(Number(e.target.value) || 0));
+        if (v < 2) v = 2;
+        if (v > 20) v = 20;
+        setMaxParty(v);
+      }}
+      className="w-14 text-center bg-transparent outline-none border rounded-md py-1"
+      disabled={!isParty}
+      aria-label="จำนวนสมาชิกสูงสุด"
+    />
+
+    {/* ปุ่ม + ชิดเลข */}
+    <button
+      type="button"
+      onClick={() => {
+        if (!isParty) return;
+        setMaxParty((prev) => {
+          const n = Math.max(2, Math.min(20, Number(prev) || 2));
+          return Math.min(20, n + 1);
+        });
+      }}
+      className={`w-8 h-8 grid place-items-center rounded-md border transition
+                  ${isParty ? "hover:bg-white active:scale-95" : "opacity-50 cursor-not-allowed"}`}
+      disabled={!isParty}
+      aria-label="เพิ่มจำนวน"
+      title="เพิ่มจำนวน"
+    >
+      +
+    </button>
+
+    {/* ปุ่ม − อยู่ขวาสุด */}
+    <button
+      type="button"
+      onClick={() => {
+        if (!isParty) return;
+        setMaxParty((prev) => {
+          const n = Math.max(2, Math.min(20, Number(prev) || 2));
+          return Math.max(2, n - 1);
+        });
+      }}
+      className={`w-8 h-8 grid place-items-center rounded-md border transition
+                  ${isParty ? "hover:bg-white active:scale-95" : "opacity-50 cursor-not-allowed"}`}
+      disabled={!isParty}
+      aria-label="ลดจำนวน"
+      title="ลดจำนวน"
+    >
+      −
+    </button>
+  </div>
+</div>
+
               </motion.div>
             )}
 
@@ -549,7 +629,7 @@ export default function NoteBubble() {
                 transition={{ delay: 0.15 }}
                 className="text-gray-500 text-sm mt-3 text-center max-w-sm"
               >
-                เปิดปาร์ตี้ได้ 2–20 คน (นับตัวเองด้วย) 
+                Share quick thoughts or start group activities (login required) that disappear in 24 hours.
               </motion.p>
             )}
 
@@ -558,10 +638,19 @@ export default function NoteBubble() {
               <div className="w-full bg-white rounded-xl p-4 mt-4 shadow-inner flex-1 overflow-y-auto">
                 {isParty && maxParty > 0 ? (
                   <div className="h-60 flex flex-col items-center justify-center text-center">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-3xl">Chat 💬</motion.div>
-                    <div className="mt-2 font-semibold text-gray-800"><PartyChat noteId={noteId} userId={userId} /> </div>
-                    <div className="text-sm text-gray-500 mt-1">note #{noteId} • {currParty}/{maxParty} คน</div>
-
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="text-3xl"
+                    >
+                      Chat 💬
+                    </motion.div>
+                    <div className="mt-2 font-semibold text-gray-800">
+                      <PartyChat noteId={noteId} userId={userId} />
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      note #{noteId} • {currParty}/{maxParty}
+                    </div>
                   </div>
                 ) : (
                   <CommentSection key={`note-${noteId}`} noteId={noteId} userId={userId} />
@@ -571,6 +660,46 @@ export default function NoteBubble() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* === Dialogs === */}
+      <ConfirmReplaceDialog
+        open={showReplace}
+        onClose={() => setShowReplace(false)}
+        busy={replacing}
+        onConfirm={async () => {
+          try {
+            setReplacing(true);
+            // “แทนที่” = ลบโน้ตเดิมแล้วเข้าโหมดแต่งโพสต์ใหม่
+            await handleDelete();
+            setIsPosted(false);
+            setText("");
+            setNoteId(null);
+            setIsComposing(true);
+            setIsParty(false);
+            setMaxParty(0);
+            setCurrParty(0);
+            setJoinedMemberOnly(false);
+          } finally {
+            setReplacing(false);
+            setShowReplace(false);
+          }
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        busy={deleting}
+        onConfirm={async () => {
+          try {
+            setDeleting(true);
+            await handleDelete();
+          } finally {
+            setDeleting(false);
+            setShowDelete(false);
+          }
+        }}
+      />
     </motion.div>
   );
 }
