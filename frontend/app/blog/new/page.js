@@ -6,10 +6,7 @@ import { useRouter } from "next/navigation";
 import Avatar from "../../components/Note/Avatar";
 
 // Resolve API base (works with Docker too)
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.API_BASE ||
-  "http://localhost:8000";
+const API_BASE ="http://localhost:8000";
 
 export default function NewBlogPage() {
   const router = useRouter();
@@ -18,7 +15,10 @@ export default function NewBlogPage() {
   const { data: session, status } = useSession();
   const authed = status === "authenticated" && !!session?.user?.id;
   const ready = status !== "loading";
-  const apiToken = authed ? session?.user?.apiToken : null; // 👈 แก้เป็น session.user.apiToken
+
+  // apiToken อยู่บน session (เหมือนหน้า debug / note)
+  const apiToken = authed ? session?.apiToken : null;
+
   const authHeaders = useMemo(
     () => (apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
     [apiToken]
@@ -48,7 +48,7 @@ export default function NewBlogPage() {
     [files]
   );
 
-  // กันเพิ่ม: ถ้าโหลดเสร็จแล้วแต่ยังไม่ authed → เด้งไปหน้า login
+  // ถ้าโหลดเสร็จแล้วแต่ยังไม่ authed → เด้งไปหน้า login
   useEffect(() => {
     if (ready && !authed) {
       router.push("/login?callbackUrl=/blog/new");
@@ -70,21 +70,20 @@ export default function NewBlogPage() {
   const handleCreate = async () => {
     if (!canSubmit) return;
 
-    // ถ้าไม่มี token ให้บังคับ logout/login ใหม่มากกว่าโชว์ alert ซ้ำ ๆ
     if (!apiToken) {
-      alert("Session ของคุณหมดอายุหรือไม่มีสิทธิ์ กรุณา log in ใหม่อีกครั้งก่อนโพสต์บล็อก");
+      alert(
+        "Session ของคุณหมดอายุหรือไม่มีสิทธิ์ กรุณา log in ใหม่อีกครั้งก่อนโพสต์บล็อก"
+      );
       router.push("/login?callbackUrl=/blog/new");
       return;
     }
 
     setLoading(true);
     try {
+      // สามารถส่ง user_id ไปด้วยก็ได้ แต่ backend ตอนนี้ใช้ req.user.id เป็นหลักแล้ว
       const userId = session?.user?.id || session?.user?.user_id;
 
       const fd = new FormData();
-      if (userId) {
-        fd.append("user_id", String(userId)); // เผื่อ backend ยังใช้ field นี้อยู่
-      }
       fd.append("blog_title", title.trim());
       fd.append("message", detail.trim());
       files.forEach((f) => fd.append("attachments", f));
@@ -92,13 +91,14 @@ export default function NewBlogPage() {
       const res = await fetch(`${API_BASE}/api/blog`, {
         method: "POST",
         headers: {
-          ...authHeaders, // 👈 ใช้ header จาก snippet
+          ...authHeaders, // Bearer token
         },
-        body: fd,
+        body: fd, // multer จะจัดการ multipart
       });
 
       if (!res.ok) {
-        console.error("create blog failed:", res.status);
+        const text = await res.text().catch(() => "");
+        console.error("create blog failed:", res.status, text);
         alert("Failed to create blog. Please try again.");
         setLoading(false);
         return;
@@ -106,7 +106,7 @@ export default function NewBlogPage() {
 
       router.push("/blog");
     } catch (e) {
-      console.error(e);
+      console.error("create blog error:", e);
       alert("Failed to create blog. Please try again.");
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export default function NewBlogPage() {
     <div className="min-h-screen bg-white">
       <section className="relative isolate overflow-hidden py-12 bg-gradient-to-b from-[#DDF3FF] to-[#E8FFF2] min-h-screen">
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-6">Blog Q&A</h2>
+          <h2 className="text-2xl font-bold mb-6">Blog Q&amp;A</h2>
 
           <div className="mb-4">
             <button

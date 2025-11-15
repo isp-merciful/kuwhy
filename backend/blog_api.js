@@ -4,11 +4,10 @@ const router = express.Router();
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const { optionalAuth, requireMember,requireAuth } = require("./auth_mw");
+const { optionalAuth, requireMember, requireAuth } = require("./auth_mw");
 const { prisma } = require("./lib/prisma.cjs");
 
 // Ensure uploads folder exists
-// In container this resolves to /app/backend/uploads (because cwd=/app/backend)
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -25,7 +24,7 @@ const upload = multer({ storage });
 // Helper: convert Multer files -> attachment objects for JSON column
 function filesToAttachments(files = []) {
   return files.map((f) => ({
-    url: `/uploads/${f.filename}`,   // will be served by index.js: app.use("/uploads", express.static(uploadDir))
+    url: `/uploads/${f.filename}`,
     name: f.originalname,
     type: f.mimetype,
     size: f.size,
@@ -35,47 +34,58 @@ function filesToAttachments(files = []) {
 /**
  * POST /api/blog
  * Accepts:
- * - multipart/form-data (fields: user_id, blog_title, message; files: attachments[])
+ * - multipart/form-data (fields: blog_title, message; files: attachments[])
  * - OR application/json
+ * user_id จะอ้างอิงจาก req.user.id (requireMember)
  */
-router.post("/",requireMember, upload.array("attachments", 10), async (req, res) => {
-  try {
-    const { user_id, blog_title, message } = req.body || {};
-    if (!user_id || !blog_title || !message) {
-      return res.status(400).json({ error: "Missing fields" });
+router.post(
+  "/",
+  requireMember,
+  upload.array("attachments", 10),
+  async (req, res) => {
+    try {
+      const { blog_title, message } = req.body || {};
+
+      // ✅ ดึง user_id จาก token (string UUID)
+      const userId = req.user && req.user.id;
+
+      if (!userId || typeof userId !== "string") {
+        return res.status(400).json({ error: "Invalid user id" });
+      }
+
+      if (!blog_title || !message) {
+        return res.status(400).json({ error: "Missing fields" });
+      }
+
+      const uploaded = filesToAttachments(req.files || []);
+
+      const created = await prisma.blog.create({
+        data: {
+          user_id: userId,                 // 👈 เก็บเป็น UUID string
+          blog_title,
+          message,
+          attachments: uploaded.length ? uploaded : undefined,
+        },
+      });
+
+      return res.status(201).json({
+        message: "inserted",
+        insertedId: created.blog_id,
+        data: created,
+        uploaded_attachments: uploaded,
+      });
+    } catch (error) {
+      console.error("POST /api/blog failed:", error);
+      return res.status(500).json({ error: "Database insert failed" });
     }
-
-    // If request is multipart and has files, build attachment JSON
-    const uploaded = filesToAttachments(req.files || []);
-
-    const created = await prisma.blog.create({
-      data: {
-        user_id,
-        blog_title,
-        message,
-        // store attachments JSON in DB if we have any
-        attachments: uploaded.length ? uploaded : undefined,
-      },
-    });
-
-    return res.status(201).json({
-      message: "inserted",
-      insertedId: created.blog_id,
-      data: created,
-      uploaded_attachments: uploaded, // optional: useful to debug
-    });
-  } catch (error) {
-    console.error("POST /api/blog failed:", error);
-    return res.status(500).json({ error: "Database insert failed" });
   }
-});
+);
+
 
 /**
  * GET /api/blog
- * Now returns attachments as well.
- * Uses relation name "users" per your Prisma schema.
  */
-router.get("/",optionalAuth, async (_req, res) => {
+router.get("/", optionalAuth, async (_req, res) => {
   try {
     const result = await prisma.blog.findMany({
       orderBy: { blog_id: "desc" },
@@ -88,7 +98,7 @@ router.get("/",optionalAuth, async (_req, res) => {
         user_id: true,
         created_at: true,
         updated_at: true,
-        attachments: true, // <- NEW
+        attachments: true,
         users: { select: { img: true, user_name: true } },
       },
     });
@@ -100,7 +110,7 @@ router.get("/",optionalAuth, async (_req, res) => {
       img: b.users?.img || null,
       user_name: b.users?.user_name || "anonymous",
       created_at: b.created_at,
-      attachments: Array.isArray(b.attachments) ? b.attachments : [], // <- NEW
+      attachments: Array.isArray(b.attachments) ? b.attachments : [],
     }));
 
     res.json(blogs);
@@ -112,9 +122,8 @@ router.get("/",optionalAuth, async (_req, res) => {
 
 /**
  * GET /api/blog/:id
- * Single post, with attachments.
  */
-router.get("/:id",optionalAuth, async (req, res) => {
+router.get("/:id", optionalAuth, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ error: "Bad id" });
@@ -130,7 +139,7 @@ router.get("/:id",optionalAuth, async (req, res) => {
         user_id: true,
         created_at: true,
         updated_at: true,
-        attachments: true, // <- NEW
+        attachments: true,
         users: { select: { img: true, user_name: true } },
       },
     });
@@ -143,7 +152,7 @@ router.get("/:id",optionalAuth, async (req, res) => {
       img: b.users?.img || null,
       user_name: b.users?.user_name || "anonymous",
       created_at: b.created_at,
-      attachments: Array.isArray(b.attachments) ? b.attachments : [], // <- NEW
+      attachments: Array.isArray(b.attachments) ? b.attachments : [],
     });
   } catch (error) {
     console.error("GET /api/blog/:id failed:", error);
@@ -153,9 +162,8 @@ router.get("/:id",optionalAuth, async (req, res) => {
 
 /**
  * PUT /api/blog
- * (Message update only, unchanged)
  */
-router.put("/",requireMember, async (req, res) => {
+router.put("/", requireMember, async (req, res) => {
   try {
     const { message, blog_id } = req.body || {};
     if (!blog_id) return res.status(400).json({ error: "Missing blog_id" });
@@ -175,7 +183,7 @@ router.put("/",requireMember, async (req, res) => {
 /**
  * DELETE /api/blog/:id
  */
-router.delete("/:id",requireMember, async (req, res) => {
+router.delete("/:id", requireMember, async (req, res) => {
   try {
     await prisma.blog.delete({
       where: { blog_id: Number(req.params.id) },
