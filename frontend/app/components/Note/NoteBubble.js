@@ -519,10 +519,10 @@ export default function NoteBubble() {
               showButton={false}
               isCompose={true}
             />
-
+        
             {/* char limiter แบบ IG note – ชิดขวาล่างของบับเบิล */}
             <div className="mt-2 min-h-[1rem] flex items-center justify-end w-full max-w-xs mx-auto pr-2">
-              {showCharWarning && (
+              {showCharWarning && !isPosted && (
                 <span className="text-xs font-semibold text-red-500">
                   {charCount}/{MAX_NOTE_CHARS}
                 </span>
@@ -530,7 +530,6 @@ export default function NoteBubble() {
             </div>
 
             {/* Avatar + FABs */}
-            <div className="relative mt-5">
               <div className="relative inline-block">
                 <Avatar
                   src={serverImg || undefined}
@@ -558,7 +557,19 @@ export default function NoteBubble() {
                   </div>
                 )}
               </div>
-            </div>
+
+
+            {/* ชื่อผู้ใช้ */}
+           
+              <UserNameEditor
+                name={name}
+                setName={setName}
+                isPosted={isPosted}
+                editNameOnExpand={editNameOnExpand}
+                setEditNameOnExpand={setEditNameOnExpand}
+                onEditClick={null}
+              />
+            
 
             {/* ปุ่มโพสต์ + toast login ติดกับปุ่ม */}
             {!isPosted && (
@@ -792,18 +803,6 @@ export default function NoteBubble() {
                 )}
               </div>
             )}
-
-            {/* ชื่อผู้ใช้ */}
-            <div className="mt-2">
-              <UserNameEditor
-                name={name}
-                setName={setName}
-                isPosted={isPosted}
-                editNameOnExpand={editNameOnExpand}
-                setEditNameOnExpand={setEditNameOnExpand}
-                onEditClick={null}
-              />
-            </div>
 
             {/* คำอธิบาย */}
             {!isPosted && (

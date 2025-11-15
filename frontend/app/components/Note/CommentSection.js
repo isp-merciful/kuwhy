@@ -84,6 +84,9 @@ function CommentItem({
   onOpenProfile,
   collapsedMap,
   setCollapsedMap,
+  rateLimitActive,
+  rateLimitRemaining,
+  rateLimitMessage,
 }) {
   const isMine = meId && String(meId) === String(comment.user_id);
   const [showReplyBox, setShowReplyBox] = useState(false);
@@ -322,26 +325,42 @@ function CommentItem({
 
           {/* reply box */}
           {showReplyBox && (
-            <div className="mt-2 flex items-start gap-2">
-              <input
-                type="text"
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Write a reply..."
-                className="flex-1 rounded-full border px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-              />
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!replyText.trim()) return;
-                  await onReplySubmit(replyText, comment.comment_id);
-                  setReplyText("");
-                  setShowReplyBox(false);
-                }}
-                className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-              >
-                Send
-              </button>
+            <div className="mt-2 flex flex-col items-start gap-1">
+              <div className="flex w-full items-start gap-2">
+                <input
+                  type="text"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Write a reply..."
+                  className="flex-1 rounded-full border px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!replyText.trim()) return;
+                    await onReplySubmit(replyText, comment.comment_id);
+                    setReplyText("");
+                    setShowReplyBox(false);
+                  }}
+                  disabled={rateLimitActive || !replyText.trim()}
+                  className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {rateLimitActive
+                    ? rateLimitRemaining > 0
+                      ? `Wait ${rateLimitRemaining}s`
+                      : "Wait..."
+                    : "Send"}
+                </button>
+              </div>
+              {rateLimitActive && (
+                <p className="ml-1 text-[11px] text-amber-600">
+                  {rateLimitMessage ||
+                    "You are commenting too fast. Please wait a moment."}
+                  {rateLimitRemaining > 0
+                    ? ` (${rateLimitRemaining}s)`
+                    : null}
+                </p>
+              )}
             </div>
           )}
 
@@ -359,6 +378,9 @@ function CommentItem({
                   onOpenProfile={onOpenProfile}
                   collapsedMap={collapsedMap}
                   setCollapsedMap={setCollapsedMap}
+                  rateLimitActive={rateLimitActive}
+                  rateLimitRemaining={rateLimitRemaining}
+                  rateLimitMessage={rateLimitMessage}
                 />
               ))}
             </div>
@@ -369,9 +391,9 @@ function CommentItem({
   );
 }
 
-/* ---------------- Toast สำหรับ login / post note ---------------- */
+/* ---------------- Toast สำหรับ login ---------------- */
 
-function LoginToast({ open, onClose, onGoLogin, onGoNote }) {
+function LoginToast({ open, onClose, onGoLogin }) {
   return (
     <AnimatePresence>
       {open && (
@@ -418,10 +440,15 @@ export default function CommentSection({ noteId, userId }) {
   const [submitting, setSubmitting] = useState(false);
   const [showAllRoots, setShowAllRoots] = useState(false);
   const [showLoginToast, setShowLoginToast] = useState(false);
-  const [userExists, setUserExists] = useState(null); // ✅ เช็คว่า userId นี้อยู่ใน DB ไหม
+  const [userExists, setUserExists] = useState(null); // เช็คว่า userId นี้อยู่ใน DB ไหม
+
+  // rate limit state
+  const [rateLimit, setRateLimit] = useState(null); // { message, until }
+  const [now, setNow] = useState(Date.now());
+
   const scrollRef = useRef(null);
 
-  // ✅ เช็ค userId กับ DB ครั้งเดียว (หรือเมื่อ userId เปลี่ยน)
+  // เช็ค userId กับ DB ครั้งเดียว (หรือเมื่อ userId เปลี่ยน)
   useEffect(() => {
     let cancelled = false;
 
@@ -468,20 +495,37 @@ export default function CommentSection({ noteId, userId }) {
     };
   }, [userId]);
 
+  // tick สำหรับ countdown rate limit
+  useEffect(() => {
+    if (!rateLimit) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [rateLimit]);
+
+  const rateLimitRemaining =
+    rateLimit && rateLimit.until
+      ? Math.max(0, Math.ceil((rateLimit.until - now) / 1000))
+      : 0;
+  const rateLimitActive = !!rateLimit && rateLimitRemaining > 0;
+
+  // auto clear rateLimit เมื่อหมดเวลา
+  useEffect(() => {
+    if (!rateLimit) return;
+    if (rateLimit.until && rateLimit.until <= Date.now()) {
+      setRateLimit(null);
+    }
+  }, [rateLimit, now]);
+
   // helper: ต้องมี user ที่ valid ก่อนถึงจะโพสต์ได้
   const requireUser = () => {
-    // ไม่มี userId เลย → ให้ไป login / post note
     if (!userId) {
       setShowLoginToast(true);
       return false;
     }
-    // มี userId แต่เช็คแล้วไม่อยู่ใน DB → ถือว่า stale
     if (userExists === false) {
       setShowLoginToast(true);
       return false;
     }
-    // ระหว่างกำลังเช็ค (null) จะไม่เด้ง toast เพื่อไม่กวน
-    // แต่ก็ยังไม่ block เพิ่มเป็น true ได้ถ้าอยากให้ strict กว่านี้
     return true;
   };
 
@@ -537,7 +581,32 @@ export default function CommentSection({ noteId, userId }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) return;
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {}
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfter = data?.retry_after || 0;
+          const msg =
+            data?.error ||
+            (data?.error_code === "COMMENT_BURST_LIMIT"
+              ? "You have posted too many comments in a short time. Please wait before posting again."
+              : "You are commenting too fast. Please wait a moment before posting again.");
+          const until =
+            retryAfter > 0
+              ? Date.now() + retryAfter * 1000
+              : Date.now() + 5000;
+          setRateLimit({ message: msg, until });
+        }
+        return;
+      }
+
+      // ok → clear rate limit error (ถ้ามี)
+      setRateLimit(null);
+
       await refresh();
       if (scrollRef.current) {
         requestAnimationFrame(() => {
@@ -568,9 +637,31 @@ export default function CommentSection({ noteId, userId }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        await refresh();
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {}
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfter = data?.retry_after || 0;
+          const msg =
+            data?.error ||
+            (data?.error_code === "COMMENT_BURST_LIMIT"
+              ? "You have posted too many comments in a short time. Please wait before posting again."
+              : "You are commenting too fast. Please wait a moment before posting again.");
+          const until =
+            retryAfter > 0
+              ? Date.now() + retryAfter * 1000
+              : Date.now() + 5000;
+          setRateLimit({ message: msg, until });
+        }
+        return;
       }
+
+      setRateLimit(null);
+      await refresh();
     } catch (e) {
       console.error("reply failed", e);
     }
@@ -623,11 +714,11 @@ export default function CommentSection({ noteId, userId }) {
       ? rootComments
       : rootComments.slice(rootCount - VISIBLE_ROOT_LIMIT);
 
-  // ✅ ถ้า user ไม่ valid แล้ว → ห้าม edit/delete โดยถือว่า meId = null
+  // ถ้า user ไม่ valid → ห้าม edit/delete โดยถือว่า meId = null
   const meId = userExists ? userId : null;
 
   return (
-    <div className="flex flex-col max-h-[70vh] min-h-[260px] relative">
+    <div className="flex flex-col max-h-[60vh] min-h-[260px] relative">
       {/* scroll area */}
       <div
         ref={scrollRef}
@@ -667,6 +758,9 @@ export default function CommentSection({ noteId, userId }) {
                 onOpenProfile={openProfileByHandle}
                 collapsedMap={collapsedMap}
                 setCollapsedMap={setCollapsedMap}
+                rateLimitActive={rateLimitActive}
+                rateLimitRemaining={rateLimitRemaining}
+                rateLimitMessage={rateLimit?.message || ""}
               />
             ))}
           </>
@@ -683,7 +777,7 @@ export default function CommentSection({ noteId, userId }) {
             placeholder="Write a comment..."
             className="flex-1 rounded-full border px-4 py-2 focus:ring-1 focus:ring-blue-500 outline-none"
             onFocus={() => {
-              // ✅ ถ้ายังไม่มี user หรือ userId นี้หายจาก DB แล้ว → เตือนเลย
+              // ถ้ายังไม่มี user หรือ userId นี้หายจาก DB แล้ว → เตือนเลย
               if (!userId || userExists === false) {
                 setShowLoginToast(true);
               }
@@ -697,12 +791,23 @@ export default function CommentSection({ noteId, userId }) {
               await handleCreate(text);
               setNewComment("");
             }}
-            disabled={submitting || !newComment.trim()}
+            disabled={submitting || !newComment.trim() || rateLimitActive}
             className="px-4 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {submitting ? "Sending..." : "Send"}
+            {submitting
+              ? "Sending..."
+              : rateLimitActive && rateLimitRemaining > 0
+              ? `Wait ${rateLimitRemaining}s`
+              : "Send"}
           </button>
         </div>
+        {rateLimitActive && (
+          <p className="mt-1 text-xs text-amber-600">
+            {rateLimit?.message ||
+              "You are commenting too fast. Please wait a moment before posting again."}
+            {rateLimitRemaining > 0 ? ` (${rateLimitRemaining}s)` : null}
+          </p>
+        )}
       </div>
 
       <LoginToast

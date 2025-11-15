@@ -66,7 +66,7 @@ export default function Popup({
   const partyTitle = `${name || "anonymous"}'s Party`;
   const noteTitle = `${name || "anonymous"}'s note`;
 
-  // ปรับให้รองรับ options (เช่น showLogin, timeout)
+  // ----- toast helper -----
   const showToast = (text, type = "error", extra) => {
     let timeout = 2800;
     let extraState = {};
@@ -144,10 +144,10 @@ export default function Popup({
           setCurrentPartyId(null);
         }
       } catch {
-        // เงียบไว้ตามเดิม
+        // keep silent
       }
     })();
-  }, [showPopup, viewerUserId, authHeaders, noteId, joined]); // ✅ เพิ่ม joined ให้ re-fetch หลัง join
+  }, [showPopup, viewerUserId, authHeaders, noteId, joined]);
 
   // reset เมื่อเปิดใหม่ กันค่า avatar/members จากโน้ตก่อนหน้าค้างมา
   useEffect(() => {
@@ -201,8 +201,7 @@ export default function Popup({
               m.data?.host?.user_id &&
               String(m.data.host.user_id) === viewerId;
             const inMembers =
-              viewerId &&
-              norm.some((mm) => String(mm.user_id) === viewerId);
+              viewerId && norm.some((mm) => String(mm.user_id) === viewerId);
             if (hostJoined || inMembers) setJoined(true);
           } else {
             setMembers([]);
@@ -244,7 +243,6 @@ export default function Popup({
     const autoJoin = search.get("autoJoin") === "1";
     if (!autoJoin || !isParty || joined || !noteId) return;
 
-    // ถ้ายังไม่ล็อกอิน แสดง toast + ปุ่ม Login
     if (!authed) {
       showToast("Please sign in to join this party.", "info", {
         showLogin: true,
@@ -268,7 +266,6 @@ export default function Popup({
           if (typeof data?.data?.max_party === "number")
             setMax(Number(data.data.max_party));
 
-          // ✅ refresh หน้าเหมือน F5 เบา ๆ
           try {
             router.refresh();
           } catch (e) {
@@ -323,7 +320,6 @@ export default function Popup({
       return;
     }
     if (!authed) {
-      // เคสยังไม่ล็อกอิน: แสดง toast + ปุ่ม Login
       showToast("Please sign in to join this party.", "info", {
         showLogin: true,
         timeout: 0,
@@ -368,14 +364,12 @@ export default function Popup({
         setMax(Number(data.data.max_party));
       showToast("Joined party 🎉", "success");
 
-      // ✅ refresh หน้า parent (active note, header ฯลฯ) ให้ดึงข้อมูลใหม่
       try {
         router.refresh();
       } catch (e) {
         console.warn("router.refresh failed (manual join):", e);
       }
 
-      // refresh members ใน popup เองอีกครั้ง
       try {
         const m = await fetchJson(
           `http://localhost:8000/api/note/${noteId}/members`,
@@ -428,7 +422,15 @@ export default function Popup({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 6 }}
           transition={{ type: "spring", stiffness: 280, damping: 26 }}
-          className="relative w-[min(92vw,560px)] rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
+          className="
+            relative
+            w-[min(92vw,560px)]
+            max-h-[calc(100vh-4rem)]
+            rounded-2xl bg-white
+            shadow-2xl ring-1 ring-black/5
+            flex flex-col
+            overflow-y-auto
+          "
         >
           {/* close */}
           <button
@@ -440,19 +442,34 @@ export default function Popup({
           </button>
 
           {/* ===== TOP BUBBLE ===== */}
-          <div className="px-6 pt-6 pb-0">
+          <div className="px-6 pt-6 pb-0 shrink-0">
             <div className="flex justify-center">
               {isParty ? (
                 <div className="relative text-center">
-                  <div className="inline-block rounded-[18px] bg-neutral-900 text-white px-5 py-3 shadow-md">
+                  <div
+                    className="
+                      inline-block w-full max-w-[260px]
+                      rounded-3xl bg-neutral-900 text-white
+                      px-5 py-3 shadow-md
+                    "
+                    style={{ textWrap: "pretty" }}
+                  >
                     <div className="flex items-center justify-center gap-2 text-[13px] font-semibold text-fuchsia-300">
                       <SparklesIcon className="h-4 w-4" />
                       <span>{crazyLabel}</span>
                     </div>
-                    <div className="mt-1 text-[17px] md:text-[18px] font-semibold leading-snug break-words text-white/95">
+                    <p
+                      className="
+                        mt-1 text-sm md:text-[15px] font-semibold leading-snug
+                        text-left whitespace-pre-wrap break-words
+                      "
+                      style={{ textWrap: "pretty" }}
+                    >
                       {text || "—"}
-                    </div>
+                    </p>
                   </div>
+
+                  {/* bubble tail (unchanged) */}
                   <span
                     aria-hidden
                     className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full bg-neutral-900"
@@ -465,11 +482,26 @@ export default function Popup({
                 </div>
               ) : (
                 <div className="relative text-center">
-                  <div className="inline-block rounded-[18px] bg-green-100 text-gray-800 px-5 py-2.5 shadow-sm">
-                    <div className="text-[16px] md:text-[17px] font-semibold leading-snug break-words">
+                  <div
+                    className="
+                      inline-block w-full max-w-[260px]
+                      rounded-3xl bg-green-100 text-gray-800
+                      px-5 py-3 shadow-sm
+                    "
+                    style={{ textWrap: "pretty" }}
+                  >
+                    <p
+                      className="
+                        text-sm md:text-[15px] font-semibold leading-snug
+                        text-left whitespace-pre-wrap break-words
+                      "
+                      style={{ textWrap: "pretty" }}
+                    >
                       {text || "—"}
-                    </div>
+                    </p>
                   </div>
+
+                  {/* tail bubble */}
                   <span
                     aria-hidden
                     className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full bg-green-100"
@@ -485,7 +517,7 @@ export default function Popup({
           </div>
 
           {/* ===== AVATAR ===== */}
-          <div className="px-6 pt-5 pb-1 text-center">
+          <div className="px-6 pt-5 pb-1 text-center shrink-0">
             <div className="flex items-center justify-center">
               <div className="flex items-center -space-x-3">
                 <div className="relative h-16 w-16 rounded-full ring-4 ring-white overflow-hidden shadow-lg">
@@ -524,7 +556,7 @@ export default function Popup({
           </div>
 
           {/* ===== CONTENT ===== */}
-          <div className="px-6 pb-6">
+          <div className="px-6 pb-6 pt-2 flex-1 min-h-0">
             {isParty ? (
               <>
                 <div className="mt-2 mb-4 flex items-center justify-center gap-2 text-gray-700">
@@ -552,7 +584,8 @@ export default function Popup({
                 ) : alreadyInAnotherParty &&
                   Number(currentPartyId) !== Number(noteId) ? (
                   <InfoCard tone="warn">
-                    You are already in another party. It first to join this one.
+                    You are already in another party. Leave it first to join
+                    this one.
                   </InfoCard>
                 ) : isFull ? (
                   <InfoCard tone="warn">
@@ -586,6 +619,7 @@ export default function Popup({
               </>
             ) : (
               <div className="mt-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-inner">
+                {/* CommentSection จะจัด scroll เองด้านใน */}
                 <CommentSection noteId={noteId} userId={viewerUserId} />
               </div>
             )}

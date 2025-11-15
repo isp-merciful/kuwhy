@@ -177,7 +177,7 @@ router.post("/", optionalAuth, async (req, res) => {
     if (max_party > 0 && actor.mode === "anon") {
       return res.status(401).json({ error: "Party note requires login" });
     }
-
+    
     // ✅ สร้าง/คงอยู่ของผู้ใช้เสมอ
     await ensureUserExists(actor.id, actor.mode === "anon");
 
