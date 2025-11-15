@@ -572,56 +572,64 @@ export default function NoteBubble() {
             
 
             {/* ปุ่มโพสต์ + toast login ติดกับปุ่ม */}
-            {!isPosted && (
-              <div className="mt-4 relative flex flex-col items-center">
-                <button
-                  onClick={handlePost}
-                  disabled = {!buttonEnabled || loading}
-                  className={`px-6 py-2 rounded-full text-white transition ${
-                    buttonEnabled
-                      ? "bg-[#2FA2FF] hover:bg-[#1d8de6]"
-                      : "bg-gray-300 cursor-not-allowed"
-                  }`}
-                >
-                  Post
-                </button>
+{!isPosted && (
+  <div className="mt-4 relative flex flex-col items-center">
+    <button
+      onClick={handlePost}
+      disabled={!buttonEnabled || loading}
+      className={`px-6 py-2 rounded-full text-white transition ${
+        buttonEnabled
+          ? "bg-[#2FA2FF] hover:bg-[#1d8de6]"
+          : "bg-gray-300 cursor-not-allowed"
+      }`}
+    >
+      Post
+    </button>
 
-                <AnimatePresence>
-                  {showLoginToast && (
-                    <motion.div
-                      key="login-toast"
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute top-full mt-2 z-20"
-                    >
-                      <div className="flex items-center gap-3 bg-sky-500 text-white text-xs sm:text-sm px-3 py-2 rounded-2xl shadow-lg">
-                        <span className="font-semibold whitespace-nowrap">
-                          Please sign in to create a party.
-                        </span>
+    <AnimatePresence>
+      {showLoginToast && (
+        <motion.div
+          key="login-toast"
+          initial={{ opacity: 0, y: 4, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 4, scale: 0.98 }}
+          transition={{ duration: 0.18 }}
+          // 🔹 ย้ายไปอยู่ "เหนือ" ปุ่ม Post เพื่อลดการบัง UI ข้างล่าง
+          className="absolute bottom-full mb-2 z-20"
+        >
+          <div
+            className="flex items-center gap-2
+                       bg-white/95 text-sky-800
+                       text-[11px] sm:text-xs
+                       px-3 py-1.5
+                       rounded-full shadow-md
+                       border border-sky-100"
+          >
+            <span className="font-medium whitespace-nowrap">
+              Please sign in to create a party.
+            </span>
 
-                        <a
-                          href="/login"
-                          onClick={() => setShowLoginToast(false)}
-                          className="text-xs sm:text-sm font-semibold underline"
-                        >
-                          Login
-                        </a>
+            <a
+              href="/login"
+              onClick={() => setShowLoginToast(false)}
+              className="text-[11px] sm:text-xs font-semibold underline underline-offset-2"
+            >
+              Login
+            </a>
 
-                        <button
-                          type="button"
-                          onClick={() => setShowLoginToast(false)}
-                          className="text-xs sm:text-sm opacity-80 hover:opacity-100"
-                        >
-                          Close
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowLoginToast(false)}
+              className="text-[11px] sm:text-xs opacity-70 hover:opacity-100"
+            >
+              Close
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+)}
 
             {/* แผงปาร์ตี้เล็ก */}
             {!isPosted && (
