@@ -1,14 +1,14 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 /* ---------------------- API base ---------------------- */
 
-const API_BASE = "http://localhost:8000"; // 👈 ตามที่ขอ
+const API_BASE = "http://localhost:8000";
 
 /* ---------------------- helpers ---------------------- */
 
@@ -17,7 +17,6 @@ function toAbs(url) {
   return url.startsWith("http") ? url : `${API_BASE}${url}`;
 }
 
-// Hydration-safe date formatting
 function formatDate(iso) {
   if (!iso) return "";
   try {
@@ -65,7 +64,6 @@ async function fetchJSON(url) {
   }
 }
 
-// ปรับให้รองรับหลายรูปแบบ response: {data}, {blog}, {post}, array, ฯลฯ
 function normalizeOne(json) {
   if (!json) return null;
 
@@ -77,7 +75,6 @@ function normalizeOne(json) {
   return json;
 }
 
-// รองรับทั้ง array ตรง ๆ และ {data: [...]}, {blogs: [...]}, {posts: [...]}
 function normalizeMany(json) {
   if (!json) return [];
   if (Array.isArray(json)) return json;
@@ -91,7 +88,7 @@ function normalizeMany(json) {
 async function fetchPost(id) {
   const candidates = [
     `${API_BASE}/api/blog/${encodeURIComponent(id)}`,
-    `${API_BASE}/api/blog?id=${encodeURIComponent(id)}`, // เผื่อมีเส้น query เก่า
+    `${API_BASE}/api/blog?id=${encodeURIComponent(id)}`,
   ];
 
   for (const u of candidates) {
@@ -105,18 +102,76 @@ async function fetchAllPosts() {
   return normalizeMany(await fetchJSON(`${API_BASE}/api/blog`));
 }
 
-/* ---------------------- page component ---------------------- */
+/* ---------------------- page component (client) ---------------------- */
 
-// 👇 ตรงนี้คือจุดสำคัญ: ห้ามใช้ params.id ตรง ๆ ต้อง await ก่อน
-export default async function BlogPostPage(props) {
-  // props เองเป็น object ปกติ แต่ props.params เป็น Promise ใน Next 15
-  const { params } = props;
-  const { id } = await params; // ✅ ได้ id หลัง await แล้ว
+export default function BlogPostPage({ params }) {
+  const id = params?.id;
 
-  const [post, allPosts] = await Promise.all([
-    fetchPost(id),
-    fetchAllPosts(),
-  ]);
+  const [post, setPost] = useState(null);
+  const [allPosts, setAllPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!id) return;
+
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [p, list] = await Promise.all([fetchPost(id), fetchAllPosts()]);
+        if (cancelled) return;
+        setPost(p);
+        setAllPosts(list);
+      } catch (e) {
+        if (cancelled) return;
+        console.error("load blog error:", e);
+        setError("Failed to load post");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-5xl py-10">
+        <div className="mb-4">
+          <Link href="/blog" className="text-sm text-gray-600 hover:underline">
+            ← Back to Community Blog
+          </Link>
+        </div>
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 w-1/3 bg-gray-200 rounded" />
+          <div className="h-4 w-1/4 bg-gray-200 rounded" />
+          <div className="h-40 w-full bg-gray-100 rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-2xl py-10">
+        <h1 className="text-xl font-semibold">Something went wrong</h1>
+        <p className="mt-2 text-gray-600">{error}</p>
+        <Link
+          href="/blog"
+          className="mt-4 inline-block text-sm text-blue-600 underline"
+        >
+          ← Back to Community Blog
+        </Link>
+      </div>
+    );
+  }
 
   if (!post) {
     return (
@@ -139,7 +194,6 @@ export default async function BlogPostPage(props) {
     .filter((p) => String(p.blog_id) !== String(id))
     .slice(0, 8);
 
-  // Ensure attachments array is normalized (handles string / null safely)
   let rawAtts = post.attachments;
   if (typeof rawAtts === "string") {
     try {
@@ -165,7 +219,7 @@ export default async function BlogPostPage(props) {
             <h1 className="text-2xl font-bold">{post.blog_title}</h1>
             <div className="mt-2 text-sm text-gray-500">
               by {post.user_name ?? "anonymous"} ·{" "}
-              <time dateTime={post.created_at} suppressHydrationWarning>
+              <time dateTime={post.created_at}>
                 {post.created_at ? formatDate(post.created_at) : ""}
               </time>
             </div>
