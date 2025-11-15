@@ -4,62 +4,99 @@ export default function NoteCard({ note, onClick }) {
   const isParty = (note?.max_party || 0) > 0;
   const curr = Number(note?.crr_party || 0);
   const max = Number(note?.max_party || 0);
+  const isFull = isParty && max > 0 && curr >= max;
+
+  // 👇 ถ้า FULL ใช้โทนแดง, ถ้ายังไม่เต็มใช้โทนเขียว (#52B788)
+  const partyPillColor = isFull
+    ? "bg-rose-50 text-rose-700 border-rose-100"
+    : "bg-[#E7F6EF] text-[#2F7757] border-[#52B788]/40";
+
+  // สีหาง/ขอบตาม type note (party vs normal)
+  const tailBgClass = isParty ? "bg-amber-50" : "bg-white";
+  const tailBorderClass = isParty ? "border-amber-100" : "border-slate-100";
 
   return (
     <div
       onClick={onClick}
-      className="snap-start w-[220px] shrink-0 cursor-pointer select-none"
+      className="snap-start w-[230px] shrink-0 cursor-pointer select-none transition-transform duration-150 hover:-translate-y-1"
     >
-      {/* Bubble: แคบลงและเตี้ยลง */}
-      <div className="relative bg-white rounded-3xl p-4 shadow-lg w-full h-[110px] flex flex-col justify-between transition-all duration-200 hover:shadow-xl">
-        {/* ข้อความ: จำกัด 2 บรรทัด */}
-        <p className="text-gray-800 font-semibold text-sm break-words line-clamp-2 h-[40px]">
+      {/* Bubble ด้านบน */}
+      <div
+        className={`relative rounded-3xl p-4 h-[120px] flex flex-col justify-between shadow-sm hover:shadow-md border ${
+          isParty
+            ? "bg-gradient-to-br from-yellow-50 to-amber-50 border-amber-100"
+            : "bg-white border-slate-100"
+        }`}
+      >
+        {/* ข้อความ */}
+        <p className="text-gray-900 font-semibold text-sm break-words line-clamp-2">
           {note.message}
         </p>
 
-        {/* Party pill */}
-        <div className={`mt-2 ${isParty ? "" : "invisible"}`}>
-          <span className="inline-flex items-center gap-2 text-[11px] bg-white/90 border border-gray-200 rounded-full px-2.5 py-1 shadow-sm">
-            <span>🎉 Party</span>
-            <span className="font-semibold">{curr}</span>
-            <span className="text-gray-500">/</span>
-            <span className="font-semibold">{max}</span>
+        {/* Party / Normal pill */}
+        <div className="mt-2 flex items-center justify-between">
+          {isParty ? (
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border ${partyPillColor}`}
+            >
+              <span className="text-xs">🎉</span>
+              <span>Party</span>
+              {max > 0 && (
+                <>
+                  <span className="mx-1 text-xs text-gray-400">•</span>
+                  <span>
+                    {curr}/{max}
+                  </span>
+                </>
+              )}
+              {isFull && (
+                <span className="ml-1 text-[10px] uppercase tracking-wide text-rose-500">
+                  FULL
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border border-slate-100 bg-slate-50 text-slate-500">
+              <span>📝</span>
+              <span>Normal note</span>
+            </span>
+          )}
+
+          <span className="text-[11px] font-medium text-sky-500">
+            View
           </span>
         </div>
 
-        {/* หางคำพูด */}
+        {/* หางบับเบิ้ลแบบจุดกลมสองชั้น */}
         <span
-          className="absolute -bottom-2 left-4 w-5 h-5 bg-white shadow-sm"
-          style={{
-            clipPath: "polygon(0% 0%, 100% 50%, 0% 100%)",
-            transform: "rotate(190deg)",
-          }}
+          aria-hidden
+          className={`pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-7 w-3 h-3 rounded-full shadow-sm ${tailBgClass} ${tailBorderClass}`}
+        />
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-x-5 w-2 h-2 rounded-full ${tailBgClass} ${tailBorderClass}`}
+          style={{ bottom: "-1.125rem" }}
         />
       </div>
 
-      {/* รูป: ใหญ่ขึ้น */}
-      <div className="h-[128px] my-3 flex items-center justify-center">
+      {/* Avatar + ชื่อด้านล่าง */}
+      <div className="my-3 flex flex-col items-center justify-center gap-2 min-h-[110px]">
         {note.img ? (
           <img
             src={note.img}
-            alt={String(note.note_id)}
-            className="w-28 h-28 object-cover rounded-xl"
+            alt={String(note.user_name || note.note_id)}
+            className="w-24 h-24 object-cover rounded-full border-4 border-sky-100 shadow-sm"
           />
         ) : (
-          <div className="w-28 h-28 rounded-xl bg-gray-100 flex items-center justify-center">
-            {/* ไอคอน fallback ตามเดิมได้ */}
-            <svg viewBox="0 0 24 24" className="w-12 h-12 text-gray-400">
-              <circle cx="12" cy="8" r="4" fill="currentColor" />
-              <path d="M4 20a8 8 0 0116 0" fill="currentColor" />
-            </svg>
+          <div className="w-24 h-24 rounded-full bg-sky-50 flex items-center justify-center border-4 border-sky-100 shadow-sm">
+            <span className="text-3xl">🙂</span>
           </div>
         )}
-      </div>
 
-      {/* ชื่อผู้ใช้: 1 บรรทัด + … */}
-      <span className="block text-center text-gray-900 text-sm font-semibold mt-1 truncate">
-        {note.user_name}
-      </span>
+        <span className="block text-center text-gray-900 text-sm font-semibold truncate w-full">
+          {note.user_name}
+        </span>
+      </div>
     </div>
   );
 }

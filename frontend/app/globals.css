@@ -35,3 +35,14 @@
   scrollbar-width: none; /* Firefox */
 }
 
+
+
+html {
+  font-size: 17.5px;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 17.5px; 
+  }
+}

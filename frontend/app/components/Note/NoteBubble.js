@@ -1,5 +1,6 @@
 // frontend/app/components/NoteBubble.js
 "use client";
+
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,6 +13,9 @@ import PartyChat from "./PartyChat";
 import useUserId from "./useUserId";
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
 import ConfirmReplaceDialog from "./ConfirmReplaceDialog";
+
+const MAX_NOTE_CHARS = 60;
+const WARNING_THRESHOLD = 55;
 
 export default function NoteBubble() {
   // --- session / token ---
@@ -57,6 +61,23 @@ export default function NoteBubble() {
   const [currParty, setCurrParty] = useState(0);
   const [joinedMemberOnly, setJoinedMemberOnly] = useState(false);
 
+  // toast สำหรับ login
+  const [showLoginToast, setShowLoginToast] = useState(false);
+
+  const toggleParty = () => {
+    setIsParty((prev) => {
+      const next = !prev;
+
+      setMaxParty((old) => {
+        if (!next) return 0; // ปิดปาร์ตี้ → 0
+        const base = Number(old) || 2;
+        return Math.max(2, Math.min(20, base));
+      });
+
+      return next;
+    });
+  };
+
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -64,7 +85,24 @@ export default function NoteBubble() {
       mountedRef.current = false;
     };
   }, []);
+
   const buttonEnabled = text.trim().length > 0;
+
+  // helper สำหรับ limit ตัวอักษร
+  const handleChangeText = (value) => {
+    if (typeof value !== "string") return;
+    setText(value.slice(0, MAX_NOTE_CHARS));
+  };
+
+  const charCount = text.length;
+  const showCharWarning = isComposing && charCount >= WARNING_THRESHOLD;
+
+  // toast auto-hide หลังแสดงสักพัก
+  useEffect(() => {
+    if (!showLoginToast) return;
+    const t = setTimeout(() => setShowLoginToast(false), 4000);
+    return () => clearTimeout(t);
+  }, [showLoginToast]);
 
   // --------------------------
   // helpers
@@ -191,7 +229,7 @@ export default function NoteBubble() {
 
         if (data?.note_id) {
           setNoteId(data.note_id);
-          setText(data?.message ?? "");
+          setText((data?.message ?? "").slice(0, MAX_NOTE_CHARS));
           setIsPosted(true);
 
           const mp = Number(data?.max_party) || 0;
@@ -249,7 +287,11 @@ export default function NoteBubble() {
     if (!ready) return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
     if (!userId) return alert("ไม่พบผู้ใช้ กรุณารีเฟรชหน้า");
     if (!text.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง!");
-    if (isParty && !authed) return alert("You need to log in first before creating a party.");
+
+    if (isParty && !authed) {
+      setShowLoginToast(true);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -301,11 +343,12 @@ export default function NoteBubble() {
   const handleDelete = async () => {
     if (!noteId) return;
     if (joinedMemberOnly)
-      return alert("You have joined this party and cannot delete other people's notes.");
+      return alert(
+        "You have joined this party and cannot delete other people's notes."
+      );
     try {
       const res = await fetch(`http://localhost:8000/api/note/${noteId}`, {
         method: "DELETE",
-        
       });
       if (res.ok) {
         setText("");
@@ -349,7 +392,7 @@ export default function NoteBubble() {
   };
 
   // --------------------------
-  // UI helpers
+  // UI helpers (ยังไม่ใช้ แต่ไว้เผื่อ)
   // --------------------------
   const PartySwitch = useMemo(
     () => (
@@ -407,7 +450,7 @@ export default function NoteBubble() {
           >
             <MessageInput
               text={text}
-              setText={setText}
+              setText={handleChangeText}
               isPosted={isPosted}
               isCompose={false}
               variant="collapsed"
@@ -445,19 +488,30 @@ export default function NoteBubble() {
             transition={{ duration: 0.4 }}
             className="w-full max-w-md flex flex-col items-center relative p-4 pt-12"
           >
-            {/* Back button */}
+            {/* Back button – pill กลาง ๆ สวยขึ้น */}
             <button
-              onClick={() => setIsComposing(false)}
-              className="absolute top-2 left-2 flex items-center space-x-1 text-gray-700 hover:text-gray-900"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsComposing(false);
+              }}
+              className="
+                absolute top-3 left-3 z-30
+                inline-flex h-9 items-center justify-center gap-2
+                px-4 rounded-full
+                bg-white/90 border border-gray-200 shadow-sm
+                text-gray-700 hover:bg-white hover:text-gray-900
+                active:scale-95 pointer-events-auto
+              "
             >
-              <span className="text-xl">←</span>
-              <span>Back</span>
+              <span className="text-base leading-none">←</span>
+              <span className="text-sm font-medium">Back</span>
             </button>
 
             {/* Input */}
             <MessageInput
               text={text}
-              setText={setText}
+              setText={handleChangeText}
               isPosted={isPosted}
               handlePost={handlePost}
               loading={loading}
@@ -465,9 +519,17 @@ export default function NoteBubble() {
               showButton={false}
               isCompose={true}
             />
+        
+            {/* char limiter แบบ IG note – ชิดขวาล่างของบับเบิล */}
+            <div className="mt-2 min-h-[1rem] flex items-center justify-end w-full max-w-xs mx-auto pr-2">
+              {showCharWarning && !isPosted && (
+                <span className="text-xs font-semibold text-red-500">
+                  {charCount}/{MAX_NOTE_CHARS}
+                </span>
+              )}
+            </div>
 
             {/* Avatar + FABs */}
-            <div className="relative mt-5">
               <div className="relative inline-block">
                 <Avatar
                   src={serverImg || undefined}
@@ -495,22 +557,79 @@ export default function NoteBubble() {
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* ปุ่มโพสต์ */}
-            {!isPosted && (
-              <button
-                onClick={handlePost}
-                disabled={!buttonEnabled || loading}
-                className={`px-6 py-2 rounded-full text-white mt-4 transition ${
-                  buttonEnabled
-                    ? "bg-[#2FA2FF] hover:bg-[#1d8de6]"
-                    : "bg-gray-300 cursor-not-allowed"
-                }`}
-              >
-                Post
-              </button>
-            )}
+
+            {/* ชื่อผู้ใช้ */}
+           
+              <UserNameEditor
+                name={name}
+                setName={setName}
+                isPosted={isPosted}
+                editNameOnExpand={editNameOnExpand}
+                setEditNameOnExpand={setEditNameOnExpand}
+                onEditClick={null}
+              />
+            
+
+            {/* ปุ่มโพสต์ + toast login ติดกับปุ่ม */}
+{!isPosted && (
+  <div className="mt-4 relative flex flex-col items-center">
+    <button
+      onClick={handlePost}
+      disabled={!buttonEnabled || loading}
+      className={`px-6 py-2 rounded-full text-white transition ${
+        buttonEnabled
+          ? "bg-[#2FA2FF] hover:bg-[#1d8de6]"
+          : "bg-gray-300 cursor-not-allowed"
+      }`}
+    >
+      Post
+    </button>
+
+    <AnimatePresence>
+      {showLoginToast && (
+        <motion.div
+          key="login-toast"
+          initial={{ opacity: 0, y: 4, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 4, scale: 0.98 }}
+          transition={{ duration: 0.18 }}
+          // 🔹 ย้ายไปอยู่ "เหนือ" ปุ่ม Post เพื่อลดการบัง UI ข้างล่าง
+          className="absolute bottom-full mb-2 z-20"
+        >
+          <div
+            className="flex items-center gap-2
+                       bg-white/95 text-sky-800
+                       text-[11px] sm:text-xs
+                       px-3 py-1.5
+                       rounded-full shadow-md
+                       border border-sky-100"
+          >
+            <span className="font-medium whitespace-nowrap">
+              Please sign in to create a party.
+            </span>
+
+            <a
+              href="/login"
+              onClick={() => setShowLoginToast(false)}
+              className="text-[11px] sm:text-xs font-semibold underline underline-offset-2"
+            >
+              Login
+            </a>
+
+            <button
+              type="button"
+              onClick={() => setShowLoginToast(false)}
+              className="text-[11px] sm:text-xs opacity-70 hover:opacity-100"
+            >
+              Close
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+)}
 
             {/* แผงปาร์ตี้เล็ก */}
             {!isPosted && (
@@ -522,70 +641,154 @@ export default function NoteBubble() {
                 transition={{ duration: 0.2 }}
                 className="mt-3"
               >
-<div className="inline-flex items-center gap-2 text-sm bg-white/70 backdrop-blur rounded-full px-3 py-1 border border-gray-200 shadow-sm">
-  <span className="select-none">🎉 Party</span>
-  {PartySwitch}
-  <span className={`text-gray-500 ${!isParty ? "opacity-50" : ""}`}>max</span>
+                {/* CREATE PARTY + Party size */}
+              <div className="flex items-center justify-between gap-4 bg-white/90 border border-sky-100 rounded-2xl px-4 py-2 shadow-sm">
+                {/* SLIDER BUTTON */}
+                <button
+                  type="button"
+                  aria-pressed={isParty}
+                  onClick={toggleParty}
+                  className={`
+                    relative flex items-center justify-center
+                    w-[190px] h-10 rounded-full overflow-hidden
+                    transition-all duration-300 ease-out
+                    ${
+                      isParty
+                        ? "bg-gradient-to-r from-emerald-400 to-green-500 shadow-md"
+                        : "bg-gradient-to-r from-sky-400 to-blue-500 shadow-md"
+                    }
+                    active:scale-[0.97]
+                  `}
+                >
+                  {/* label – Create party / Woo! */}
+                  <span
+                    className={`
+                      relative z-10 select-none text-white
+                      text-sm sm:text-base font-medium
+                      transition-transform duration-300
+                      inline-flex items-center
+                      pl-7  /* <<< ดันข้อความออกจากวงกลมทางซ้าย */
+                      ${isParty ? "-translate-x-3" : "translate-x-0"}
+                    `}
+                  >
+                    {isParty ? "Woo!" : "Create party"}
+                  </span>
 
-  <div className="flex items-center gap-1">
-    <input
-      type="number"
-      min={2}
-      max={20}
-      step={1}
-      value={isParty ? Number(maxParty) || 2 : 0}
-      onChange={(e) => {
-        if (!isParty) return;
-        let v = Math.floor(Math.abs(Number(e.target.value) || 0));
-        if (v < 2) v = 2;
-        if (v > 20) v = 20;
-        setMaxParty(v);
-      }}
-      className="w-14 text-center bg-transparent outline-none border rounded-md py-1"
-      disabled={!isParty}
-      aria-label="จำนวนสมาชิกสูงสุด"
-    />
+                  {/* knob กลม + สัญลักษณ์อยู่กลาง */}
+                  <span
+                    className={`
+                      absolute inset-y-1 left-1 flex items-center
+                      transition-transform duration-300 ease-out
+                      ${isParty ? "translate-x-[148px]" : "translate-x-0"}
+                    `}
+                  >
+                    <span
+                      className={`
+                        h-8 w-8 rounded-full bg-white flex items-center justify-center
+                        shadow-sm ring-[3px]
+                        ${isParty ? "ring-emerald-500" : "ring-sky-400"}
+                      `}
+                    >
+                      <span
+                        className={`
+                          text-lg font-semibold leading-none
+                          ${isParty ? "text-emerald-600" : "text-sky-500"}
+                        `}
+                      >
+                        {isParty ? "✓" : ">"}
+                      </span>
+                    </span>
+                  </span>
+                </button>
 
-    {/* ปุ่ม + ชิดเลข */}
-    <button
-      type="button"
-      onClick={() => {
-        if (!isParty) return;
-        setMaxParty((prev) => {
-          const n = Math.max(2, Math.min(20, Number(prev) || 2));
-          return Math.min(20, n + 1);
-        });
-      }}
-      className={`w-8 h-8 grid place-items-center rounded-md border transition
-                  ${isParty ? "hover:bg-white active:scale-95" : "opacity-50 cursor-not-allowed"}`}
-      disabled={!isParty}
-      aria-label="เพิ่มจำนวน"
-      title="เพิ่มจำนวน"
-    >
-      +
-    </button>
+                {/* PARTY SIZE – text ด้านบนแบบไม่เบียดปุ่ม */}
+                <div className="relative flex items-center gap-1 pr-1">
+                  <span
+                    className={`
+                      absolute -top-3 left-1/2 -translate-x-1/2
+                      text-[10px] sm:text-[8px] font-medium tracking-wide
+                      ${isParty ? "text-gray-600" : "text-gray-400"}
+                    `}
+                  >
+                    Party size
+                  </span>
 
-    {/* ปุ่ม − อยู่ขวาสุด */}
-    <button
-      type="button"
-      onClick={() => {
-        if (!isParty) return;
-        setMaxParty((prev) => {
-          const n = Math.max(2, Math.min(20, Number(prev) || 2));
-          return Math.max(2, n - 1);
-        });
-      }}
-      className={`w-8 h-8 grid place-items-center rounded-md border transition
-                  ${isParty ? "hover:bg-white active:scale-95" : "opacity-50 cursor-not-allowed"}`}
-      disabled={!isParty}
-      aria-label="ลดจำนวน"
-      title="ลดจำนวน"
-    >
-      −
-    </button>
-  </div>
-</div>
+                    {/* - 0 + */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isParty) return;
+                        setMaxParty((prev) => {
+                          const n = Math.max(
+                            2,
+                            Math.min(20, Number(prev) || 2)
+                          );
+                          return Math.max(2, n - 1);
+                        });
+                      }}
+                      disabled={!isParty}
+                      aria-label="ลดจำนวน"
+                      className={`
+                        w-7 h-7 grid place-items-center rounded-md border text-xs
+                        transition-all duration-150
+                        ${
+                          isParty
+                            ? "bg-white hover:bg-sky-50 active:scale-95 border-gray-200 text-gray-700"
+                            : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                        }
+                      `}
+                    >
+                      −
+                    </button>
 
+                    <div
+                      className={`
+                        min-w-[2.1rem] h-7 grid place-items-center rounded-md
+                        text-xs font-medium border bg-white
+                        transition-colors duration-150
+                        ${
+                          isParty
+                            ? "border-emerald-300 text-gray-800"
+                            : "border-gray-200 text-gray-400"
+                        }
+                      `}
+                    >
+                      {isParty
+                        ? Math.max(
+                            2,
+                            Math.min(20, Number(maxParty) || 2)
+                          )
+                        : 0}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isParty) return;
+                        setMaxParty((prev) => {
+                          const n = Math.max(
+                            2,
+                            Math.min(20, Number(prev) || 2)
+                          );
+                          return Math.min(20, n + 1);
+                        });
+                      }}
+                      disabled={!isParty}
+                      aria-label="เพิ่มจำนวน"
+                      className={`
+                        w-7 h-7 grid place-items-center rounded-md border text-xs
+                        transition-all duration-150
+                        ${
+                          isParty
+                            ? "bg-sky-500 text-white hover:bg-sky-600 active:scale-95 border-sky-500"
+                            : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                        }
+                      `}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -609,27 +812,18 @@ export default function NoteBubble() {
               </div>
             )}
 
-            {/* ชื่อผู้ใช้ */}
-            <div className="mt-2">
-              <UserNameEditor
-                name={name}
-                setName={setName}
-                isPosted={isPosted}
-                editNameOnExpand={editNameOnExpand}
-                setEditNameOnExpand={setEditNameOnExpand}
-                onEditClick={null}
-              />
-            </div>
-
             {/* คำอธิบาย */}
             {!isPosted && (
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
-                className="text-gray-500 text-sm mt-3 text-center max-w-sm"
+                className="text-gray-500 text-sm mt-3 text-center max-w-md mx-auto leading-relaxed"
               >
-                Share quick thoughts or start group activities (login required) that disappear in 24 hours.
+                <span>Share quick notes or start a party.</span>
+                <span className="block">
+                  All notes disappear after 24 hours. Log in to host parties.
+                </span>
               </motion.p>
             )}
 
@@ -653,7 +847,11 @@ export default function NoteBubble() {
                     </div>
                   </div>
                 ) : (
-                  <CommentSection key={`note-${noteId}`} noteId={noteId} userId={userId} />
+                  <CommentSection
+                    key={`note-${noteId}`}
+                    noteId={noteId}
+                    userId={userId}
+                  />
                 )}
               </div>
             )}

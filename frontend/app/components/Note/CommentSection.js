@@ -3,9 +3,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 
 /* ---------------- utils ---------------- */
 const API = "http://localhost:8000/api";
+const VISIBLE_ROOT_LIMIT = 20; // จำนวน root comments ที่แสดงล่าสุด
 
 function cx(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -40,6 +42,7 @@ function updateMsg(list, id, message) {
       : { ...c, children: updateMsg(c.children || [], id, message) }
   );
 }
+
 function removeById(list, id) {
   return list
     .filter((c) => c.comment_id !== id)
@@ -47,12 +50,28 @@ function removeById(list, id) {
 }
 
 /* ---------------- helpers: profile url ---------------- */
-const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/profile"; 
+const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/profile";
 function buildProfileUrl(handle) {
   if (!handle) return "/";
   if (PROFILE_BASE === "root") return `/${handle}`;
   if (PROFILE_BASE === "@root") return `/@${handle}`;
   return `${PROFILE_BASE}/${handle}`;
+}
+
+/* ---------------- Skeleton row (ตอนโหลดคอมเมนต์) ---------------- */
+function CommentSkeletonRow() {
+  return (
+    <div className="mt-3 ml-2 animate-pulse">
+      <div className="flex gap-3 items-start">
+        <div className="w-9 h-9 rounded-full bg-slate-200" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-24 bg-slate-200 rounded" />
+          <div className="h-3 w-40 bg-slate-100 rounded" />
+          <div className="h-3 w-32 bg-slate-100 rounded" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ---------------- Single Comment ---------------- */
@@ -65,6 +84,9 @@ function CommentItem({
   onOpenProfile,
   collapsedMap,
   setCollapsedMap,
+  rateLimitActive,
+  rateLimitRemaining,
+  rateLimitMessage,
 }) {
   const isMine = meId && String(meId) === String(comment.user_id);
   const [showReplyBox, setShowReplyBox] = useState(false);
@@ -75,6 +97,14 @@ function CommentItem({
 
   const hasChildren = (comment.children || []).length > 0;
   const expanded = collapsedMap[comment.comment_id] ?? false;
+
+  // helper: save edit
+  const handleSaveEdit = async () => {
+    const value = draft.trim();
+    if (!value) return;
+    const ok = await onEditSubmit(comment.comment_id, value);
+    if (ok) setEditing(false);
+  };
 
   // close dropdown on outside click
   useEffect(() => {
@@ -90,7 +120,6 @@ function CommentItem({
     return () => document.removeEventListener("click", onDoc);
   }, [comment.comment_id]);
 
-  // ✅ ตอนนี้ backend ส่งมาที่ field แบนๆ ชื่อ login_name แล้ว
   const loginName =
     comment.login_name ||
     comment?.users?.login_name ||
@@ -98,9 +127,7 @@ function CommentItem({
     "";
 
   const displayName =
-    comment.user_name ||
-    comment?.users?.user_name ||
-    "anonymous";
+    comment.user_name || comment?.users?.user_name || "anonymous";
 
   const canOpenProfile =
     !!loginName && String(loginName).toLowerCase() !== "anonymous";
@@ -114,7 +141,10 @@ function CommentItem({
         <button
           type="button"
           onClick={() => canOpenProfile && onOpenProfile(loginName)}
-          className={cx("shrink-0", canOpenProfile ? "cursor-pointer" : "cursor-default")}
+          className={cx(
+            "shrink-0",
+            canOpenProfile ? "cursor-pointer" : "cursor-default"
+          )}
           title={canOpenProfile ? `@${loginName}` : undefined}
           aria-label={canOpenProfile ? `Open @${loginName}` : undefined}
         >
@@ -137,8 +167,7 @@ function CommentItem({
               <div
                 data-menu-anchor={comment.comment_id}
                 className={cx(
-                  "absolute top-1/2 -translate-y-1/2",
-                  "right-3 md:right-3",
+                  "absolute top-2 right-3 md:right-3",
                   "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition"
                 )}
               >
@@ -200,7 +229,9 @@ function CommentItem({
                     {displayName}
                   </button>
                 ) : (
-                  <span className="font-semibold text-gray-800">{displayName}</span>
+                  <span className="font-semibold text-gray-800">
+                    {displayName}
+                  </span>
                 )}
                 <span>•</span>
                 <span title={new Date(comment.created_at).toLocaleString()}>
@@ -221,29 +252,41 @@ function CommentItem({
                     rows={2}
                     placeholder="Edit your comment..."
                     className="w-[min(560px,78vw)] max-w-full rounded-xl border px-3 py-2 text-[15px] focus:ring-1 focus:ring-blue-500 outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setEditing(false);
+                        setDraft(comment.message || "");
+                      } else if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSaveEdit();
+                      }
+                    }}
                   />
-                  <div className="mt-2 flex items-center gap-2 justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setEditing(false)}
-                      className="px-3 py-1.5 rounded-lg border bg-white text-sm hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const ok = await onEditSubmit(
-                          comment.comment_id,
-                          draft.trim()
-                        );
-                        if (ok) setEditing(false);
-                      }}
-                      disabled={!draft.trim()}
-                      className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
-                    >
-                      Save
-                    </button>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="hidden sm:block text-[11px] text-gray-400">
+                      escape to cancel • enter to save
+                    </span>
+                    <div className="flex items-center gap-2 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditing(false);
+                          setDraft(comment.message || "");
+                        }}
+                        className="px-3 py-1.5 rounded-lg border bg-white text-sm hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveEdit}
+                        disabled={!draft.trim()}
+                        className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -273,33 +316,51 @@ function CommentItem({
               >
                 {expanded
                   ? "Hide replies"
-                  : `View ${comment.children.length} repl${comment.children.length > 1 ? "ies" : "y"}`}
+                  : `View ${comment.children.length} repl${
+                      comment.children.length > 1 ? "ies" : "y"
+                    }`}
               </button>
             )}
           </div>
 
           {/* reply box */}
           {showReplyBox && (
-            <div className="mt-2 flex items-start gap-2">
-              <input
-                type="text"
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Write a reply..."
-                className="flex-1 rounded-full border px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-              />
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!replyText.trim()) return;
-                  await onReplySubmit(replyText, comment.comment_id);
-                  setReplyText("");
-                  setShowReplyBox(false);
-                }}
-                className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-              >
-                Send
-              </button>
+            <div className="mt-2 flex flex-col items-start gap-1">
+              <div className="flex w-full items-start gap-2">
+                <input
+                  type="text"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Write a reply..."
+                  className="flex-1 rounded-full border px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!replyText.trim()) return;
+                    await onReplySubmit(replyText, comment.comment_id);
+                    setReplyText("");
+                    setShowReplyBox(false);
+                  }}
+                  disabled={rateLimitActive || !replyText.trim()}
+                  className="px-3 py-1.5 rounded-full bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {rateLimitActive
+                    ? rateLimitRemaining > 0
+                      ? `Wait ${rateLimitRemaining}s`
+                      : "Wait..."
+                    : "Send"}
+                </button>
+              </div>
+              {rateLimitActive && (
+                <p className="ml-1 text-[11px] text-amber-600">
+                  {rateLimitMessage ||
+                    "You are commenting too fast. Please wait a moment."}
+                  {rateLimitRemaining > 0
+                    ? ` (${rateLimitRemaining}s)`
+                    : null}
+                </p>
+              )}
             </div>
           )}
 
@@ -317,6 +378,9 @@ function CommentItem({
                   onOpenProfile={onOpenProfile}
                   collapsedMap={collapsedMap}
                   setCollapsedMap={setCollapsedMap}
+                  rateLimitActive={rateLimitActive}
+                  rateLimitRemaining={rateLimitRemaining}
+                  rateLimitMessage={rateLimitMessage}
                 />
               ))}
             </div>
@@ -327,32 +391,166 @@ function CommentItem({
   );
 }
 
+/* ---------------- Toast สำหรับ login ---------------- */
+
+function LoginToast({ open, onClose, onGoLogin }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ y: 16, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 16, opacity: 0 }}
+          transition={{ duration: 0.22 }}
+          className="pointer-events-none fixed bottom-4 left-1/2 z-[9999] -translate-x-1/2"
+        >
+          <div className="pointer-events-auto flex items-center gap-3 rounded-2xl bg-sky-500 px-4 py-2 text-sm text-white shadow-lg ring-1 ring-black/5">
+            <span className="font-semibold">
+              Please sign in or post a note before commenting.
+            </span>
+            <button
+              type="button"
+              onClick={onGoLogin}
+              className="text-xs font-semibold underline"
+            >
+              Login
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs opacity-80 hover:opacity-100"
+            >
+              Close
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 /* ---------------- Section (root) ---------------- */
 export default function CommentSection({ noteId, userId }) {
   const router = useRouter();
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [collapsedMap, setCollapsedMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showAllRoots, setShowAllRoots] = useState(false);
+  const [showLoginToast, setShowLoginToast] = useState(false);
+  const [userExists, setUserExists] = useState(null); // เช็คว่า userId นี้อยู่ใน DB ไหม
+
+  // rate limit state
+  const [rateLimit, setRateLimit] = useState(null); // { message, until }
+  const [now, setNow] = useState(Date.now());
+
   const scrollRef = useRef(null);
 
-  if (!userId) {
-    // ไม่รู้ตัวตน → ไม่เรนเดอร์
-    return null;
-  }
+  // เช็ค userId กับ DB ครั้งเดียว (หรือเมื่อ userId เปลี่ยน)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkUser() {
+      if (!userId) {
+        setUserExists(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${API}/user/${userId}`, {
+          cache: "no-store",
+        });
+
+        if (cancelled) return;
+
+        if (res.status === 404 || res.status === 400) {
+          console.warn("stale userId in comment section, user not found");
+          setUserExists(false);
+          return;
+        }
+
+        if (!res.ok) {
+          console.error("check user failed:", res.status);
+          setUserExists(false);
+          return;
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setUserExists(!!data);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error("check user failed:", e);
+          setUserExists(false);
+        }
+      }
+    }
+
+    checkUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // tick สำหรับ countdown rate limit
+  useEffect(() => {
+    if (!rateLimit) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [rateLimit]);
+
+  const rateLimitRemaining =
+    rateLimit && rateLimit.until
+      ? Math.max(0, Math.ceil((rateLimit.until - now) / 1000))
+      : 0;
+  const rateLimitActive = !!rateLimit && rateLimitRemaining > 0;
+
+  // auto clear rateLimit เมื่อหมดเวลา
+  useEffect(() => {
+    if (!rateLimit) return;
+    if (rateLimit.until && rateLimit.until <= Date.now()) {
+      setRateLimit(null);
+    }
+  }, [rateLimit, now]);
+
+  // helper: ต้องมี user ที่ valid ก่อนถึงจะโพสต์ได้
+  const requireUser = () => {
+    if (!userId) {
+      setShowLoginToast(true);
+      return false;
+    }
+    if (userExists === false) {
+      setShowLoginToast(true);
+      return false;
+    }
+    return true;
+  };
 
   // load comments
   useEffect(() => {
     if (!noteId) return;
+    let cancelled = false;
+
     (async () => {
       try {
+        setLoading(true);
         const res = await fetch(`${API}/comment/note/${noteId}`);
         const data = await res.json();
         const tree = Array.isArray(data.comment) ? data.comment : [];
-        setComments(tree);
+        if (!cancelled) setComments(tree);
       } catch (e) {
-        console.error("load comments failed", e);
+        if (!cancelled) console.error("load comments failed", e);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [noteId]);
 
   async function refresh() {
@@ -361,44 +559,114 @@ export default function CommentSection({ noteId, userId }) {
       const data = await res.json();
       const tree = Array.isArray(data.comment) ? data.comment : [];
       setComments(tree);
-    } catch {}
+    } catch (e) {
+      console.error("refresh comments failed", e);
+    }
   }
 
-  // create new root
+  // create new root comment
   async function handleCreate(message) {
+    if (!requireUser()) return;
+
     const payload = {
       user_id: userId,
       message,
       note_id: noteId,
       parent_comment_id: null,
     };
-    const res = await fetch(`${API}/comment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) return;
-    await refresh();
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    try {
+      setSubmitting(true);
+      const res = await fetch(`${API}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {}
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          // ดึง retry_after จาก backend ถ้าไม่มีให้ default = 5 วินาที
+          let retryAfterSec = Number(data?.retry_after);
+          if (!Number.isFinite(retryAfterSec) || retryAfterSec <= 0) {
+            retryAfterSec = 5;
+          }
+
+          const msg =
+            data?.error_code === "COMMENT_BURST_LIMIT"
+              ? "You have posted too many comments in a short time. Please wait a moment."
+              : "You are commenting too fast. Please wait a moment.";
+
+          const until = Date.now() + retryAfterSec * 1000;
+
+          setRateLimit({ message: msg, until });
+        }
+        return;
+      }
+
+      // ok → clear rate limit error (ถ้ามี)
+      setRateLimit(null);
+
+      await refresh();
+      if (scrollRef.current) {
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }
+        });
+      }
+      setShowAllRoots(true);
+    } finally {
+      setSubmitting(false);
     }
   }
 
   // reply
   async function handleReply(message, parentId) {
+    if (!requireUser()) return;
+
     const payload = {
       user_id: userId,
       message,
       note_id: noteId,
       parent_comment_id: parentId,
     };
-    const res = await fetch(`${API}/comment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch(`${API}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (_) {}
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfter = data?.retry_after || 0;
+          const msg =
+            data?.error ||
+            (data?.error_code === "COMMENT_BURST_LIMIT"
+              ? "You have posted too many comments in a short time. Please wait before posting again."
+              : "You are commenting too fast. Please wait a moment before posting again.");
+          const until =
+            retryAfter > 0
+              ? Date.now() + retryAfter * 1000
+              : Date.now() + 5000;
+          setRateLimit({ message: msg, until });
+        }
+        return;
+      }
+
+      setRateLimit(null);
       await refresh();
+    } catch (e) {
+      console.error("reply failed", e);
     }
   }
 
@@ -411,7 +679,6 @@ export default function CommentSection({ noteId, userId }) {
         body: JSON.stringify({ message }),
       });
       if (!res.ok) return false;
-      // optimistic update
       setComments((prev) => updateMsg(prev, id, message));
       return true;
     } catch {
@@ -425,10 +692,12 @@ export default function CommentSection({ noteId, userId }) {
       const res = await fetch(`${API}/comment/${id}`, { method: "DELETE" });
       if (!res.ok) return;
       setComments((prev) => removeById(prev, id));
-    } catch {}
+    } catch (e) {
+      console.error("delete failed", e);
+    }
   }
 
-  // open profile by handle (only when login_name exists)
+  // open profile by handle
   function openProfileByHandle(handle) {
     if (!handle) return;
     try {
@@ -440,36 +709,69 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
+  // root comments & limit
+  const rootComments = comments.filter((c) => !c.parent_comment_id);
+  const rootCount = rootComments.length;
+  const visibleRoots =
+    showAllRoots || rootCount <= VISIBLE_ROOT_LIMIT
+      ? rootComments
+      : rootComments.slice(rootCount - VISIBLE_ROOT_LIMIT);
+
+  // ถ้า user ไม่ valid → ห้าม edit/delete โดยถือว่า meId = null
+  const meId = userExists ? userId : null;
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col max-h-[60vh] min-h-[260px] relative">
       {/* scroll area */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto pr-1 space-y-1"
+        className="flex-1 overflow-y-auto pr-1 space-y-1 pb-3"
       >
-        {!comments?.length && (
-          <p className="text-gray-400 text-sm text-center mt-2">No comments yet</p>
-        )}
+        {loading ? (
+          <>
+            <CommentSkeletonRow />
+            <CommentSkeletonRow />
+          </>
+        ) : rootCount === 0 ? (
+          <p className="text-gray-400 text-sm text-center mt-2">
+            No comments yet
+          </p>
+        ) : (
+          <>
+            {rootCount > VISIBLE_ROOT_LIMIT && !showAllRoots && (
+              <div className="flex justify-center my-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAllRoots(true)}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  View older comments ({rootCount - VISIBLE_ROOT_LIMIT} more)
+                </button>
+              </div>
+            )}
 
-        {comments
-          .filter((c) => !c.parent_comment_id)
-          .map((c) => (
-            <CommentItem
-              key={c.comment_id}
-              comment={c}
-              meId={userId}
-              onReplySubmit={handleReply}
-              onEditSubmit={handleEdit}
-              onDeleteSubmit={handleDelete}
-              onOpenProfile={openProfileByHandle}
-              collapsedMap={collapsedMap}
-              setCollapsedMap={setCollapsedMap}
-            />
-          ))}
+            {visibleRoots.map((c) => (
+              <CommentItem
+                key={c.comment_id}
+                comment={c}
+                meId={meId}
+                onReplySubmit={handleReply}
+                onEditSubmit={handleEdit}
+                onDeleteSubmit={handleDelete}
+                onOpenProfile={openProfileByHandle}
+                collapsedMap={collapsedMap}
+                setCollapsedMap={setCollapsedMap}
+                rateLimitActive={rateLimitActive}
+                rateLimitRemaining={rateLimitRemaining}
+                rateLimitMessage={rateLimit?.message || ""}
+              />
+            ))}
+          </>
+        )}
       </div>
 
       {/* input row */}
-      <div className="mt-3 border-t pt-3 bg-white">
+      <div className="mt-2 border-t pt-3 bg-white">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -477,20 +779,48 @@ export default function CommentSection({ noteId, userId }) {
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Write a comment..."
             className="flex-1 rounded-full border px-4 py-2 focus:ring-1 focus:ring-blue-500 outline-none"
+            onFocus={() => {
+              // ถ้ายังไม่มี user หรือ userId นี้หายจาก DB แล้ว → เตือนเลย
+              if (!userId || userExists === false) {
+                setShowLoginToast(true);
+              }
+            }}
           />
           <button
             type="button"
             onClick={async () => {
-              if (!newComment.trim()) return;
-              await handleCreate(newComment.trim());
+              const text = newComment.trim();
+              if (!text) return;
+              await handleCreate(text);
               setNewComment("");
             }}
-            className="px-4 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700"
+            disabled={submitting || !newComment.trim() || rateLimitActive}
+            className="px-4 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Send
+            {submitting
+              ? "Sending..."
+              : rateLimitActive && rateLimitRemaining > 0
+              ? `Wait ${rateLimitRemaining}s`
+              : "Send"}
           </button>
         </div>
+        {rateLimitActive && (
+          <p className="mt-1 text-xs text-amber-600">
+            {rateLimit?.message ||
+              "You are commenting too fast. Please wait a moment before posting again."}
+            {rateLimitRemaining > 0 ? ` (${rateLimitRemaining}s)` : null}
+          </p>
+        )}
       </div>
+
+      <LoginToast
+        open={showLoginToast}
+        onClose={() => setShowLoginToast(false)}
+        onGoLogin={() => {
+          setShowLoginToast(false);
+          router.push("/login");
+        }}
+      />
     </div>
   );
 }

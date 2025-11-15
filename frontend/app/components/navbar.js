@@ -179,8 +179,7 @@ export default function Navbar() {
         </nav>
       </div>
 
-      {/* spacer */}
-      <div className="h-16" />
+
     </header>
   );
 }

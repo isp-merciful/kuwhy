@@ -2,6 +2,77 @@ const express = require("express");
 const { prisma } = require("./lib/prisma.cjs");
 const router = express.Router();
 
+/* ------------------------- simple in-memory rate limiter ------------------------- */
+
+const commentRateStore = new Map();
+
+const COMMENT_MIN_INTERVAL_MS = 5000;   
+const COMMENT_BURST_WINDOW_MS = 60000;  
+const COMMENT_BURST_LIMIT = 10;         
+
+function getRateKey(req, userId) {
+  const u = userId && String(userId).trim();
+  if (u) return `u:${u}`;
+
+  const ip =
+    req.ip ||
+    req.headers["x-forwarded-for"] ||
+    (req.connection && req.connection.remoteAddress) ||
+    "unknown";
+
+  return `ip:${ip}`;
+}
+
+function checkCommentRateLimit(req, userId) {
+  const key = getRateKey(req, userId);
+  const now = Date.now();
+
+  let rec = commentRateStore.get(key);
+  if (!rec) {
+    rec = { history: [] };
+  }
+
+  // ล้าง timestamps เก่าเกิน 60 วินาที
+  rec.history = rec.history.filter((ts) => now - ts < COMMENT_BURST_WINDOW_MS);
+
+  const lastTs = rec.history.length ? rec.history[rec.history.length - 1] : null;
+
+  // 1) กันยิงติดกันเร็วเกินไป
+  if (lastTs && now - lastTs < COMMENT_MIN_INTERVAL_MS) {
+    const remainMs = COMMENT_MIN_INTERVAL_MS - (now - lastTs);
+    const remainSec = Math.max(1, Math.ceil(remainMs / 1000));
+    commentRateStore.set(key, rec);
+    return {
+      ok: false,
+      code: "COMMENT_RATE_LIMIT",
+      message: `You are commenting too fast. Please wait a moment.`,
+      retryAfter: remainSec,
+    };
+  }
+
+  // 2) กัน burst 10 คอมเมนต์ใน 60 วินาที
+  if (rec.history.length >= COMMENT_BURST_LIMIT) {
+    const oldest = rec.history[0];
+    const remainMs = COMMENT_BURST_WINDOW_MS - (now - oldest);
+    const remainSec = Math.max(1, Math.ceil(remainMs / 1000));
+    commentRateStore.set(key, rec);
+    return {
+      ok: false,
+      code: "COMMENT_BURST_LIMIT",
+      message:
+        `You have posted too many comments in a short time. ` +
+        `Please wait ${remainSec}s and try again.`,
+      retryAfter: remainSec,
+    };
+  }
+
+  // ✅ ผ่าน → บันทึก timestamp แล้วอนุญาตให้คอมเมนต์
+  rec.history.push(now);
+  commentRateStore.set(key, rec);
+
+  return { ok: true };
+}
+
 /* ------------------------- build a nested comment tree ------------------------- */
 function CommentTree(comments) {
   const map = {};
@@ -43,12 +114,12 @@ router.get("/", async (_req, res) => {
     const rows = await prisma.comment.findMany({
       orderBy: { created_at: "asc" },
       include: {
-        // ✅ ต้องมี login_name ด้วย
-        users: { select: { user_id: true, user_name: true, img: true, login_name: true } },
+        users: {
+          select: { user_id: true, user_name: true, img: true, login_name: true },
+        },
       },
     });
 
-    // ✅ map ให้ออกมาเป็นฟิลด์แบน ๆ รวมถึง login_name
     const flat = rows.map((r) => ({
       ...r,
       user_name: r.users?.user_name ?? null,
@@ -60,7 +131,9 @@ router.get("/", async (_req, res) => {
     res.json({ message: "getallcomment", comment: tree });
   } catch (error) {
     console.error("❌ Fetch error:", error);
-    res.status(500).json({ error: error.message, message: "can't fetch note comment" });
+    res
+      .status(500)
+      .json({ error: error.message, message: "can't fetch note comment" });
   }
 });
 
@@ -75,8 +148,9 @@ router.get("/note/:note_id", async (req, res) => {
       where: { note_id: noteId },
       orderBy: { created_at: "asc" },
       include: {
-        // ❗ เดิมขาด login_name → ทำให้กดโปรไฟล์ไม่ได้
-        users: { select: { user_id: true, user_name: true, img: true, login_name: true } },
+        users: {
+          select: { user_id: true, user_name: true, img: true, login_name: true },
+        },
       },
     });
 
@@ -84,7 +158,6 @@ router.get("/note/:note_id", async (req, res) => {
       ...r,
       user_name: r.users?.user_name ?? null,
       img: r.users?.img ?? null,
-      // ✅ ต้อง map ออกมาด้วย
       login_name: r.users?.login_name ?? null,
     }));
 
@@ -92,12 +165,14 @@ router.get("/note/:note_id", async (req, res) => {
     res.json({ message: "getnote", comment: tree });
   } catch (error) {
     console.error("❌ Fetch error:", error);
-    res.status(500).json({ error: error.message, message: "can't fetch note comment" });
+    res
+      .status(500)
+      .json({ error: error.message, message: "can't fetch note comment" });
   }
 });
 
 /* --------------------------------------------
-   (ถ้ามี) GET /api/comment/blog/:blog_id
+   GET /api/comment/blog/:blog_id
 --------------------------------------------- */
 router.get("/blog/:blog_id", async (req, res) => {
   try {
@@ -107,8 +182,9 @@ router.get("/blog/:blog_id", async (req, res) => {
       where: { blog_id: blogId },
       orderBy: { created_at: "asc" },
       include: {
-        // ✅ ใส่ login_name ให้ครบเหมือนกัน
-        users: { select: { user_id: true, user_name: true, img: true, login_name: true } },
+        users: {
+          select: { user_id: true, user_name: true, img: true, login_name: true },
+        },
       },
     });
 
@@ -123,20 +199,51 @@ router.get("/blog/:blog_id", async (req, res) => {
     res.json({ message: "getblog", comment: tree });
   } catch (error) {
     console.error("❌ Fetch error:", error);
-    res.status(500).json({ error: error.message, message: "can't fetch blog comment" });
+    res
+      .status(500)
+      .json({ error: error.message, message: "can't fetch blog comment" });
   }
 });
 
+/* BLOG comments */
+router.get('/blog/:blog_id', async (req, res) => {
+  try {
+    const [rows] = await wire.query(
+      `SELECT c.*, u.user_name, u.img
+         FROM comment c
+         LEFT JOIN users u ON c.user_id = u.user_id
+        WHERE c.blog_id = ?
+        ORDER BY c.created_at ASC`,
+      [req.params.blog_id]
+    );
+    res.json({ message: "getblog", comment: CommentTree(rows) });
+  } catch (error) {
+    console.error("❌ Fetch blog comments error:", error);
+    res.status(500).json({ error: error.message || "can't fetch blog comment" });
+  }
+});
 /* --------------------------------------------
    POST /api/comment
    body: { user_id, message, note_id?, blog_id?, parent_comment_id? }
 --------------------------------------------- */
 router.post("/", async (req, res) => {
   try {
-    const { user_id, message, blog_id, note_id, parent_comment_id } = req.body;
+    const { user_id, message, blog_id, note_id, parent_comment_id } = req.body || {};
 
     if (!user_id || !message) {
-      return res.status(400).json({ error: "user_id และ message จำเป็น" });
+      return res
+        .status(400)
+        .json({ error: "user_id และ message จำเป็น", error_code: "MISSING_FIELDS" });
+    }
+
+    // ✅ กันบอทยิง / กันสแปม: เช็ค rate limit ก่อนสร้าง comment
+    const rate = checkCommentRateLimit(req, String(user_id));
+    if (!rate.ok) {
+      return res.status(429).json({
+        error: rate.message,
+        error_code: rate.code,
+        retry_after: rate.retryAfter,
+      });
     }
 
     const newComment = await prisma.comment.create({
@@ -158,29 +265,41 @@ router.post("/", async (req, res) => {
             ? Number(parent_comment_id)
             : null,
       },
-      select: { comment_id: true, user_id: true, message: true, created_at: true },
+      select: {
+        comment_id: true,
+        user_id: true,
+        message: true,
+        created_at: true,
+      },
     });
 
     res.json({ message: "add comment successful", comment: newComment });
   } catch (error) {
     console.error("❌ add comment error:", error);
-    res.status(500).json({ error: error.message || "Prisma create comment failed" });
+    res
+      .status(500)
+      .json({ error: error.message || "Prisma create comment failed" });
   }
 });
 
 /* --------------------------------------------
    PUT /api/comment/:id
-   body: { message }
-   ❗ แก้ให้ใช้ params.id (ตรงกับ FE ที่เรียก PUT /comment/${id})
 --------------------------------------------- */
 router.put("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { message } = req.body;
+    const { message } = req.body || {};
 
-    if (!id) return res.status(400).json({ error: "ต้องมี comment_id (จาก params)" });
+    if (!id)
+      return res
+        .status(400)
+        .json({ error: "ต้องมี comment_id (จาก params)", error_code: "MISSING_ID" });
+
     if (typeof message !== "string" || !message.trim()) {
-      return res.status(400).json({ error: "message ต้องเป็นข้อความที่ไม่ว่าง" });
+      return res.status(400).json({
+        error: "message ต้องเป็นข้อความที่ไม่ว่าง",
+        error_code: "INVALID_MESSAGE",
+      });
     }
 
     await prisma.comment.update({
@@ -192,6 +311,23 @@ router.put("/:id", async (req, res) => {
   } catch (err) {
     console.error("❌ update error:", err);
     res.status(500).json({ error: "Failed to update comment" });
+  }
+});
+
+router.get('/blog/:blog_id', async (req, res) => {
+  try {
+    const [rows] = await wire.query(
+      `SELECT c.*, u.user_name, u.img
+         FROM comment c
+         LEFT JOIN users u ON c.user_id = u.user_id
+        WHERE c.blog_id = ?
+        ORDER BY c.created_at ASC`,
+      [req.params.blog_id]
+    );
+    res.json({ message: "getblog", comment: CommentTree(rows) });
+  } catch (error) {
+    console.error("❌ Fetch blog comments error:", error);
+    res.status(500).json({ error: error.message || "can't fetch blog comment" });
   }
 });
 

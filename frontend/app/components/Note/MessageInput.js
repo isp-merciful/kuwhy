@@ -1,82 +1,106 @@
+// frontend/app/components/Note/MessageInput.js
 "use client";
-import { useEffect, useRef, useState } from "react";
+
+import { useEffect, useRef } from "react";
 
 export default function MessageInput({
   text,
   setText,
   isPosted,
-  handlePost,
+  isCompose = false,      // true เฉพาะตอนอยู่หน้า compose view
+  handlePost,            // ยังรับไว้เผื่อใช้ต่อ แต่ไม่ใช้ใน component นี้แล้ว
   loading,
   setShowPopup,
-  variant = "default", // "default" | "compose"
-  showButton = true,
+  variant = "default",
   onBubbleClick,
 }) {
   const textareaRef = useRef(null);
-  const [height, setHeight] = useState(0);
 
+  // auto-resize textarea เฉพาะตอนมี textarea อยู่ (ยังไม่โพสต์)
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-      setHeight(textareaRef.current.scrollHeight);
-    }
-  }, [text]);
+    if (!textareaRef.current) return;
+    if (isPosted) return;
 
-  const isCompose = !isPosted && variant === "compose";
+    const el = textareaRef.current;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text, isPosted]); // 👈 deps คงที่ ไม่มี error final argument แล้ว
+
+  const composeMode = !isPosted && (isCompose || variant === "compose");
+
+  const bubbleBg =
+    isPosted ? "bg-green-100" : composeMode ? "bg-[#2FA2FF]" : "bg-white";
+
+  const textColor =
+    isPosted || !composeMode
+      ? "text-gray-800 placeholder-gray-400"
+      : "text-white placeholder-white/90";
+
+  const handleClickBubble = () => {
+    if (onBubbleClick) onBubbleClick();
+  };
 
   return (
-    <div className="relative">
-      {/* Bubble */}
+    <div className="relative flex justify-center">
+      {/* ตัว bubble */}
       <div
-        onClick={() => {
-          if (onBubbleClick) onBubbleClick();
-        }}
-        className={`relative rounded-3xl px-5 py-3 shadow-md max-w-xl w-auto flex flex-col items-center justify-center transition-all duration-200 cursor-pointer
-          ${isPosted ? "bg-green-100" : isCompose ? "bg-[#2FA2FF]" : "bg-white"}`}
-        style={{ minHeight: "60px", height: `${height + 20}px` }}
+        onClick={handleClickBubble}
+        className={`
+          relative inline-block
+          max-w-[260px] w-full
+          min-h-[60px]
+          rounded-3xl px-5 py-3 shadow-md
+          flex items-center
+          ${bubbleBg}
+        `}
+        style={{ textWrap: "pretty" }}
       >
         {isPosted ? (
-          <p className="text-gray-800 font-semibold text-sm break-words whitespace-pre-wrap">
-            {text}
+          <p
+            className="
+              w-full text-sm font-semibold leading-snug
+              whitespace-pre-wrap break-words
+              text-gray-800
+            "
+            style={{ textWrap: "pretty" }}
+          >
+            {text || "—"}
           </p>
         ) : (
           <textarea
             ref={textareaRef}
+            rows={1}
             placeholder="Share a note"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className={`w-full text-sm border-none resize-none focus:outline-none bg-transparent overflow-hidden ${
-              isCompose ? "text-white placeholder-white/90" : "text-gray-600 placeholder-gray-400"
-            }`}
-            rows={1}
+            className={`
+              w-full text-sm border-none resize-none
+              focus:outline-none bg-transparent overflow-hidden
+              ${textColor}
+            `}
           />
         )}
 
-      {/* หาง bubble */}
+        {/* หาง bubble (ใช้ตำแหน่งเดียวกันทั้งโพสต์/ไม่โพสต์) */}
         <span
-          className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full 
-            ${isPosted ? "bg-green-100" : isCompose ? "bg-[#2FA2FF]" : "bg-white"}`}
+          aria-hidden
+          className={`
+            pointer-events-none
+            absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-5
+            w-3 h-3 rounded-full
+            ${bubbleBg}
+          `}
         />
         <span
-          className={`absolute -bottom-4.5 left-1/2 transform -translate-x-1/2 -translate-x-3 w-2 h-2 rounded-full 
-            ${isPosted ? "bg-green-100" : isCompose ? "bg-[#2FA2FF]" : "bg-white"}`}
+          aria-hidden
+          className={`
+            pointer-events-none
+            absolute -bottom-[1.125rem] left-1/2 -translate-x-1/2 -translate-x-3
+            w-2 h-2 rounded-full
+            ${bubbleBg}
+          `}
         />
+      </div>
     </div>
-
-
-    {/* ปุ่ม + วางถัดจาก bubble */}
-    {!isPosted && showButton && (
-      <button
-        onClick={handlePost}
-        disabled={loading}
-        className={`absolute -right-16 top-1/2 transform -translate-y-1/2 w-15 h-15 flex items-center justify-center rounded-full transition ${
-          text.trim() ? "bg-transparent hover:bg-gray-300" : "bg-transparent opacity-60"
-        }`}
-      >
-        <img src="/images/plus.png" alt="plus" className="w-9 h-9" />
-      </button>
-    )}
-  </div>
   );
 }
