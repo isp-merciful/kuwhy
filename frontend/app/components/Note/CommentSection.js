@@ -589,16 +589,19 @@ export default function CommentSection({ noteId, userId }) {
 
       if (!res.ok) {
         if (res.status === 429) {
-          const retryAfter = data?.retry_after || 0;
+          // ดึง retry_after จาก backend ถ้าไม่มีให้ default = 5 วินาที
+          let retryAfterSec = Number(data?.retry_after);
+          if (!Number.isFinite(retryAfterSec) || retryAfterSec <= 0) {
+            retryAfterSec = 5;
+          }
+
           const msg =
-            data?.error ||
-            (data?.error_code === "COMMENT_BURST_LIMIT"
-              ? "You have posted too many comments in a short time. Please wait before posting again."
-              : "You are commenting too fast. Please wait a moment before posting again.");
-          const until =
-            retryAfter > 0
-              ? Date.now() + retryAfter * 1000
-              : Date.now() + 5000;
+            data?.error_code === "COMMENT_BURST_LIMIT"
+              ? "You have posted too many comments in a short time. Please wait a moment."
+              : "You are commenting too fast. Please wait a moment.";
+
+          const until = Date.now() + retryAfterSec * 1000;
+
           setRateLimit({ message: msg, until });
         }
         return;

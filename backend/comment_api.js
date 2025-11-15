@@ -45,7 +45,7 @@ function checkCommentRateLimit(req, userId) {
     return {
       ok: false,
       code: "COMMENT_RATE_LIMIT",
-      message: `You are commenting too fast. Please wait ${remainSec}s.`,
+      message: `You are commenting too fast. Please wait a moment.`,
       retryAfter: remainSec,
     };
   }

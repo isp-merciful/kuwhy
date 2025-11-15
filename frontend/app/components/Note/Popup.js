@@ -305,9 +305,7 @@ export default function Popup({
 
     if (hasOwnNote && Number(ownNoteId) !== Number(noteId)) {
       showToast(
-        `You already have your own note${
-          ownNoteId ? ` (note #${ownNoteId})` : ""
-        }. Delete it first, then you can join this party.`,
+        "You already have your own note.\nDelete it first, then you can join this party.",
         "info"
       );
       return;
@@ -570,52 +568,50 @@ export default function Popup({
                   </span>
                 </div>
 
-                {joined ? (
-                  <InfoCard tone="success">
-                    You have already joined this party. Open your note to chat
-                    with members.
-                  </InfoCard>
-                ) : hasOwnNote && Number(ownNoteId) !== Number(noteId) ? (
-                  <InfoCard tone="warn">
-                    You already have your own note
-                    {ownNoteId ? ` (note #${ownNoteId})` : ""}. Delete it
-                    first, then you can join this party.
-                  </InfoCard>
-                ) : alreadyInAnotherParty &&
-                  Number(currentPartyId) !== Number(noteId) ? (
-                  <InfoCard tone="warn">
-                    You are already in another party. Leave it first to join
-                    this one.
-                  </InfoCard>
-                ) : isFull ? (
-                  <InfoCard tone="warn">
-                    Party is full. Please check back later.
-                  </InfoCard>
-                ) : canShowCTA ? (
-                  <div className="rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
-                    <div className="text-lg font-semibold text-gray-900">
-                      Joining {partyTitle}?
-                    </div>
-                    <div className="mt-1 text-sm text-gray-500">
-                      Join this party to chat with other members!
-                    </div>
-                    <div className="mt-5 flex justify-center gap-3">
-                      <button
-                        onClick={() => setShowPopup(false)}
-                        className="rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleJoin}
-                        disabled={joining}
-                        className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
-                      >
-                        {joining ? "Joining…" : "Join Party"}
-                      </button>
-                    </div>
+              {joined ? (
+                <InfoCard tone="success">
+                  <p>You have already joined this party.</p>
+                  <p>Open your note to chat with members.</p>
+                </InfoCard>
+              ) : hasOwnNote && Number(ownNoteId) !== Number(noteId) ? (
+                <InfoCard tone="warn">
+                  <p>You already have your own note.</p>
+                  <p>Delete it first, then you can join this party.</p>
+                </InfoCard>
+              ) : alreadyInAnotherParty && Number(currentPartyId) !== Number(noteId) ? (
+                <InfoCard tone="warn">
+                  <p>You are already in another party.</p>
+                  <p>Leave it first, then you can join this one.</p>
+                </InfoCard>
+              ) : isFull ? (
+                <InfoCard tone="warn">
+                  <p>Party is full. Please check back later.</p>
+                </InfoCard>
+              ) : canShowCTA ? (
+                <div className="rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                  <div className="text-lg font-semibold text-gray-900">
+                    Joining {partyTitle}?
                   </div>
-                ) : null}
+                  <div className="mt-1 text-sm text-gray-500">
+                    Join this party to chat with other members!
+                  </div>
+                  <div className="mt-5 flex justify-center gap-3">
+                    <button
+                      onClick={() => setShowPopup(false)}
+                      className="rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleJoin}
+                      disabled={joining}
+                      className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {joining ? "Joining…" : "Join Party"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               </>
             ) : (
               <div className="mt-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-inner">
