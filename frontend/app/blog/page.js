@@ -13,45 +13,77 @@ export default function BlogPage() {
     session?.user?.name ||
     "username";
 
-  // ให้ seed fix (ใช้ user id ถ้ามี ไม่งั้นใช้ค่า default)
   const avatarSeed = session?.user?.id || "blog-header-default";
 
   return (
-    <div className="min-h-screen bg-white">
-      <section className="relative isolate overflow-hidden py-8 bg-gradient-to-b from-[#DDF3FF] to-[#E8FFF2]">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100">
+      {/* Top hero */}
+      <section className="relative isolate overflow-hidden py-10 sm:py-12">
+        {/* Decorative blobs */}
+        <div className="pointer-events-none absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl">
+          <div className="mx-auto h-72 w-[36rem] bg-gradient-to-r from-emerald-300/40 via-green-300/40 to-lime-300/40 opacity-70" />
+        </div>
+
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-4">Blog Q&amp;A</h2>
-          <div className="mb-3">
+          <div className="mb-4 flex items-center justify-between gap-4">
             <button
               onClick={() => (window.location.href = "/")}
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900"
+              className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors"
             >
-              <span className="text-xl">←</span>
+              <span className="text-xl leading-none">←</span>
               <span>Back</span>
             </button>
+
+            {/* You can add something here later (filters, etc.) */}
           </div>
-          <div className="flex flex-col items-center gap-3">
-            <div className="text-gray-500 text-sm">{displayName}</div>
-            <div className="flex items-center gap-4">
-              <Avatar
-                center={false}
-                size={64}
-                style="thumbs"           
-                seed={avatarSeed}        
-              />
-              <button
-                className="bg-[#2FA2FF] text-white rounded-3xl px-6 py-3 shadow"
-                onClick={() => (window.location.href = "/blog/new")}
-              >
-                Type your question here...
-              </button>
+
+          <div className="mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-emerald-900">
+              Blog Q&amp;A
+            </h2>
+            <p className="mt-1 text-sm text-emerald-700/80">
+              Ask questions, share stories, and help other KUWHY users.
+            </p>
+          </div>
+
+          {/* Main header card */}
+          <div className="w-full max-w-3xl mx-auto">
+            <div className="rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-center sm:items-stretch gap-4">
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <Avatar
+                  center={false}
+                  size={64}
+                  style="thumbs"
+                  seed={avatarSeed}
+                />
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-emerald-500 font-semibold">
+                    Signed in as
+                  </div>
+                  <div className="text-base font-semibold text-emerald-900">
+                    {displayName}
+                  </div>
+                  <p className="text-xs text-emerald-700/80 mt-0.5">
+                    What&apos;s on your mind today?
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full sm:w-auto flex sm:items-center">
+                <button
+                  className="w-full sm:w-auto inline-flex justify-center items-center rounded-3xl px-6 py-3 text-sm font-semibold shadow-md bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+                  onClick={() => (window.location.href = "/blog/new")}
+                >
+                  Type your question here...
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Pull the list closer to the header */}
-      <main className="max-w-5xl mx-auto px-4 pt-3 pb-8">
+      {/* Blog list area */}
+      <main className="max-w-5xl mx-auto px-4 pt-3 pb-10">
         <BlogList />
       </main>
     </div>
