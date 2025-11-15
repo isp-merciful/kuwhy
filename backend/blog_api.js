@@ -4,6 +4,7 @@ const router = express.Router();
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const { optionalAuth, requireMember,requireAuth } = require("./auth_mw");
 const { prisma } = require("./lib/prisma.cjs");
 
 // Ensure uploads folder exists
@@ -37,7 +38,7 @@ function filesToAttachments(files = []) {
  * - multipart/form-data (fields: user_id, blog_title, message; files: attachments[])
  * - OR application/json
  */
-router.post("/", upload.array("attachments", 10), async (req, res) => {
+router.post("/",requireMember, upload.array("attachments", 10), async (req, res) => {
   try {
     const { user_id, blog_title, message } = req.body || {};
     if (!user_id || !blog_title || !message) {
@@ -74,7 +75,7 @@ router.post("/", upload.array("attachments", 10), async (req, res) => {
  * Now returns attachments as well.
  * Uses relation name "users" per your Prisma schema.
  */
-router.get("/", async (_req, res) => {
+router.get("/",optionalAuth, async (_req, res) => {
   try {
     const result = await prisma.blog.findMany({
       orderBy: { blog_id: "desc" },
@@ -113,7 +114,7 @@ router.get("/", async (_req, res) => {
  * GET /api/blog/:id
  * Single post, with attachments.
  */
-router.get("/:id", async (req, res) => {
+router.get("/:id",optionalAuth, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return res.status(400).json({ error: "Bad id" });
@@ -154,7 +155,7 @@ router.get("/:id", async (req, res) => {
  * PUT /api/blog
  * (Message update only, unchanged)
  */
-router.put("/", async (req, res) => {
+router.put("/",requireMember, async (req, res) => {
   try {
     const { message, blog_id } = req.body || {};
     if (!blog_id) return res.status(400).json({ error: "Missing blog_id" });
@@ -174,7 +175,7 @@ router.put("/", async (req, res) => {
 /**
  * DELETE /api/blog/:id
  */
-router.delete("/:id", async (req, res) => {
+router.delete("/:id",requireMember, async (req, res) => {
   try {
     await prisma.blog.delete({
       where: { blog_id: Number(req.params.id) },

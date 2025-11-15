@@ -49,23 +49,52 @@ function formatDate(iso) {
 async function fetchJSON(url) {
   try {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
+
+    if (!res.ok) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("fetchJSON failed:", res.status, url);
+      }
+      return null;
+    }
+
     return await res.json();
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("fetchJSON error:", err, "url:", url);
+    }
     return null;
   }
 }
 
+// ปรับให้รองรับหลายรูปแบบ response: {data}, {blog}, {post}, array, ฯลฯ
 function normalizeOne(json) {
   if (!json) return null;
-  if (json.data) return json.data; // support {data:{...}}
-  if (Array.isArray(json)) return json[0] ?? null; // rare fallback
+
+  // { data: {...} }
+  if (json.data && !Array.isArray(json.data)) return json.data;
+
+  // { blog: {...} }
+  if (json.blog && !Array.isArray(json.blog)) return json.blog;
+
+  // { post: {...} }
+  if (json.post && !Array.isArray(json.post)) return json.post;
+
+  // [ {...} ] → เอาอันแรก
+  if (Array.isArray(json)) return json[0] ?? null;
+
+  // assume เป็น object ของ blog อยู่แล้ว
   return json;
 }
 
+// รองรับทั้ง array ตรง ๆ และ {data: [...]}, {blogs: [...]}, {posts: [...]}
 function normalizeMany(json) {
   if (!json) return [];
-  return Array.isArray(json) ? json : json.data ?? [];
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json.data)) return json.data;
+  if (Array.isArray(json.blogs)) return json.blogs;
+  if (Array.isArray(json.blog)) return json.blog;
+  if (Array.isArray(json.posts)) return json.posts;
+  return [];
 }
 
 async function fetchPost(id) {
@@ -74,9 +103,11 @@ async function fetchPost(id) {
     `${API_BASE}/api/blog/${encodeURIComponent(id)}`,
     `${API_BASE}/api/blog?id=${encodeURIComponent(id)}`,
   ];
+
   for (const u of candidates) {
     const one = normalizeOne(await fetchJSON(u));
-    if (one && (one.blog_id ?? one.id)) return one;
+    // normalizeOne จะคืน object ของ blog แล้ว → ถ้ามีอะไรก็ใช้เลย
+    if (one) return one;
   }
   return null;
 }
@@ -86,7 +117,7 @@ async function fetchAllPosts() {
 }
 
 export default async function BlogPostPage({ params }) {
-  const { id } = params; // ✅ no await
+  const { id } = params;
   const [post, allPosts] = await Promise.all([fetchPost(id), fetchAllPosts()]);
 
   if (!post) {
@@ -94,7 +125,7 @@ export default async function BlogPostPage({ params }) {
       <div className="mx-auto max-w-2xl py-10">
         <h1 className="text-xl font-semibold">Post not found</h1>
         <p className="mt-2 text-gray-600">
-          We couldn’t find a blog post with ID <code>{id}</code>.
+          We couldn&rsquo;t find a blog post with ID <code>{id}</code>.
         </p>
         <Link
           href="/blog"

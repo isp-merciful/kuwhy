@@ -4,6 +4,8 @@ const bodyParser = require('body-parser');
 require('dotenv').config();
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
+const path = require("path");
+const fs = require("fs");
 
 const blogRouter = require("./blog_api");
 const commentRouter = require("./comment_api");
@@ -14,7 +16,7 @@ const partyChatApi = require("./party_chat_api");
 
 // 1) create app FIRST
 // const app = express();
-
+const app = express();
 // 2) core middlewares
 app.use(express.json()); // replaces bodyParser.json()
 app.use(
@@ -38,7 +40,7 @@ const { requireMember, requireAdmin } = require("./auth_mw");
 const settings = require("./user_setting_api");   // PUT /api/setting  (session only) 
 
 
-const app = express();
+
 
 // app.options('/:splat*', cors());
 
@@ -54,7 +56,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // === ส่วนอื่นตามสิทธิ์เดิม ===
-app.use("/api/blog", requireMember, blogRouter);
+app.use("/api/blog", blogRouter);
 app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/note", noteRouter);
