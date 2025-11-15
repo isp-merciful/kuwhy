@@ -44,7 +44,7 @@ export default function Popup({
   const [loadingMembers, setLoadingMembers] = useState(false);
 
   // toast
-  const [toast, setToast] = useState(null); // { type: 'info'|'error'|'success', text: string }
+  const [toast, setToast] = useState(null); // { type, text, showLogin? }
 
   const isParty = max > 0;
   const isFull = isParty && max > 0 && curr >= max;
@@ -66,9 +66,23 @@ export default function Popup({
   const partyTitle = `${name || "anonymous"}'s Party`;
   const noteTitle = `${name || "anonymous"}'s note`;
 
-  const showToast = (text, type = "error", timeout = 2800) => {
-    setToast({ text, type });
-    if (timeout > 0) setTimeout(() => setToast(null), timeout);
+  // ปรับให้รองรับ options (เช่น showLogin, timeout)
+  const showToast = (text, type = "error", extra) => {
+    let timeout = 2800;
+    let extraState = {};
+
+    if (typeof extra === "number") {
+      timeout = extra;
+    } else if (extra && typeof extra === "object") {
+      timeout = extra.timeout ?? timeout;
+      extraState = { ...extra };
+      delete extraState.timeout;
+    }
+
+    setToast({ text, type, ...extraState });
+    if (timeout > 0) {
+      setTimeout(() => setToast(null), timeout);
+    }
   };
 
   const authHeaders = useMemo(
@@ -100,17 +114,23 @@ export default function Popup({
     if (!showPopup || !viewerUserId) return;
     (async () => {
       try {
-        const resp = await fetch(`http://localhost:8000/api/note/user/${viewerUserId}`, {
-          headers: { ...authHeaders },
-          cache: "no-store",
-        });
+        const resp = await fetch(
+          `http://localhost:8000/api/note/user/${viewerUserId}`,
+          {
+            headers: { ...authHeaders },
+            cache: "no-store",
+          }
+        );
         const raw = await resp.json().catch(() => null);
         const n = raw && typeof raw === "object" ? (raw.note ?? raw) : null;
 
         if (n && n.note_id) {
           setHasOwnNote(true);
-            setOwnNoteId(n.note_id);
-          if (Number(n.max_party) > 0 && Number(n.note_id) !== Number(noteId)) {
+          setOwnNoteId(n.note_id);
+          if (
+            Number(n.max_party) > 0 &&
+            Number(n.note_id) !== Number(noteId)
+          ) {
             setAlreadyInAnotherParty(true);
             setCurrentPartyId(n.note_id);
           } else {
@@ -136,7 +156,7 @@ export default function Popup({
     setMembers([]);
   }, [showPopup]);
 
-  // โหลด host + (ถ้าเป็นปาร์ตี้) members — ทำงานได้ทั้งโน้ตปกติและปาร์ตี้
+  // โหลด host + (ถ้าเป็นปาร์ตี้) members
   useEffect(() => {
     if (!showPopup || !noteId) return;
     let aborted = false;
@@ -144,15 +164,16 @@ export default function Popup({
     (async () => {
       setLoadingMembers(true);
       try {
-        // ใช้ endpoint members เหมือนเดิม
-        const m = await fetchJson(`http://localhost:8000/api/note/${noteId}/members`, {
-          headers: { ...authHeaders },
-          cache: "no-store",
-        });
+        const m = await fetchJson(
+          `http://localhost:8000/api/note/${noteId}/members`,
+          {
+            headers: { ...authHeaders },
+            cache: "no-store",
+          }
+        );
         if (aborted) return;
 
         if (m.ok && m.data) {
-          // พยายาม map host image ให้ได้ก่อน
           const hostImg =
             m.data?.host?.img ??
             m.data?.owner?.img ??
@@ -161,10 +182,11 @@ export default function Popup({
             null;
           if (hostImg) setHostPfp(hostImg);
 
-          if (typeof m.data?.crr_party === "number") setCurr(Number(m.data.crr_party));
-          if (typeof m.data?.max_party === "number") setMax(Number(m.data.max_party));
+          if (typeof m.data?.crr_party === "number")
+            setCurr(Number(m.data.crr_party));
+          if (typeof m.data?.max_party === "number")
+            setMax(Number(m.data.max_party));
 
-          // party members (ถ้ามี)
           if (Array.isArray(m.data.members)) {
             const norm = m.data.members.map((x) => ({
               user_id: x.user_id ?? x.id ?? x.uid,
@@ -175,21 +197,27 @@ export default function Popup({
 
             const viewerId = viewerUserId ? String(viewerUserId) : null;
             const hostJoined =
-              viewerId && m.data?.host?.user_id && String(m.data.host.user_id) === viewerId;
-            const inMembers = viewerId && norm.some((mm) => String(mm.user_id) === viewerId);
+              viewerId &&
+              m.data?.host?.user_id &&
+              String(m.data.host.user_id) === viewerId;
+            const inMembers =
+              viewerId &&
+              norm.some((mm) => String(mm.user_id) === viewerId);
             if (hostJoined || inMembers) setJoined(true);
           } else {
-            setMembers([]); // โน้ตปกติ: ไม่มี members ก็ไม่เป็นไร
+            setMembers([]);
           }
         }
 
-        // Fallback: ถ้าหา host image ไม่เจอเลย ลองดึงจาก note detail (ถ้ามี)
         if (!aborted && !hostPfp) {
           try {
-            const n = await fetchJson(`http://localhost:8000/api/note/${noteId}`, {
-              headers: { ...authHeaders },
-              cache: "no-store",
-            });
+            const n = await fetchJson(
+              `http://localhost:8000/api/note/${noteId}`,
+              {
+                headers: { ...authHeaders },
+                cache: "no-store",
+              }
+            );
             if (n.ok && n.data) {
               const altHost =
                 n.data?.host?.img ??
@@ -215,7 +243,15 @@ export default function Popup({
   useEffect(() => {
     const autoJoin = search.get("autoJoin") === "1";
     if (!autoJoin || !isParty || joined || !noteId) return;
-    if (!authed) return;
+
+    // ถ้ายังไม่ล็อกอิน แสดง toast + ปุ่ม Login
+    if (!authed) {
+      showToast("Please sign in to join this party.", "info", {
+        showLogin: true,
+        timeout: 0,
+      });
+      return;
+    }
 
     (async () => {
       try {
@@ -227,13 +263,18 @@ export default function Popup({
         const data = await res.json().catch(() => ({}));
         if (res.ok || data?.error === "already joined") {
           setJoined(true);
-          if (typeof data?.data?.crr_party === "number") setCurr(Number(data.data.crr_party));
-          if (typeof data?.data?.max_party === "number") setMax(Number(data.data.max_party));
+          if (typeof data?.data?.crr_party === "number")
+            setCurr(Number(data.data.crr_party));
+          if (typeof data?.data?.max_party === "number")
+            setMax(Number(data.data.max_party));
         } else {
           if (data?.error_code === "ALREADY_IN_PARTY") {
             setAlreadyInAnotherParty(true);
             setCurrentPartyId(data?.current_note_id ?? null);
-            showToast("You are already in another party. Leave it first.", "info");
+            showToast(
+              "You are already in another party. Leave it first.",
+              "info"
+            );
           } else if (data?.error_code === "PARTY_FULL") {
             showToast("Party is full", "error");
           } else {
@@ -243,11 +284,13 @@ export default function Popup({
       } catch {
         showToast("Cannot join party right now", "error");
       } finally {
-        // เอา query autoJoin ออก
         try {
           const url = new URL(window.location.href);
           url.searchParams.delete("autoJoin");
-          router.replace(url.pathname + (url.search ? "?" + url.searchParams.toString() : ""));
+          router.replace(
+            url.pathname +
+              (url.search ? "?" + url.searchParams.toString() : "")
+          );
         } catch {}
       }
     })();
@@ -257,15 +300,25 @@ export default function Popup({
     if (!noteId || !isParty || joined || joining) return;
 
     if (hasOwnNote && Number(ownNoteId) !== Number(noteId)) {
-      showToast("You already have your own note. Replace or delete it first.", "info");
+      showToast(
+        "You already have your own note. Replace or delete it first.",
+        "info"
+      );
       return;
     }
     if (alreadyInAnotherParty && Number(currentPartyId) !== Number(noteId)) {
-      showToast("You are already in another party. Leave it first.", "info");
+      showToast(
+        "You are already in another party. Leave it first.",
+        "info"
+      );
       return;
     }
     if (!authed) {
-      showToast("Please sign in to join this party.", "info");
+      // เคสยังไม่ล็อกอิน: แสดง toast + ปุ่ม Login
+      showToast("Please sign in to join this party.", "info", {
+        showLogin: true,
+        timeout: 0,
+      });
       return;
     }
     if (curr >= max) {
@@ -285,7 +338,10 @@ export default function Popup({
         if (data?.error_code === "ALREADY_IN_PARTY") {
           setAlreadyInAnotherParty(true);
           setCurrentPartyId(data?.current_note_id ?? null);
-          showToast("You are already in another party. Leave it first.", "info");
+          showToast(
+            "You are already in another party. Leave it first.",
+            "info"
+          );
           return;
         }
         if (data?.error_code === "PARTY_FULL") {
@@ -297,16 +353,20 @@ export default function Popup({
       }
 
       setJoined(true);
-      if (typeof data?.data?.crr_party === "number") setCurr(Number(data.data.crr_party));
-      if (typeof data?.data?.max_party === "number") setMax(Number(data.data.max_party));
+      if (typeof data?.data?.crr_party === "number")
+        setCurr(Number(data.data.crr_party));
+      if (typeof data?.data?.max_party === "number")
+        setMax(Number(data.data.max_party));
       showToast("Joined party 🎉", "success");
 
-      // รีเฟรชสมาชิก + host image
       try {
-        const m = await fetchJson(`http://localhost:8000/api/note/${noteId}/members`, {
-          headers: { ...authHeaders },
-          cache: "no-store",
-        });
+        const m = await fetchJson(
+          `http://localhost:8000/api/note/${noteId}/members`,
+          {
+            headers: { ...authHeaders },
+            cache: "no-store",
+          }
+        );
         if (m.ok && m.data) {
           const hostImg =
             m.data?.host?.img ??
@@ -324,8 +384,10 @@ export default function Popup({
             }));
             setMembers(norm);
           }
-          if (typeof m.data?.crr_party === "number") setCurr(Number(m.data.crr_party));
-          if (typeof m.data?.max_party === "number") setMax(Number(m.data.max_party));
+          if (typeof m.data?.crr_party === "number")
+            setCurr(Number(m.data.crr_party));
+          if (typeof m.data?.max_party === "number")
+            setMax(Number(m.data.max_party));
         }
       } catch {}
     } finally {
@@ -364,7 +426,6 @@ export default function Popup({
           <div className="px-6 pt-6 pb-0">
             <div className="flex justify-center">
               {isParty ? (
-                // PARTY: label + message (ดำ)
                 <div className="relative text-center">
                   <div className="inline-block rounded-[18px] bg-neutral-900 text-white px-5 py-3 shadow-md">
                     <div className="flex items-center justify-center gap-2 text-[13px] font-semibold text-fuchsia-300">
@@ -386,7 +447,6 @@ export default function Popup({
                   />
                 </div>
               ) : (
-                // REGULAR NOTE: bubble เขียว
                 <div className="relative text-center">
                   <div className="inline-block rounded-[18px] bg-green-100 text-gray-800 px-5 py-2.5 shadow-sm">
                     <div className="text-[16px] md:text-[17px] font-semibold leading-snug break-words">
@@ -411,7 +471,6 @@ export default function Popup({
           <div className="px-6 pt-5 pb-1 text-center">
             <div className="flex items-center justify-center">
               <div className="flex items-center -space-x-3">
-                {/* host (big) */}
                 <div className="relative h-16 w-16 rounded-full ring-4 ring-white overflow-hidden shadow-lg">
                   <img
                     src={hostPfp || "/images/pfp.png"}
@@ -423,7 +482,6 @@ export default function Popup({
                     }}
                   />
                 </div>
-                {/* small members (party only) */}
                 {isParty &&
                   members.slice(0, 2).map((m) => (
                     <div
@@ -455,24 +513,35 @@ export default function Popup({
                 <div className="mt-2 mb-4 flex items-center justify-center gap-2 text-gray-700">
                   <UsersIcon className="h-4 w-4 text-gray-500" />
                   <span className="text-sm">
-                    Party <span className="font-semibold">{curr}/{max}</span> {memberWord}
+                    Party{" "}
+                    <span className="font-semibold">
+                      {curr}/{max}
+                    </span>{" "}
+                    {memberWord}
                   </span>
                 </div>
 
                 {joined ? (
                   <InfoCard tone="success">
-                    You have already joined this party. Open the note to chat with members.
+                    You have already joined this party. Open the note to chat
+                    with members.
                   </InfoCard>
                 ) : hasOwnNote && Number(ownNoteId) !== Number(noteId) ? (
                   <InfoCard tone="warn">
-                    You already have your own note (note #{ownNoteId}). Replace or delete it before joining a party.
+                    You already have your own note (note #{ownNoteId}). Replace
+                    or delete it before joining a party.
                   </InfoCard>
-                ) : alreadyInAnotherParty && Number(currentPartyId) !== Number(noteId) ? (
+                ) : alreadyInAnotherParty &&
+                  Number(currentPartyId) !== Number(noteId) ? (
                   <InfoCard tone="warn">
-                    You are already in another party{currentPartyId ? ` (note #${currentPartyId})` : ""}. Leave it first to join this one.
+                    You are already in another party
+                    {currentPartyId ? ` (note #${currentPartyId})` : ""}. Leave
+                    it first to join this one.
                   </InfoCard>
                 ) : isFull ? (
-                  <InfoCard tone="warn">Party is full. Please check back later.</InfoCard>
+                  <InfoCard tone="warn">
+                    Party is full. Please check back later.
+                  </InfoCard>
                 ) : canShowCTA ? (
                   <div className="rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
                     <div className="text-lg font-semibold text-gray-900">
@@ -500,9 +569,7 @@ export default function Popup({
                 ) : null}
               </>
             ) : (
-              // REGULAR NOTE: comment section
               <div className="mt-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-inner">
-                {/* ✅ โพสต์คอมเมนต์จากป๊อปอัปได้: ส่ง noteId + userId ลงไปตรง ๆ */}
                 <CommentSection noteId={noteId} userId={viewerUserId} />
               </div>
             )}
@@ -522,7 +589,9 @@ function InfoCard({ tone = "info", children }) {
     tone === "success"
       ? "border-emerald-200 bg-emerald-50 text-emerald-800"
       : "border-amber-200 bg-amber-50 text-amber-800";
-  return <div className={`rounded-2xl border px-4 py-3 ${toneMap}`}>{children}</div>;
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${toneMap}`}>{children}</div>
+  );
 }
 
 function Toast({ toast, onClose }) {
@@ -536,7 +605,7 @@ function Toast({ toast, onClose }) {
           className="pointer-events-none absolute bottom-3 left-1/2 z-[1100] -translate-x-1/2"
         >
           <div
-            className={`pointer-events-auto inline-flex items-center gap-2 rounded-xl px-3 py-2 shadow-lg ring-1 ring-black/5 ${
+            className={`pointer-events-auto inline-flex items-center gap-3 rounded-xl px-3 py-2 shadow-lg ring-1 ring-black/5 ${
               toast.type === "success"
                 ? "bg-emerald-600 text-white"
                 : toast.type === "info"
@@ -545,6 +614,17 @@ function Toast({ toast, onClose }) {
             }`}
           >
             <span className="text-sm">{toast.text}</span>
+
+            {toast.showLogin && (
+              <a
+                href="/login"
+                onClick={onClose}
+                className="text-xs font-semibold underline underline-offset-2"
+              >
+                Login
+              </a>
+            )}
+
             <button
               onClick={onClose}
               className="rounded-md px-2 py-0.5 text-xs/4 hover:bg-white/20"

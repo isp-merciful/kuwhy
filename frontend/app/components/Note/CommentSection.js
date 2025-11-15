@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 
 /* ---------------- utils ---------------- */
 const API = "http://localhost:8000/api";
@@ -163,7 +164,6 @@ function CommentItem({
               <div
                 data-menu-anchor={comment.comment_id}
                 className={cx(
-                  // วางเมนูที่มุมขวาบนของ bubble
                   "absolute top-2 right-3 md:right-3",
                   "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition"
                 )}
@@ -249,7 +249,6 @@ function CommentItem({
                     rows={2}
                     placeholder="Edit your comment..."
                     className="w-[min(560px,78vw)] max-w-full rounded-xl border px-3 py-2 text-[15px] focus:ring-1 focus:ring-blue-500 outline-none"
-                    // keyboard shortcut: Esc = cancel, Enter = save (ไม่กด Shift)
                     onKeyDown={(e) => {
                       if (e.key === "Escape") {
                         e.preventDefault();
@@ -262,7 +261,6 @@ function CommentItem({
                     }}
                   />
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    {/* hint ให้ user */}
                     <span className="hidden sm:block text-[11px] text-gray-400">
                       escape to cancel • enter to save
                     </span>
@@ -371,6 +369,45 @@ function CommentItem({
   );
 }
 
+/* ---------------- Toast สำหรับ login / post note ---------------- */
+
+function LoginToast({ open, onClose, onGoLogin, onGoNote }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ y: 16, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 16, opacity: 0 }}
+          transition={{ duration: 0.22 }}
+          className="pointer-events-none fixed bottom-4 left-1/2 z-[9999] -translate-x-1/2"
+        >
+          <div className="pointer-events-auto flex items-center gap-3 rounded-2xl bg-sky-500 px-4 py-2 text-sm text-white shadow-lg ring-1 ring-black/5">
+            <span className="font-semibold">
+              Please sign in or post a note before commenting.
+            </span>
+            <button
+              type="button"
+              onClick={onGoLogin}
+              className="text-xs font-semibold underline"
+            >
+              Login
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs opacity-80 hover:opacity-100"
+            >
+              Close
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 /* ---------------- Section (root) ---------------- */
 export default function CommentSection({ noteId, userId }) {
   const router = useRouter();
@@ -380,12 +417,73 @@ export default function CommentSection({ noteId, userId }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showAllRoots, setShowAllRoots] = useState(false);
+  const [showLoginToast, setShowLoginToast] = useState(false);
+  const [userExists, setUserExists] = useState(null); // ✅ เช็คว่า userId นี้อยู่ใน DB ไหม
   const scrollRef = useRef(null);
 
-  if (!userId) {
-    // ไม่รู้ตัวตน → ไม่เรนเดอร์ (เหมือนของเดิม)
-    return null;
-  }
+  // ✅ เช็ค userId กับ DB ครั้งเดียว (หรือเมื่อ userId เปลี่ยน)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkUser() {
+      if (!userId) {
+        setUserExists(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${API}/user/${userId}`, {
+          cache: "no-store",
+        });
+
+        if (cancelled) return;
+
+        if (res.status === 404 || res.status === 400) {
+          console.warn("stale userId in comment section, user not found");
+          setUserExists(false);
+          return;
+        }
+
+        if (!res.ok) {
+          console.error("check user failed:", res.status);
+          setUserExists(false);
+          return;
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setUserExists(!!data);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error("check user failed:", e);
+          setUserExists(false);
+        }
+      }
+    }
+
+    checkUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // helper: ต้องมี user ที่ valid ก่อนถึงจะโพสต์ได้
+  const requireUser = () => {
+    // ไม่มี userId เลย → ให้ไป login / post note
+    if (!userId) {
+      setShowLoginToast(true);
+      return false;
+    }
+    // มี userId แต่เช็คแล้วไม่อยู่ใน DB → ถือว่า stale
+    if (userExists === false) {
+      setShowLoginToast(true);
+      return false;
+    }
+    // ระหว่างกำลังเช็ค (null) จะไม่เด้ง toast เพื่อไม่กวน
+    // แต่ก็ยังไม่ block เพิ่มเป็น true ได้ถ้าอยากให้ strict กว่านี้
+    return true;
+  };
 
   // load comments
   useEffect(() => {
@@ -424,6 +522,8 @@ export default function CommentSection({ noteId, userId }) {
 
   // create new root comment
   async function handleCreate(message) {
+    if (!requireUser()) return;
+
     const payload = {
       user_id: userId,
       message,
@@ -439,7 +539,6 @@ export default function CommentSection({ noteId, userId }) {
       });
       if (!res.ok) return;
       await refresh();
-      // scroll ลงมาล่างสุด
       if (scrollRef.current) {
         requestAnimationFrame(() => {
           if (scrollRef.current) {
@@ -455,6 +554,8 @@ export default function CommentSection({ noteId, userId }) {
 
   // reply
   async function handleReply(message, parentId) {
+    if (!requireUser()) return;
+
     const payload = {
       user_id: userId,
       message,
@@ -522,9 +623,11 @@ export default function CommentSection({ noteId, userId }) {
       ? rootComments
       : rootComments.slice(rootCount - VISIBLE_ROOT_LIMIT);
 
+  // ✅ ถ้า user ไม่ valid แล้ว → ห้าม edit/delete โดยถือว่า meId = null
+  const meId = userExists ? userId : null;
+
   return (
-    // สูงสุดไม่เกิน 70% ของจอ, มี min-height
-    <div className="flex flex-col max-h-[70vh] min-h-[260px]">
+    <div className="flex flex-col max-h-[70vh] min-h-[260px] relative">
       {/* scroll area */}
       <div
         ref={scrollRef}
@@ -557,7 +660,7 @@ export default function CommentSection({ noteId, userId }) {
               <CommentItem
                 key={c.comment_id}
                 comment={c}
-                meId={userId}
+                meId={meId}
                 onReplySubmit={handleReply}
                 onEditSubmit={handleEdit}
                 onDeleteSubmit={handleDelete}
@@ -579,6 +682,12 @@ export default function CommentSection({ noteId, userId }) {
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Write a comment..."
             className="flex-1 rounded-full border px-4 py-2 focus:ring-1 focus:ring-blue-500 outline-none"
+            onFocus={() => {
+              // ✅ ถ้ายังไม่มี user หรือ userId นี้หายจาก DB แล้ว → เตือนเลย
+              if (!userId || userExists === false) {
+                setShowLoginToast(true);
+              }
+            }}
           />
           <button
             type="button"
@@ -595,6 +704,15 @@ export default function CommentSection({ noteId, userId }) {
           </button>
         </div>
       </div>
+
+      <LoginToast
+        open={showLoginToast}
+        onClose={() => setShowLoginToast(false)}
+        onGoLogin={() => {
+          setShowLoginToast(false);
+          router.push("/login");
+        }}
+      />
     </div>
   );
 }
