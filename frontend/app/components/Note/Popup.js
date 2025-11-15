@@ -147,7 +147,7 @@ export default function Popup({
         // เงียบไว้ตามเดิม
       }
     })();
-  }, [showPopup, viewerUserId, authHeaders, noteId]);
+  }, [showPopup, viewerUserId, authHeaders, noteId, joined]); // ✅ เพิ่ม joined ให้ re-fetch หลัง join
 
   // reset เมื่อเปิดใหม่ กันค่า avatar/members จากโน้ตก่อนหน้าค้างมา
   useEffect(() => {
@@ -267,6 +267,13 @@ export default function Popup({
             setCurr(Number(data.data.crr_party));
           if (typeof data?.data?.max_party === "number")
             setMax(Number(data.data.max_party));
+
+          // ✅ refresh หน้าเหมือน F5 เบา ๆ
+          try {
+            router.refresh();
+          } catch (e) {
+            console.warn("router.refresh failed (autoJoin):", e);
+          }
         } else {
           if (data?.error_code === "ALREADY_IN_PARTY") {
             setAlreadyInAnotherParty(true);
@@ -301,7 +308,9 @@ export default function Popup({
 
     if (hasOwnNote && Number(ownNoteId) !== Number(noteId)) {
       showToast(
-        "You already have your own note. Replace or delete it first.",
+        `You already have your own note${
+          ownNoteId ? ` (note #${ownNoteId})` : ""
+        }. Delete it first, then you can join this party.`,
         "info"
       );
       return;
@@ -359,6 +368,14 @@ export default function Popup({
         setMax(Number(data.data.max_party));
       showToast("Joined party 🎉", "success");
 
+      // ✅ refresh หน้า parent (active note, header ฯลฯ) ให้ดึงข้อมูลใหม่
+      try {
+        router.refresh();
+      } catch (e) {
+        console.warn("router.refresh failed (manual join):", e);
+      }
+
+      // refresh members ใน popup เองอีกครั้ง
       try {
         const m = await fetchJson(
           `http://localhost:8000/api/note/${noteId}/members`,
@@ -523,20 +540,19 @@ export default function Popup({
 
                 {joined ? (
                   <InfoCard tone="success">
-                    You have already joined this party. Open the note to chat
+                    You have already joined this party. Open your note to chat
                     with members.
                   </InfoCard>
                 ) : hasOwnNote && Number(ownNoteId) !== Number(noteId) ? (
                   <InfoCard tone="warn">
-                    You already have your own note (note #{ownNoteId}). Replace
-                    or delete it before joining a party.
+                    You already have your own note
+                    {ownNoteId ? ` (note #${ownNoteId})` : ""}. Delete it
+                    first, then you can join this party.
                   </InfoCard>
                 ) : alreadyInAnotherParty &&
                   Number(currentPartyId) !== Number(noteId) ? (
                   <InfoCard tone="warn">
-                    You are already in another party
-                    {currentPartyId ? ` (note #${currentPartyId})` : ""}. Leave
-                    it first to join this one.
+                    You are already in another party. It first to join this one.
                   </InfoCard>
                 ) : isFull ? (
                   <InfoCard tone="warn">
