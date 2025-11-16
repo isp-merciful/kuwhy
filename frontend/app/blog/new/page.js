@@ -21,7 +21,8 @@ export default function NewBlogPage() {
 
   // apiToken อยู่บน session (เหมือนหน้า debug / note)
   const apiToken = authed ? session?.apiToken : null;
-
+  const avatarSeed = session?.user?.id || "blog-header-default";
+  
   const authHeaders = useMemo(
     () => (apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
     [apiToken]
@@ -156,7 +157,12 @@ export default function NewBlogPage() {
           </div>
 
           <div className="flex items-start gap-6 mb-8">
-            <Avatar center={false} size={24} />
+                          <Avatar
+                            center={false}
+                            size={64}
+                            style="thumbs"           
+                            seed={avatarSeed}        
+                          />
             <div className="flex-1 max-w-2xl mx-auto">
               <div className="text-gray-500 mb-2 text-center">
                 {displayName}

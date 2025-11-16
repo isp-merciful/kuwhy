@@ -117,30 +117,29 @@ export default function ProfilePage() {
           </div>
 
           {/* ActiveNoteViewer: แสดงเฉพาะเมื่อมีโน้ต */}
-{hasActiveNote && (
-  // ยึดจุดยืนเดิม: เริ่มที่กึ่งกลาง แล้วยืดไปทางขวา
-  <div className="absolute top-0 left-1/2 -translate-y-[120%]">
-    {/* กล่องห่อ: กดไม่ได้ + ขยายตามเนื้อหา + จำกัดความกว้างบน/ล่าง */}
-    <div
-      className="
-        pointer-events-none inline-block align-top
-        w-auto min-w-[16rem] max-w-[clamp(22rem,62vw,56rem)]
-        [&_*]:break-words [&_*]:whitespace-pre-wrap [&_*]:leading-relaxed [&_*]:text-left
-      "
-      style={{
-        overflowWrap: "anywhere",   // ตัดคำไทย/คำยาว
-        wordBreak: "break-word",
-        lineBreak: "anywhere",
-        textWrap: "pretty",
-      }}
-    >
-      <ActiveNoteViewer
-        userId={u.user_id}
-        className="inline-block w-auto max-w-full rounded-2xl shadow-lg ring-1 ring-emerald-100/60 bg-white"
-      />
-    </div>
-  </div>
-)}
+          {hasActiveNote && (
+            // ยึดจุดยืนเดิม: เริ่มที่กึ่งกลาง แล้วยืดไปทางขวา
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[85%]">
+              {/* กล่องห่อ: กดไม่ได้ + ขยายตามเนื้อหา + จำกัดความกว้างบน/ล่าง */}
+              <div
+                className="
+                  pointer-events-none inline-block align-top
+                  w-auto min-w-[16rem] max-w-[clamp(22rem,62vw,56rem)]
+                  [&_*]:break-words [&_*]:whitespace-pre-wrap [&_*]:leading-relaxed [&_*]:text-left
+                "
+                style={{
+                  overflowWrap: "anywhere",   // ตัดคำไทย/คำยาว
+                  wordBreak: "break-word",
+                  lineBreak: "anywhere",
+                  textWrap: "pretty",
+                }}
+              >
+                <ActiveNoteViewer
+                  userId={u.user_id}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-3 md:mt-4">
