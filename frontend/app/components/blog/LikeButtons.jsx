@@ -71,27 +71,44 @@ export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
   const activeDown = mine === "down";
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
+      {/* LIKE BUTTON */}
       <button
         onClick={() => doVote("up")}
         disabled={loading}
-        className={`rounded-md border px-3 py-1 hover:bg-gray-50 disabled:opacity-60 ${activeUp ? "font-semibold" : ""}`}
         aria-pressed={activeUp}
         aria-label="Like this post"
         title="Like (tap again to undo)"
+        className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm shadow-sm transition-all
+          ${
+            activeUp
+              ? "bg-emerald-500 border-emerald-500 text-white"
+              : "bg-white/80 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+          }
+          disabled:opacity-50 disabled:cursor-not-allowed
+        `}
       >
-        👍 {up}
+        👍 <span>{up}</span>
       </button>
+  
+      {/* DISLIKE BUTTON */}
       <button
         onClick={() => doVote("down")}
         disabled={loading}
-        className={`rounded-md border px-3 py-1 hover:bg-gray-50 disabled:opacity-60 ${activeDown ? "font-semibold" : ""}`}
         aria-pressed={activeDown}
         aria-label="Dislike this post"
         title="Dislike (tap again to undo)"
+        className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm shadow-sm transition-all
+          ${
+            activeDown
+              ? "bg-red-500 border-red-500 text-white"
+              : "bg-white/80 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+          }
+          disabled:opacity-50 disabled:cursor-not-allowed
+        `}
       >
-        👎 {down}
+        👎 <span>{down}</span>
       </button>
     </div>
-  );
+  );  
 }
