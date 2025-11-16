@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Avatar from "../../components/Note/Avatar";
 
 // Resolve API base (works with Docker too)
 const API_BASE = "http://localhost:8000";
@@ -21,9 +22,6 @@ export default function NewBlogPage() {
   // apiToken อยู่บน session (เหมือนหน้า debug / note)
   const apiToken = authed ? session?.apiToken : null;
 
-  // ✅ ดึง avatar จาก session.user.image (ที่ map มาจาก DB)
-  const avatarImg = session?.user?.image || null;
-
   const authHeaders = useMemo(
     () => (apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
     [apiToken]
@@ -36,10 +34,11 @@ export default function NewBlogPage() {
   const [tagsInput, setTagsInput] = useState(""); // free-typed tags
   const [presetTags, setPresetTags] = useState([]); // selected preset tags
 
-  // ✅ ชื่อหลักใช้ session.user.name (ซึ่งคือ users.user_name ใน DB)
+  // ดึงชื่อจาก session
   const displayName =
+    session?.user?.user_name ||
+    session?.user?.login_name ||
     session?.user?.name ||
-    session?.user?.login_name || // fallback
     "anonymous";
 
   // preview สำหรับรูป
@@ -170,25 +169,19 @@ export default function NewBlogPage() {
               Share your question with the KUWHY community.
             </p>
           </div>
-
-          <div className="flex items-start gap-6 mb-8">
-            {/* ✅ ใช้รูปโปรไฟล์จริงจาก session.user.image */}
-            {avatarImg ? (
-              <img
-                src={avatarImg}
-                alt={displayName}
-                className="w-16 h-16 rounded-full object-cover border border-emerald-200 bg-emerald-50"
-              />
-            ) : (
-              // fallback ถ้า user ยังไม่มี img ใน DB
-              <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-lg font-semibold text-emerald-700">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-            )}
-
-            <div className="flex-1 max-w-2xl mx-auto">
-              <div className="text-gray-500 mb-2 text-center">
-                {displayName}
+  
+          {/* User / title input card */}
+          <div className="rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col items-center gap-4 mb-8">
+  
+            <div className="flex items-center gap-4">
+              <Avatar center={false} size={64} />
+              <div>
+                <div className="text-xs uppercase tracking-wide text-emerald-500 font-semibold">
+                  Posting as
+                </div>
+                <div className="text-base font-semibold text-emerald-900 text-center sm:text-left">
+                  {displayName}
+                </div>
               </div>
             </div>
   
@@ -219,49 +212,11 @@ export default function NewBlogPage() {
                          outline-none text-gray-800 placeholder-gray-400
                          focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition"
             />
-
-            {/* Tags input + preset buttons */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+  
+            {/* Tags Section */}
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-emerald-800 mb-2">
                 Tags / Categories
-              </label>
-              <input
-                type="text"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="Type custom tags, e.g. homework, exam, cat"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#1a73e8]"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Separate multiple tags with commas.
-              </p>
-
-              {/* Preset tags */}
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                {PRESET_TAGS.map((tag) => {
-                  const active = presetTags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => togglePresetTag(tag)}
-                      className={`inline-flex items-center rounded-full border px-3 py-1 transition-colors ${
-                        active
-                          ? "bg-emerald-500 border-emerald-500 text-white"
-                          : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                      }`}
-                    >
-                      #{tag}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* attachments picker + previews */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Attach files (images, PDFs, etc.)
               </label>
   
               <input
