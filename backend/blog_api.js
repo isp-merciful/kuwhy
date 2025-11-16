@@ -38,7 +38,7 @@ router.post(
   upload.array("attachments", 10),
   async (req, res) => {
     try {
-      const { blog_title, message } = req.body || {};
+      const { blog_title, message, tags: rawTags } = req.body || {};
       const userId = req.user?.id;
 
       if (!userId || typeof userId !== "string") {
@@ -49,6 +49,15 @@ router.post(
         return res.status(400).json({ error: "Missing fields" });
       }
 
+      // parse comma-separated tags: "homework, cat" -> ["homework","cat"]
+      let tags = [];
+      if (typeof rawTags === "string") {
+        tags = rawTags
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => t.length > 0);
+      }
+
       const uploaded = filesToAttachments(req.files);
 
       console.log("Creating blog:", {
@@ -56,6 +65,7 @@ router.post(
         blog_title,
         message,
         attachments: uploaded.length,
+        tags,
       });
 
       const created = await prisma.blog.create({
@@ -66,6 +76,7 @@ router.post(
           blog_up: 0,
           blog_down: 0,
           ...(uploaded.length > 0 ? { attachments: uploaded } : {}),
+          ...(tags.length > 0 ? { tags } : {}), // ⭐ save tags JSON
         },
       });
 
@@ -101,6 +112,7 @@ router.get("/", optionalAuth, async (_req, res) => {
         created_at: true,
         updated_at: true,
         attachments: true,
+        tags: true, // ⭐ include tags
         users: { select: { img: true, user_name: true } },
       },
     });
@@ -115,6 +127,7 @@ router.get("/", optionalAuth, async (_req, res) => {
       attachments: Array.isArray(b.attachments) ? b.attachments : [],
       blog_up: b.blog_up ?? 0,
       blog_down: b.blog_down ?? 0,
+      tags: Array.isArray(b.tags) ? b.tags : [], // ⭐ normalized tags
     }));
 
     res.json(blogs);
@@ -143,6 +156,7 @@ router.get("/:id", optionalAuth, async (req, res) => {
         created_at: true,
         updated_at: true,
         attachments: true,
+        tags: true, // ⭐ include tags
         users: { select: { img: true, user_name: true } },
       },
     });
@@ -158,6 +172,7 @@ router.get("/:id", optionalAuth, async (req, res) => {
       attachments: Array.isArray(b.attachments) ? b.attachments : [],
       blog_up: b.blog_up ?? 0,
       blog_down: b.blog_down ?? 0,
+      tags: Array.isArray(b.tags) ? b.tags : [], // ⭐ normalized tags
     });
   } catch (error) {
     console.error("GET /api/blog/:id failed:", error);
@@ -165,7 +180,7 @@ router.get("/:id", optionalAuth, async (req, res) => {
   }
 });
 
-/* ----------------------- UPDATE BLOG ----------------------- */
+/* ----------------------- UPDATE BLOG (message only) ----------------------- */
 
 router.put("/", requireMember, async (req, res) => {
   try {
@@ -242,7 +257,7 @@ router.post("/:id/vote-simple", optionalAuth, async (req, res) => {
       }
     }
 
-    // ❗ NEVER allow negative values
+    // clamp at 0
     up = Math.max(0, up);
     down = Math.max(0, down);
 

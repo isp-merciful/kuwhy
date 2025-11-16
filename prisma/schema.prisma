@@ -64,15 +64,18 @@ model VerificationToken {
 model blog {
   blog_id       Int             @id @default(autoincrement())
   blog_title    String?         @db.VarChar(60)
-  message       String?         @db.VarChar(120)
+  message       String?         @db.Text
   blog_up       Int?
   blog_down     Int?
-  user_id       String         @db.Char(36)
+  user_id       String          @db.Char(36)
   created_at    DateTime?       @default(now()) @db.Timestamp(0)
   updated_at    DateTime?       @default(now()) @db.Timestamp(0)
 
-  // NEW: store uploaded files as JSON array: [{ url, name, type, size }]
+  // store uploaded files as JSON array: [{ url, name, type, size }]
   attachments   Json?
+
+  // ⭐ NEW: store tags as JSON array: ["homework","cat","question"]
+  tags          Json?
 
   users         users?          @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "blog_ibfk_1")
   comment       comment[]
@@ -80,6 +83,7 @@ model blog {
 
   @@index([user_id], map: "user_id")
 }
+
 
 
 model comment {

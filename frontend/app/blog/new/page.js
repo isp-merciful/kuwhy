@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Avatar from "../../components/Note/Avatar";
 
 // Resolve API base (works with Docker too)
-const API_BASE ="http://localhost:8000";
+const API_BASE = "http://localhost:8000";
 
 export default function NewBlogPage() {
   const router = useRouter();
@@ -28,6 +28,7 @@ export default function NewBlogPage() {
   const [detail, setDetail] = useState("");
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState([]); // File[]
+  const [tagsInput, setTagsInput] = useState(""); // 👈 NEW: tags field
 
   // ดึงชื่อจาก session
   const displayName =
@@ -86,6 +87,10 @@ export default function NewBlogPage() {
       const fd = new FormData();
       fd.append("blog_title", title.trim());
       fd.append("message", detail.trim());
+      if (tagsInput.trim().length > 0) {
+        // 👈 NEW: send raw tags string, backend will split by comma
+        fd.append("tags", tagsInput.trim());
+      }
       files.forEach((f) => fd.append("attachments", f));
 
       const res = await fetch(`${API_BASE}/api/blog`, {
@@ -151,6 +156,24 @@ export default function NewBlogPage() {
               rows={8}
               className="w-full outline-none text-gray-700 placeholder-gray-400"
             />
+
+            {/* 👇 NEW: Tags input */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tags / Categories (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder="e.g. homework, question, ku, cat"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#1a73e8]"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Separate multiple tags with commas. Example:{" "}
+                <b>homework, exam, cat</b>
+              </p>
+            </div>
 
             {/* attachments picker + previews */}
             <div className="mt-4">

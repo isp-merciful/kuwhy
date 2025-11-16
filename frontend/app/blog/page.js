@@ -1,11 +1,24 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Avatar from "../components/Note/Avatar";
 import BlogList from "../components/blog/BlogList";
 
 export default function BlogPage() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // current tag from URL (?tag=xxx)
+  const currentTag = searchParams.get("tag") || "";
+  const [tagInput, setTagInput] = useState(currentTag);
+
+  // keep input in sync when URL changes
+  useEffect(() => {
+    setTagInput(currentTag);
+  }, [currentTag]);
 
   const displayName =
     session?.user?.user_name ||
@@ -14,6 +27,29 @@ export default function BlogPage() {
     "username";
 
   const avatarSeed = session?.user?.id || "blog-header-default";
+
+  const handleBack = () => {
+    router.push("/");
+  };
+
+  const handleNewPost = () => {
+    router.push("/blog/new");
+  };
+
+  const applyTagFilter = (e) => {
+    e?.preventDefault?.();
+    const v = tagInput.trim();
+    if (v) {
+      router.push(`/blog?tag=${encodeURIComponent(v)}`);
+    } else {
+      router.push("/blog");
+    }
+  };
+
+  const clearTagFilter = () => {
+    setTagInput("");
+    router.push("/blog");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100">
@@ -27,14 +63,12 @@ export default function BlogPage() {
         <div className="max-w-5xl mx-auto px-4">
           <div className="mb-4 flex items-center justify-between gap-4">
             <button
-              onClick={() => (window.location.href = "/")}
+              onClick={handleBack}
               className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors"
             >
               <span className="text-xl leading-none">←</span>
               <span>Back</span>
             </button>
-
-            {/* You can add something here later (filters, etc.) */}
           </div>
 
           <div className="mb-6">
@@ -72,12 +106,49 @@ export default function BlogPage() {
               <div className="w-full sm:w-auto flex sm:items-center">
                 <button
                   className="w-full sm:w-auto inline-flex justify-center items-center rounded-3xl px-6 py-3 text-sm font-semibold shadow-md bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
-                  onClick={() => (window.location.href = "/blog/new")}
+                  onClick={handleNewPost}
                 >
                   Type your question here...
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* ⭐ Tag filter input */}
+          <div className="w-full max-w-3xl mx-auto mt-5">
+            <form
+              onSubmit={applyTagFilter}
+              className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center rounded-2xl border border-emerald-100 bg-white/80 px-4 py-3 shadow-sm"
+            >
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
+                  Filter by tag
+                </label>
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="e.g. cat, homework, question"
+                  className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1 sm:pt-5">
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors"
+                >
+                  Apply
+                </button>
+                <button
+                  type="button"
+                  onClick={clearTagFilter}
+                  className="inline-flex items-center justify-center rounded-xl border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </section>

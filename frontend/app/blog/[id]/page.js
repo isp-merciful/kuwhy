@@ -102,7 +102,7 @@ async function fetchAllPosts() {
   return normalizeMany(await fetchJSON(`${API_BASE}/api/blog`));
 }
 
-/* ---------------------- page component (client) ---------------------- */
+/* ---------------------- page component ---------------------- */
 
 export default function BlogPostPage({ params }) {
   const id = params?.id;
@@ -204,6 +204,14 @@ export default function BlogPostPage({ params }) {
   }
   const atts = Array.isArray(rawAtts) ? rawAtts : [];
 
+  // ⭐ normalize tags for safe rendering
+  const tags =
+    Array.isArray(post.tags)
+      ? post.tags
+      : typeof post.tags === "string"
+      ? post.tags.split(",").map((t) => t.trim())
+      : [];
+
   return (
     <div className="mx-auto max-w-5xl py-10">
       <div className="mb-4">
@@ -223,6 +231,21 @@ export default function BlogPostPage({ params }) {
                 {post.created_at ? formatDate(post.created_at) : ""}
               </time>
             </div>
+
+            {/* ⭐ Tag pills (clickable) */}
+            {tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/blog?tag=${encodeURIComponent(tag)}`}
+                    className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-emerald-700 hover:bg-emerald-100"
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
           </header>
 
           <section className="prose mt-4 max-w-none">
