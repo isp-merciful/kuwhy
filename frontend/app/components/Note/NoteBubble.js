@@ -1,7 +1,7 @@
 // frontend/app/components/NoteBubble.js
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import MessageInput from "./MessageInput";
@@ -161,59 +161,27 @@ export default function NoteBubble() {
   }, [userId]);
 
   // --------------------------
-  // initial load (profile + note)
+  // refresh note จาก server (ใช้ได้ทั้งตอน mount และตอน popup join event)
   // --------------------------
-  useEffect(() => {
-    if (!userId || !ready) return;
+  const refreshNote = useCallback(
+    async (signal) => {
+      if (!userId) return;
 
-    // reset note/party states
-    setText("");
-    setNoteId(null);
-    setIsPosted(false);
-    setIsParty(false);
-    setMaxParty(0);
-    setCurrParty(0);
-    setJoinedMemberOnly(false);
-
-    const controller = new AbortController();
-
-    if (
-      authed &&
-      session?.user?.name &&
-      session.user.name.toLowerCase() !== "anonymous"
-    ) {
-      setName(session.user.name);
-    }
-
-    async function fetchUserOnce() {
       try {
-        const res = await fetch(`http://localhost:8000/api/user/${userId}`, {
-          signal: controller.signal,
+        const options = {
           cache: "no-store",
           headers: { ...authHeaders },
-        });
-        if (!mountedRef.current || !res.ok) return null;
-        const data = await res.json();
-        if (!mountedRef.current) return null;
-        return data;
-      } catch {
-        return null;
-      }
-    }
+        };
+        if (signal) options.signal = signal;
 
-    async function fetchNote() {
-      try {
         const res = await fetch(
           `http://localhost:8000/api/note/user/${userId}`,
-          {
-            signal: controller.signal,
-            cache: "no-store",
-            headers: { ...authHeaders },
-          }
+          options
         );
         if (!mountedRef.current) return;
 
         if (!res.ok) {
+          // ไม่มี note
           setIsPosted(false);
           setNoteId(null);
           setText("");
@@ -247,8 +215,10 @@ export default function NoteBubble() {
           setCurrParty(0);
           setJoinedMemberOnly(false);
         }
-      } catch {
+      } catch (err) {
         if (!mountedRef.current) return;
+        if (err.name === "AbortError") return;
+
         setIsPosted(false);
         setNoteId(null);
         setText("");
@@ -257,10 +227,59 @@ export default function NoteBubble() {
         setCurrParty(0);
         setJoinedMemberOnly(false);
       }
+    },
+    [userId, authHeaders]
+  );
+
+  // --------------------------
+  // initial load (profile + note)
+  // --------------------------
+  useEffect(() => {
+    if (!userId || !ready) return;
+
+    // reset note/party states
+    setText("");
+    setNoteId(null);
+    setIsPosted(false);
+    setIsParty(false);
+    setMaxParty(0);
+    setCurrParty(0);
+    setJoinedMemberOnly(false);
+
+    const controller = new AbortController();
+
+    if (
+      authed &&
+      session?.user?.name &&
+      session.user.name.toLowerCase() !== "anonymous"
+    ) {
+      setName(session.user.name);
+    }
+
+    async function fetchUserOnce(signal) {
+      try {
+        const options = {
+          cache: "no-store",
+          headers: { ...authHeaders },
+        };
+        if (signal) options.signal = signal;
+
+        const res = await fetch(
+          `http://localhost:8000/api/user/${userId}`,
+          options
+        );
+        if (!mountedRef.current || !res.ok) return null;
+        const data = await res.json();
+        if (!mountedRef.current) return null;
+        return data;
+      } catch (err) {
+        if (err.name === "AbortError") return null;
+        return null;
+      }
     }
 
     (async () => {
-      const u = await fetchUserOnce();
+      const u = await fetchUserOnce(controller.signal);
       if (mountedRef.current && u) {
         const serverName = extractServerName(u);
         if (
@@ -274,11 +293,31 @@ export default function NoteBubble() {
         if (img && typeof img === "string") setServerImg(img);
         else setServerImg(null);
       }
-      await fetchNote();
+
+      await refreshNote(controller.signal);
     })();
 
     return () => controller.abort();
-  }, [userId, ready, authed, session?.user?.name, authHeaders]);
+  }, [userId, ready, authed, session?.user?.name, authHeaders, refreshNote]);
+
+  // --------------------------
+  // ฟัง event จาก Popup: join party แล้วให้รีเฟรช note ทันที
+  // --------------------------
+  useEffect(() => {
+    if (!userId) return;
+    if (typeof window === "undefined") return;
+
+    const handler = (e) => {
+      const detail = e.detail || {};
+      // ถ้าจะกรอง userId ก็ทำแบบนี้ได้ (ตอนนี้ปล่อยให้รีเฟรชทุกครั้งที่มี event)
+      // if (detail.userId && String(detail.userId) !== String(userId)) return;
+
+      refreshNote();
+    };
+
+    window.addEventListener("kuwhy-active-note-changed", handler);
+    return () => window.removeEventListener("kuwhy-active-note-changed", handler);
+  }, [userId, refreshNote]);
 
   // --------------------------
   // Actions
@@ -529,7 +568,7 @@ export default function NoteBubble() {
                   )}
                 </div>
 
-                {/* Avatar + FAB (ขยับขึ้นให้ชิดหางบับเบิ้ลมากขึ้น) */}
+                {/* Avatar + FAB */}
                 <div className="-mt-3 mb-2 relative inline-block">
                   <Avatar
                     src={serverImg || undefined}
@@ -788,7 +827,7 @@ export default function NoteBubble() {
               )}
             </div>
 
-            {/* คำอธิบาย (อยู่นอกคอลัมน์ซ้าย ใช้ความกว้างเยอะขึ้น) */}
+            {/* คำอธิบาย */}
             {!isPosted && (
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
