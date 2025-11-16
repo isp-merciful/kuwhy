@@ -106,7 +106,7 @@ export default function PartyChat({ noteId, userId }) {
   const [text, setText] = useState("");
   const [netErr, setNetErr] = useState("");
 
-  const bottomRef = useRef(null);
+  const listRef = useRef(null);        // ✅ scroll container ของข้อความ
   const cursorRef = useRef(0);
 
   const authFetch = useCallback(
@@ -198,11 +198,13 @@ export default function PartyChat({ noteId, userId }) {
     };
   }, [noteId, ready, authFetch]);
 
-  /* ---------- auto scroll ลงล่างสุด ---------- */
+  /* ---------- auto scroll ลงล่างสุด (เฉพาะในกล่องแชท) ---------- */
   useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    const el = listRef.current;
+    if (!el) return;
+
+    // เลื่อนเฉพาะ scroll container ไม่ให้ไปดึงทั้งหน้า
+    el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
   /* ---------- ส่งข้อความ: POST /chat/party/:noteId ---------- */
@@ -324,7 +326,10 @@ export default function PartyChat({ noteId, userId }) {
       </div>
 
       {/* MESSAGE LIST */}
-      <div className="mt-3 mb-3 pr-1 space-y-3 max-h-[260px] overflow-y-auto overflow-x-hidden">
+      <div
+        ref={listRef}
+        className="mt-3 mb-3 pr-1 space-y-3 max-h-[260px] overflow-y-auto overflow-x-hidden"
+      >
         {!ready && (
           <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-center">
             Please sign in to view and send messages.
@@ -349,8 +354,6 @@ export default function PartyChat({ noteId, userId }) {
               loginName={m.login_name} // backend ส่งมาก็ใช้เลย
             />
           ))}
-
-        <div ref={bottomRef} />
       </div>
 
       {/* INPUT */}
