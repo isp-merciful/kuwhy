@@ -1,14 +1,22 @@
 // frontend/app/components/Note/MessageInput.js
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const PLACEHOLDERS = [
+  "Share a note",
+  "Current mood?",
+  "Random thought..",
+  "Quick update?",
+  "Recently into..",
+];
 
 export default function MessageInput({
   text,
   setText,
   isPosted,
-  isCompose = false,      // true เฉพาะตอนอยู่หน้า compose view
-  handlePost,            // ยังรับไว้เผื่อใช้ต่อ แต่ไม่ใช้ใน component นี้แล้ว
+  isCompose = false,
+  handlePost, 
   loading,
   setShowPopup,
   variant = "default",
@@ -16,7 +24,8 @@ export default function MessageInput({
 }) {
   const textareaRef = useRef(null);
 
-  // auto-resize textarea เฉพาะตอนมี textarea อยู่ (ยังไม่โพสต์)
+  const [placeholder, setPlaceholder] = useState(PLACEHOLDERS[0]);
+
   useEffect(() => {
     if (!textareaRef.current) return;
     if (isPosted) return;
@@ -24,7 +33,15 @@ export default function MessageInput({
     const el = textareaRef.current;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  }, [text, isPosted]); // 👈 deps คงที่ ไม่มี error final argument แล้ว
+  }, [text, isPosted]);
+
+  useEffect(() => {
+    if (isPosted) return;
+    if (text && text.trim().length > 0) return;
+
+    const idx = Math.floor(Math.random() * PLACEHOLDERS.length);
+    setPlaceholder(PLACEHOLDERS[idx]);
+  }, [isPosted, text]);
 
   const composeMode = !isPosted && (isCompose || variant === "compose");
 
@@ -70,7 +87,7 @@ export default function MessageInput({
           <textarea
             ref={textareaRef}
             rows={1}
-            placeholder="Share a note"
+            placeholder={placeholder} 
             value={text}
             onChange={(e) => setText(e.target.value)}
             className={`
