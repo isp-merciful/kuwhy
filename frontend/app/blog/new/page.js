@@ -153,11 +153,12 @@ export default function NewBlogPage() {
           {/* Back button */}
           <button
             onClick={() => router.push("/blog")}
-            className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors mb-6"
+            className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors mt-24 mb-6"
           >
             <span className="text-xl leading-none">←</span>
             <span>Back</span>
           </button>
+
   
           {/* Title */}
           <div className="mb-6">
