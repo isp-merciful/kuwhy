@@ -75,18 +75,38 @@ async function getActivePartyForUser(userId, excludeNoteId) {
  * ========================================= */
 router.get("/", async (_req, res) => {
   try {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 1 วันก่อน
+
+    // 1) ลบโน้ตที่เก่ากว่า 1 วันทิ้งไปเลย
+    await prisma.note.deleteMany({
+      where: {
+        created_at: {
+          lt: oneDayAgo,   // น้อยกว่า (เก่ากว่า) 1 วัน
+        },
+      },
+    });
+
+    // 2) ดึงเฉพาะโน้ตที่อายุไม่เกิน 1 วัน
     const notes = await prisma.note.findMany({
+      where: {
+        created_at: {
+          gte: oneDayAgo,  // มากกว่าหรือเท่ากับ 1 วันก่อน = ยังไม่เกิน 1 วัน
+        },
+      },
       orderBy: { note_id: "desc" },
       include: {
         users: { select: { user_id: true, user_name: true, img: true } },
       },
     });
+
     res.json(notes);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "fetch post fail" });
   }
 });
+
 
 /* =========================================
  * GET /api/note/user/:id
