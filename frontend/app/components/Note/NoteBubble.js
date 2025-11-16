@@ -88,6 +88,7 @@ export default function NoteBubble() {
 
   const buttonEnabled = text.trim().length > 0;
 
+  // helper สำหรับ limit ตัวอักษร
   const handleChangeText = (value) => {
     if (typeof value !== "string") return;
     setText(value.slice(0, MAX_NOTE_CHARS));
@@ -103,7 +104,9 @@ export default function NoteBubble() {
     return () => clearTimeout(t);
   }, [showLoginToast]);
 
+  // --------------------------
   // helpers
+  // --------------------------
   const extractServerName = (u) => {
     const candidate =
       u?.user_name ??
@@ -118,7 +121,9 @@ export default function NoteBubble() {
     return typeof candidate === "string" ? candidate : null;
   };
 
+  // --------------------------
   // Avatar persistence
+  // --------------------------
   const [serverImg, setServerImg] = useState(null);
   const pendingAvatarUrlRef = useRef(null);
 
@@ -155,7 +160,9 @@ export default function NoteBubble() {
     pendingAvatarUrlRef.current = null;
   }, [userId]);
 
+  // --------------------------
   // initial load (profile + note)
+  // --------------------------
   useEffect(() => {
     if (!userId || !ready) return;
 
@@ -273,7 +280,9 @@ export default function NoteBubble() {
     return () => controller.abort();
   }, [userId, ready, authed, session?.user?.name, authHeaders]);
 
+  // --------------------------
   // Actions
+  // --------------------------
   const handlePost = async () => {
     if (!ready) return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
     if (!userId) return alert("ไม่พบผู้ใช้ กรุณารีเฟรชหน้า");
@@ -382,7 +391,7 @@ export default function NoteBubble() {
     }
   };
 
-  // Party switch
+  // (PartySwitch ยังเก็บไว้เผื่อใช้ต่อในอนาคต)
   const PartySwitch = useMemo(
     () => (
       <button
@@ -474,7 +483,7 @@ export default function NoteBubble() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.4 }}
-            className="w-full flex justify-center relative px-4 pt-16 pb-8"
+            className="w-full flex flex-col items-center justify-center relative px-4 pt-16 pb-8"
           >
             {/* Back button */}
             <button
@@ -493,12 +502,12 @@ export default function NoteBubble() {
             <div
               className={`w-full flex ${
                 isPosted && noteId
-                  ? "max-w-5xl flex-col md:flex-row md:items-start md:gap-10 gap-6"
+                  ? "max-w-5xl flex-col md:flex-row md:items-start md:gap-4 gap-2"
                   : "max-w-md flex-col items-center gap-6"
               }`}
             >
               {/* LEFT COLUMN */}
-                <div className="flex flex-col items-center w-full md:w-[33%] max-w-sm">
+              <div className="flex flex-col items-center w-full md:w-[35%] max-w-sm">
                 {/* Input */}
                 <MessageInput
                   text={text}
@@ -754,22 +763,6 @@ export default function NoteBubble() {
                     )}
                   </div>
                 )}
-
-                {/* คำอธิบาย */}
-                {!isPosted && (
-                  <motion.p
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="text-gray-500 text-sm mt-3 text-center max-w-md mx-auto leading-relaxed"
-                  >
-                    <span>Share quick notes or start a party.</span>
-                    <span className="block">
-                      All notes disappear after 24 hours. Log in to host
-                      parties.
-                    </span>
-                  </motion.p>
-                )}
               </div>
 
               {/* RIGHT COLUMN – Comment / PartyChat */}
@@ -794,6 +787,23 @@ export default function NoteBubble() {
                 </div>
               )}
             </div>
+
+            {/* คำอธิบาย (อยู่นอกคอลัมน์ซ้าย ใช้ความกว้างเยอะขึ้น) */}
+            {!isPosted && (
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="text-gray-500 text-sm mt-4 text-center max-w-xl mx-auto leading-relaxed"
+              >
+                <span className="block">
+                  Share quick notes or start a party.
+                </span>
+                <span className="block">
+                  Notes disappear in 24 hours. Log in to host.
+                </span>
+              </motion.p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
