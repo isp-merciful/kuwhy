@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
-import { useParams } from "next/navigation";
+
 /* ---------------------- API base ---------------------- */
 
 const API_BASE = "http://localhost:8000";
@@ -104,7 +105,8 @@ async function fetchAllPosts() {
 
 /* ---------------------- page component (client) ---------------------- */
 
-export default function BlogPostPage({ params }) {
+export default function BlogPostPage() {
+  // ✅ ใช้ useParams แทนการรับ { params } เพื่อลด warning เรื่อง Promise
   const params = useParams();
   const id = params?.id; // string ของ [id]
 
