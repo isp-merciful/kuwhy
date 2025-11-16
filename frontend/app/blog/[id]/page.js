@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
@@ -106,7 +106,7 @@ async function fetchAllPosts() {
 /* ---------------------- page component (client) ---------------------- */
 
 export default function BlogPostPage() {
-  // ✅ ใช้ useParams แทนการรับ { params } เพื่อลด warning เรื่อง Promise
+  const router = useRouter();
   const params = useParams();
   const id = params?.id; // string ของ [id]
 
@@ -209,29 +209,27 @@ export default function BlogPostPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 pt-28 pb-12 px-4">
-      
       {/* Back button */}
       <div className="max-w-5xl mx-auto mb-6">
         <button
+          type="button"
           onClick={() => router.push("/blog")}
-          className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors"
+          className="relative z-[60] inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors"
         >
           <span className="text-xl leading-none">←</span>
           <span>Back</span>
         </button>
       </div>
-  
+
       <div className="max-w-5xl mx-auto grid grid-cols-1 gap-8 lg:grid-cols-3">
-        
         {/* ----- MAIN POST CARD ----- */}
-        <article className="lg:col-span-2 rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur px-8 py-8 shadow-sm">
-          
+        <article className="lg:col-span-2 rounded-3xl border border-emerald-100 bg-white/80  px-8 py-8 shadow-sm">
           {/* Header */}
           <header>
             <h1 className="text-2xl sm:text-3xl font-bold text-emerald-900">
               {post.blog_title}
             </h1>
-  
+
             <div className="mt-2 text-sm text-emerald-700/80">
               by{" "}
               <span className="font-semibold">
@@ -243,19 +241,19 @@ export default function BlogPostPage() {
               </time>
             </div>
           </header>
-  
+
           {/* Message */}
           <section className="prose mt-5 max-w-none text-emerald-900">
             <p className="whitespace-pre-wrap">{post.message}</p>
           </section>
-  
+
           {/* ----- ATTACHMENTS ----- */}
           {(atts.length > 0 || post.file_url) && (
             <section className="mt-8">
               <h3 className="text-sm font-semibold text-emerald-700 mb-2">
                 Attachments
               </h3>
-  
+
               {atts.length > 0 && (
                 <ul className="space-y-3">
                   {atts.map((att, idx) => {
@@ -264,10 +262,10 @@ export default function BlogPostPage() {
                     return (
                       <li
                         key={idx}
-                        className="rounded-2xl border border-emerald-100 bg-white/70 backdrop-blur p-4 shadow-sm"
+                        className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm"
                       >
                         {isImg ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={url}
                             alt={att.name || `image-${idx}`}
@@ -284,7 +282,7 @@ export default function BlogPostPage() {
                             {att.name || url}
                           </a>
                         )}
-  
+
                         {att.size && (
                           <div className="text-xs text-emerald-700/70 mt-1">
                             {(att.size / 1024).toFixed(1)} KB
@@ -295,8 +293,7 @@ export default function BlogPostPage() {
                   })}
                 </ul>
               )}
-  
-              {/* Single legacy file attachment */}
+
               {post.file_url && !post.attachments && (
                 <div className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm">
                   <a
@@ -312,7 +309,7 @@ export default function BlogPostPage() {
               )}
             </section>
           )}
-  
+
           {/* Likes */}
           <footer className="mt-8 text-emerald-900">
             <LikeButtons
@@ -321,21 +318,20 @@ export default function BlogPostPage() {
               initialDown={post.blog_down ?? 0}
             />
           </footer>
-  
+
           {/* Comments */}
           <div className="mt-10">
             <CommentThread blogId={post.blog_id} />
           </div>
         </article>
-  
+
         {/* ----- SIDEBAR SEARCH CARD ----- */}
         <aside className="lg:col-span-1">
           <div className="rounded-3xl border border-emerald-100 bg-white/80 p-6 shadow-sm">
             <OtherPostsSearch posts={otherPosts} />
           </div>
         </aside>
-        
       </div>
     </div>
-  );  
+  );
 }
