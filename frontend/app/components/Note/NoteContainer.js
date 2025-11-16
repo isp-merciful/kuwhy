@@ -60,6 +60,38 @@ export default function NoteContainer() {
     setShowPopup(true);
   };
 
+    const handleAfterJoin = ({ noteId, crr_party, max_party }) => {
+    const targetId = Number(noteId);
+    if (!targetId) return;
+
+
+    setNotes((prev) =>
+      (prev || []).map((n) =>
+        Number(n.note_id) === targetId
+          ? {
+              ...n,
+              crr_party:
+                typeof crr_party === "number" ? crr_party : n.crr_party,
+              max_party:
+                typeof max_party === "number" ? max_party : n.max_party,
+            }
+          : n
+      )
+    );
+
+    
+    setSelectedNote((prev) => {
+      if (!prev || Number(prev.note_id) !== targetId) return prev;
+      return {
+        ...prev,
+        crr_party:
+          typeof crr_party === "number" ? crr_party : prev.crr_party,
+        max_party:
+          typeof max_party === "number" ? max_party : prev.max_party,
+      };
+    });
+  };
+
   return (
     <div className="w-full">
       {/* กล่องใหญ่ + gradient border */}
@@ -130,6 +162,8 @@ export default function NoteContainer() {
             currParty={selectedNote.crr_party || 0}
             ownerId={selectedNote.user_id}
             viewerUserId={userId}
+            onAfterJoin={handleAfterJoin}
+
           />
         </div>
       )}

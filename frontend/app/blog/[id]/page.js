@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
@@ -104,8 +105,10 @@ async function fetchAllPosts() {
 
 /* ---------------------- page component (client) ---------------------- */
 
-export default function BlogPostPage({ params }) {
-  const id = params?.id;
+export default function BlogPostPage() {
+  // ✅ ใช้ useParams แทนการรับ { params } เพื่อลด warning เรื่อง Promise
+  const params = useParams();
+  const id = params?.id; // string ของ [id]
 
   const [post, setPost] = useState(null);
   const [allPosts, setAllPosts] = useState([]);
@@ -143,7 +146,7 @@ export default function BlogPostPage({ params }) {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl py-10">
+      <div className="mx-auto max-w-5xl px-4 pt-24 pb-10">
         <div className="mb-4">
           <Link href="/blog" className="text-sm text-gray-600 hover:underline">
             ← Back to Community Blog
@@ -160,7 +163,7 @@ export default function BlogPostPage({ params }) {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-2xl py-10">
+      <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Something went wrong</h1>
         <p className="mt-2 text-gray-600">{error}</p>
         <Link
@@ -175,7 +178,7 @@ export default function BlogPostPage({ params }) {
 
   if (!post) {
     return (
-      <div className="mx-auto max-w-2xl py-10">
+      <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Post not found</h1>
         <p className="mt-2 text-gray-600">
           We couldn&apos;t find a blog post with ID <code>{id}</code>.

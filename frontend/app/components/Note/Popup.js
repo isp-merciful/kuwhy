@@ -19,6 +19,7 @@ export default function Popup({
   currParty = 0,
   ownerId,
   viewerUserId,
+  onAfterJoin,
 }) {
   const { data: session, status } = useSession();
   const authed = status === "authenticated" && !!session?.apiToken;
@@ -300,6 +301,36 @@ export default function Popup({
     })();
   }, [search, isParty, joined, noteId, authed, authHeaders, router]);
 
+  async function softFetchActiveNote() {
+    if (!viewerUserId) return null;
+
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/note/user/${viewerUserId}`,
+        {
+          headers: { ...authHeaders },
+          cache: "no-store",
+        }
+      );
+
+      if (!res.ok) {
+        console.warn("softFetchActiveNote failed:", res.status);
+        return null;
+      }
+
+      const raw = await res.json().catch(() => null);
+      const n = raw && typeof raw === "object" ? (raw.note ?? raw) : null;
+
+      if (n && n.note_id) return n;
+      return null;
+    } catch (e) {
+      console.error("softFetchActiveNote error:", e);
+      return null;
+    }
+  }
+
+
+
   async function handleJoin() {
     if (!noteId || !isParty || joined || joining) return;
 
@@ -356,10 +387,39 @@ export default function Popup({
       }
 
       setJoined(true);
-      if (typeof data?.data?.crr_party === "number")
-        setCurr(Number(data.data.crr_party));
-      if (typeof data?.data?.max_party === "number")
-        setMax(Number(data.data.max_party));
+
+      const newCurr =
+        typeof data?.data?.crr_party === "number"
+          ? Number(data.data.crr_party)
+          : curr + 1;
+      const newMax =
+        typeof data?.data?.max_party === "number"
+          ? Number(data.data.max_party)
+          : max;
+
+      setCurr(newCurr);
+      setMax(newMax);
+
+      if (typeof onAfterJoin === "function") {
+        onAfterJoin({
+          noteId: Number(noteId),
+          crr_party: newCurr,
+          max_party: newMax,
+        });
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("kuwhy-active-note-changed", {
+            detail: {
+              source: "popup-join",
+              noteId: Number(noteId),
+              userId: viewerUserId || null,
+            },
+          })
+        );
+      }
+
       showToast("Joined party 🎉", "success");
 
       try {
