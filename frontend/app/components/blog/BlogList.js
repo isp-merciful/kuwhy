@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Avatar from "../Note/Avatar";
 
-const MAX_PREVIEW_CHARS = 120; // 👈 limit preview text length
-const SOFT_BREAK_EVERY = 80;  // 👈 force break every 80 chars
+const MAX_PREVIEW_CHARS = 120; // limit preview text length
+const SOFT_BREAK_EVERY = 80;   // force break every 80 chars
 
-// ⭐ Insert invisible soft-break every N characters (fix long long word overflow)
+// Insert invisible soft-break every N characters (fix long long word overflow)
 function insertSoftBreaks(text, every = SOFT_BREAK_EVERY) {
   return text.replace(new RegExp(`(.{${every}})`, "g"), "$1\u200B");
 }
@@ -16,7 +16,9 @@ function insertSoftBreaks(text, every = SOFT_BREAK_EVERY) {
 export default function BlogList({ initialBlogs = [] }) {
   const [blogs, setBlogs] = useState(initialBlogs);
   const searchParams = useSearchParams();
+
   const filterTag = searchParams.get("tag");
+  const sortParam = (searchParams.get("sort") || "newest").toLowerCase(); // "newest" | "top"
 
   useEffect(() => {
     (async () => {
@@ -50,14 +52,33 @@ export default function BlogList({ initialBlogs = [] }) {
     return { ...b, tags };
   });
 
+  // ⭐ Filter by tag (if any)
   const lowerFilter = filterTag?.toLowerCase().trim();
-
   const filteredBlogs =
-    lowerFilter
+    lowerFilter && lowerFilter.length > 0
       ? normalized.filter((b) =>
           b.tags.some((t) => t.toLowerCase() === lowerFilter)
         )
       : normalized;
+
+  // ⭐ Sort according to ?sort=
+  const sortedBlogs = [...filteredBlogs].sort((a, b) => {
+    const aUp = a.blog_up ?? 0;
+    const bUp = b.blog_up ?? 0;
+    const aDate = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bDate = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+    if (sortParam === "top") {
+      // Most liked first, then newest
+      if (bUp !== aUp) return bUp - aUp;
+      return bDate - aDate;
+    }
+
+    // Default: newest first
+    if (bDate !== aDate) return bDate - aDate;
+    // fallback: larger id first
+    return (b.blog_id ?? 0) - (a.blog_id ?? 0);
+  });
 
   return (
     <>
@@ -94,16 +115,16 @@ export default function BlogList({ initialBlogs = [] }) {
       )}
 
       <div className="space-y-4">
-        {filteredBlogs.map((b) => {
+        {sortedBlogs.map((b) => {
           const fullMessage = b.message || "";
 
-          // ⭐ Short preview
+          // Short preview
           let previewMessage =
             fullMessage.length > MAX_PREVIEW_CHARS
               ? fullMessage.slice(0, MAX_PREVIEW_CHARS) + "…"
               : fullMessage;
 
-          // ⭐ Fix long single-word overflow
+          // Fix long single-word overflow
           previewMessage = insertSoftBreaks(previewMessage);
 
           return (
@@ -113,7 +134,6 @@ export default function BlogList({ initialBlogs = [] }) {
             >
               <div className="bg-white rounded-2xl px-5 py-4">
                 <div className="flex items-start gap-5">
-
                   {/* LEFT Avatar */}
                   <div className="flex-shrink-0 flex items-start h-full">
                     <div
@@ -135,7 +155,6 @@ export default function BlogList({ initialBlogs = [] }) {
 
                   {/* RIGHT CONTENT */}
                   <div className="flex-1">
-
                     {/* Title */}
                     <Link href={`/blog/${b.blog_id}`} className="block group">
                       <h3
@@ -195,9 +214,7 @@ export default function BlogList({ initialBlogs = [] }) {
                           : ""}
                       </span>
                     </div>
-
                   </div>
-
                 </div>
               </div>
             </div>
@@ -205,7 +222,7 @@ export default function BlogList({ initialBlogs = [] }) {
         })}
 
         {/* No posts match tag */}
-        {filterTag && filteredBlogs.length === 0 && (
+        {filterTag && sortedBlogs.length === 0 && (
           <div className="text-sm text-gray-500 mt-4">
             No posts found for tag <b>#{filterTag}</b>.
           </div>

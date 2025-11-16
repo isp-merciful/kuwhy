@@ -11,14 +11,21 @@ export default function BlogPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // current tag from URL (?tag=xxx)
+  // --- read current query params ---
   const currentTag = searchParams.get("tag") || "";
-  const [tagInput, setTagInput] = useState(currentTag);
+  const currentSort = (searchParams.get("sort") || "newest").toLowerCase();
 
-  // keep input in sync when URL changes
+  const [tagInput, setTagInput] = useState(currentTag);
+  const [sortMode, setSortMode] = useState(currentSort);
+
+  // keep state in sync with URL
   useEffect(() => {
     setTagInput(currentTag);
   }, [currentTag]);
+
+  useEffect(() => {
+    setSortMode(currentSort);
+  }, [currentSort]);
 
   const displayName =
     session?.user?.user_name ||
@@ -36,19 +43,35 @@ export default function BlogPage() {
     router.push("/blog/new");
   };
 
+  // helper: build URL with tag + sort
+  const updateUrl = (tagValue, sortValue) => {
+    const params = new URLSearchParams();
+    const t = tagValue?.trim();
+    const s = (sortValue || "newest").toLowerCase();
+
+    if (t) params.set("tag", t);
+    if (s && s !== "newest") params.set("sort", s); // omit default
+
+    const qs = params.toString();
+    router.push(qs ? `/blog?${qs}` : "/blog");
+  };
+
   const applyTagFilter = (e) => {
     e?.preventDefault?.();
-    const v = tagInput.trim();
-    if (v) {
-      router.push(`/blog?tag=${encodeURIComponent(v)}`);
-    } else {
-      router.push("/blog");
-    }
+    updateUrl(tagInput, sortMode);
   };
 
   const clearTagFilter = () => {
     setTagInput("");
-    router.push("/blog");
+    updateUrl("", sortMode);
+  };
+
+  const handleSortChange = (e) => {
+    const newSort = e.target.value;
+    setSortMode(newSort);
+
+    const effectiveTag = tagInput.trim() || currentTag || "";
+    updateUrl(effectiveTag, newSort);
   };
 
   return (
@@ -114,12 +137,13 @@ export default function BlogPage() {
             </div>
           </div>
 
-          {/* ⭐ Tag filter input */}
+          {/* Tag filter + Sort controls */}
           <div className="w-full max-w-3xl mx-auto mt-5">
             <form
               onSubmit={applyTagFilter}
-              className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center rounded-2xl border border-emerald-100 bg-white/80 px-4 py-3 shadow-sm"
+              className="flex flex-col gap-3 sm:flex-row sm:items-end rounded-2xl border border-emerald-100 bg-white/80 px-4 py-3 shadow-sm"
             >
+              {/* Tag input */}
               <div className="flex-1">
                 <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
                   Filter by tag
@@ -133,7 +157,23 @@ export default function BlogPage() {
                 />
               </div>
 
-              <div className="flex gap-2 pt-1 sm:pt-5">
+              {/* Sort selector */}
+              <div className="sm:w-44">
+                <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
+                  Sort by
+                </label>
+                <select
+                  value={sortMode}
+                  onChange={handleSortChange}
+                  className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none bg-white focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="top">Most liked</option>
+                </select>
+              </div>
+
+              {/* Apply / Clear buttons */}
+              <div className="flex gap-2 sm:pt-0 pt-1">
                 <button
                   type="submit"
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors"
