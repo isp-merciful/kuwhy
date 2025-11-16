@@ -118,7 +118,7 @@ export default function BlogPage() {
           <div className="w-full max-w-3xl mx-auto">
             <div
               className="
-                rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur shadow-sm
+                rounded-3xl border border-emerald-100 bg-white/80 shadow-sm
                 px-6 py-5 sm:px-8 sm:py-6
                 flex flex-col gap-4
                 sm:flex-row sm:items-center sm:justify-between

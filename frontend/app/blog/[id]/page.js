@@ -298,7 +298,7 @@ export default function BlogPostPage() {
   
               {/* Single legacy file attachment */}
               {post.file_url && !post.attachments && (
-                <div className="rounded-2xl border border-emerald-100 bg-white/70 backdrop-blur p-4 shadow-sm">
+                <div className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm">
                   <a
                     href={toAbs(post.file_url)}
                     target="_blank"
@@ -330,7 +330,7 @@ export default function BlogPostPage() {
   
         {/* ----- SIDEBAR SEARCH CARD ----- */}
         <aside className="lg:col-span-1">
-          <div className="rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur p-6 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg-white/80 p-6 shadow-sm">
             <OtherPostsSearch posts={otherPosts} />
           </div>
         </aside>

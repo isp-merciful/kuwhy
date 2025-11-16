@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Avatar from "../../components/Note/Avatar";
 
 // Resolve API base (works with Docker too)
 const API_BASE = "http://localhost:8000";
@@ -34,12 +33,14 @@ export default function NewBlogPage() {
   const [tagsInput, setTagsInput] = useState(""); // free-typed tags
   const [presetTags, setPresetTags] = useState([]); // selected preset tags
 
-  // ดึงชื่อจาก session
+  // ✅ ชื่อจริงจาก users.user_name (แมปมาเป็น session.user.name ใน callback)
   const displayName =
-    session?.user?.user_name ||
-    session?.user?.login_name ||
     session?.user?.name ||
+    session?.user?.login_name ||
     "anonymous";
+
+  // ✅ รูปโปรไฟล์จริงจาก users.img (แมปมาเป็น session.user.image)
+  const avatarImg = session?.user?.image || null;
 
   // preview สำหรับรูป
   const imagePreviews = useMemo(
@@ -142,14 +143,12 @@ export default function NewBlogPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100">
       <section className="relative isolate overflow-hidden py-10 sm:py-12 min-h-screen">
-  
         {/* Decorative hero blobs */}
         <div className="pointer-events-none absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl">
           <div className="mx-auto h-72 w-[36rem] bg-gradient-to-r from-emerald-300/40 via-green-300/40 to-lime-300/40 opacity-70" />
         </div>
-  
+
         <div className="max-w-4xl mx-auto px-4">
-  
           {/* Back button */}
           <button
             onClick={() => router.push("/blog")}
@@ -159,7 +158,6 @@ export default function NewBlogPage() {
             <span>Back</span>
           </button>
 
-  
           {/* Title */}
           <div className="mb-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-emerald-900">
@@ -169,12 +167,23 @@ export default function NewBlogPage() {
               Share your question with the KUWHY community.
             </p>
           </div>
-  
+
           {/* User / title input card */}
-          <div className="rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col items-center gap-4 mb-8">
-  
+          <div className="rounded-3xl border border-emerald-100 bg-white/80 shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col items-center gap-4 mb-8">
             <div className="flex items-center gap-4">
-              <Avatar center={false} size={64} />
+              {/* ✅ ใช้ img จริงจาก DB ถ้ามี, ถ้าไม่มี fallback เป็นตัวอักษรแรก */}
+              {avatarImg ? (
+                <img
+                  src={avatarImg}
+                  alt={displayName}
+                  className="w-16 h-16 rounded-full object-cover border border-emerald-200 bg-emerald-50"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-lg font-semibold text-emerald-700">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
+
               <div>
                 <div className="text-xs uppercase tracking-wide text-emerald-500 font-semibold">
                   Posting as
@@ -184,7 +193,7 @@ export default function NewBlogPage() {
                 </div>
               </div>
             </div>
-  
+
             {/* Title input */}
             <input
               value={title}
@@ -195,10 +204,9 @@ export default function NewBlogPage() {
                          focus:ring-4 focus:ring-emerald-300 outline-none transition"
             />
           </div>
-  
+
           {/* Main Form Card */}
-          <div className="bg-white/80 backdrop-blur rounded-3xl border border-emerald-100 shadow-md px-8 py-7">
-  
+          <div className="bg-white/80  rounded-3xl border border-emerald-100 shadow-md px-8 py-7">
             {/* Detail text area */}
             <label className="block text-sm font-semibold text-emerald-800 mb-2">
               Details
@@ -212,13 +220,13 @@ export default function NewBlogPage() {
                          outline-none text-gray-800 placeholder-gray-400
                          focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition"
             />
-  
+
             {/* Tags Section */}
             <div className="mt-6">
               <label className="block text-sm font-semibold text-emerald-800 mb-2">
                 Tags / Categories
               </label>
-  
+
               <input
                 type="text"
                 value={tagsInput}
@@ -227,11 +235,11 @@ export default function NewBlogPage() {
                 className="w-full rounded-xl border bg-white border-emerald-100 px-3 py-2 text-sm 
                            outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
               />
-  
+
               <p className="mt-1 text-xs text-emerald-700/80">
                 Separate multiple tags with commas.
               </p>
-  
+
               {/* Preset tags */}
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 {PRESET_TAGS.map((tag) => {
@@ -253,13 +261,13 @@ export default function NewBlogPage() {
                 })}
               </div>
             </div>
-  
+
             {/* File upload */}
             <div className="mt-6">
               <label className="block text-sm font-semibold text-emerald-800 mb-2">
                 Attach files
               </label>
-  
+
               <input
                 type="file"
                 multiple
@@ -269,14 +277,14 @@ export default function NewBlogPage() {
                            file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-medium 
                            hover:file:bg-emerald-100 transition"
               />
-  
+
               {/* List + previews */}
               {files.length > 0 && (
                 <div className="mt-4 rounded-xl border border-emerald-200 p-4 bg-emerald-50/50">
                   <div className="text-sm font-medium text-emerald-800 mb-2">
                     {files.length} file(s) selected
                   </div>
-  
+
                   <ul className="space-y-1 text-sm text-emerald-900">
                     {files.map((f) => (
                       <li key={f.name}>
@@ -288,7 +296,7 @@ export default function NewBlogPage() {
                       </li>
                     ))}
                   </ul>
-  
+
                   {imagePreviews.length > 0 && (
                     <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {imagePreviews.map((p) => (
@@ -308,7 +316,7 @@ export default function NewBlogPage() {
                 </div>
               )}
             </div>
-  
+
             {/* Submit */}
             <div className="flex justify-end mt-8">
               <button
@@ -329,4 +337,4 @@ export default function NewBlogPage() {
       </section>
     </div>
   );
-                }  
+}
