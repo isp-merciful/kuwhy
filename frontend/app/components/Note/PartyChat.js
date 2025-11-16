@@ -16,14 +16,40 @@ function formatClock(time) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function cx(...xs) {
+  return xs.filter(Boolean).join(" ");
+}
+
+/* ---------- helpers: profile url (เหมือนใน CommentSection) ---------- */
+const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/profile";
+function buildProfileUrl(handle) {
+  if (!handle) return "/";
+  if (PROFILE_BASE === "root") return `/${handle}`;
+  if (PROFILE_BASE === "@root") return `/@${handle}`;
+  return `${PROFILE_BASE}/${handle}`;
+}
+
 /** ฟองแชท 1 อัน */
 function Bubble({ mine, name, img, text, time, loginName }) {
   const router = useRouter();
 
+  const handle = loginName || "";
+  const displayName = name || "anonymous";
+
+  const canOpenProfile =
+    !!handle && String(handle).toLowerCase() !== "anonymous";
+
   const goProfile = () => {
-    if (!loginName) return;
-    router.push(`/profile/${encodeURIComponent(loginName)}`);
+    if (!canOpenProfile) return;
+    try {
+      const url = buildProfileUrl(handle);
+      router.push(url);
+    } catch (err) {
+      console.warn("navigate profile failed:", err);
+    }
   };
+
+  const avatarSrc = img || "/images/pfp.png";
 
   return (
     <div
@@ -31,17 +57,22 @@ function Bubble({ mine, name, img, text, time, loginName }) {
         mine ? "justify-end" : "justify-start"
       }`}
     >
-      {/* avatar เฉพาะฝั่งคนอื่น + กดเข้า profile ได้ */}
+      {/* avatar เฉพาะฝั่งคนอื่น + คลิกเข้าโปรไฟล์ได้ถ้ามี login_name */}
       {!mine && (
         <button
           type="button"
           onClick={goProfile}
-          className="shrink-0 focus:outline-none"
+          className={cx(
+            "shrink-0 focus:outline-none",
+            canOpenProfile ? "cursor-pointer" : "cursor-default"
+          )}
+          title={canOpenProfile ? `@${handle}` : undefined}
+          aria-label={canOpenProfile ? `Open @${handle}` : undefined}
         >
           <img
-            src={img || "/images/pfp.png"}
-            alt={name || "anonymous"}
-            className="w-8 h-8 rounded-full object-cover"
+            src={avatarSrc}
+            alt={displayName}
+            className="w-8 h-8 rounded-full object-cover ring-1 ring-black/5"
             onError={(e) => {
               if (e.currentTarget.src !== "/images/pfp.png") {
                 e.currentTarget.src = "/images/pfp.png";
@@ -57,38 +88,46 @@ function Bubble({ mine, name, img, text, time, loginName }) {
         }`}
       >
         {/* ชื่อคนพูด (ฝั่งเราไม่ต้องโชว์) */}
-        {!mine && (
-          <button
-            type="button"
-            onClick={goProfile}
-            className="text-xs font-semibold text-slate-500 mb-0.5 text-left hover:underline"
-          >
-            {name || "anonymous"}
-          </button>
-        )}
+        {!mine &&
+          (canOpenProfile ? (
+            <button
+              type="button"
+              onClick={goProfile}
+              className="text-xs font-semibold text-slate-500 mb-0.5 text-left hover:underline focus:outline-none"
+              title={`@${handle}`}
+            >
+              {displayName}
+            </button>
+          ) : (
+            <span className="text-xs font-semibold text-slate-500 mb-0.5 text-left">
+              {displayName}
+            </span>
+          ))}
 
-        <div
-          className={[
-            "px-3 py-2 rounded-2xl text-sm leading-relaxed",
-            // ให้ตัดคำ + ไม่มี horizontal scroll
-            "whitespace-pre-wrap break-words break-all",
-            mine
-              ? "bg-sky-500 text-white rounded-br-md shadow-sm"
-              : "bg-slate-100 text-slate-900 rounded-bl-md shadow-sm",
-          ].join(" ")}
-        >
-          {text}
-        </div>
-
-        {time && (
+        {/* bubble + เวลาอยู่ขวาของข้อความ */}
+        <div className="flex items-end gap-1">
           <div
-            className={`mt-0.5 text-[10px] ${
-              mine ? "text-sky-200" : "text-slate-400"
-            }`}
+            className={[
+              "px-3 py-2 rounded-2xl text-sm leading-relaxed",
+              "whitespace-pre-wrap break-words break-all",
+              mine
+                ? "bg-sky-500 text-white rounded-br-md shadow-sm"
+                : "bg-slate-100 text-slate-900 rounded-bl-md shadow-sm",
+            ].join(" ")}
           >
-            {formatClock(time)}
+            {text}
           </div>
-        )}
+
+          {time && (
+            <div
+              className={`text-[10px] self-end ${
+                mine ? "text-sky-200" : "text-slate-400"
+              }`}
+            >
+              {formatClock(time)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -106,7 +145,7 @@ export default function PartyChat({ noteId, userId }) {
   const [text, setText] = useState("");
   const [netErr, setNetErr] = useState("");
 
-  const listRef = useRef(null);        // ✅ scroll container ของข้อความ
+  const listRef = useRef(null); // scroll container
   const cursorRef = useRef(0);
 
   const authFetch = useCallback(
@@ -202,8 +241,6 @@ export default function PartyChat({ noteId, userId }) {
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-
-    // เลื่อนเฉพาะ scroll container ไม่ให้ไปดึงทั้งหน้า
     el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
