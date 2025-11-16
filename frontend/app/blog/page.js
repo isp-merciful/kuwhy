@@ -6,9 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Avatar from "../components/Note/Avatar";
 import BlogList from "../components/blog/BlogList";
 
-// Preset tags for quick filtering
-const PRESET_TAGS = ["homework", "health", "game", "anime", "food", "other"];
-
 export default function BlogPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -17,9 +14,11 @@ export default function BlogPage() {
   // --- read current query params ---
   const currentTag = searchParams.get("tag") || "";
   const currentSort = (searchParams.get("sort") || "newest").toLowerCase();
+  const currentTitle = searchParams.get("q") || "";
 
   const [tagInput, setTagInput] = useState(currentTag);
   const [sortMode, setSortMode] = useState(currentSort);
+  const [titleInput, setTitleInput] = useState(currentTitle);
 
   // keep state in sync with URL
   useEffect(() => {
@@ -29,6 +28,10 @@ export default function BlogPage() {
   useEffect(() => {
     setSortMode(currentSort);
   }, [currentSort]);
+
+  useEffect(() => {
+    setTitleInput(currentTitle);
+  }, [currentTitle]);
 
   const displayName =
     session?.user?.user_name ||
@@ -46,27 +49,30 @@ export default function BlogPage() {
     router.push("/blog/new");
   };
 
-  // helper: build URL with tag + sort
-  const updateUrl = (tagValue, sortValue) => {
+  // helper: build URL with tag + sort + title search
+  const updateUrl = (tagValue, sortValue, titleValue) => {
     const params = new URLSearchParams();
     const t = tagValue?.trim();
     const s = (sortValue || "newest").toLowerCase();
+    const q = titleValue?.trim();
 
     if (t) params.set("tag", t);
-    if (s && s !== "newest") params.set("sort", s); // omit default
+    if (q) params.set("q", q);
+    if (s && s !== "newest") params.set("sort", s); // omit default from URL
 
     const qs = params.toString();
     router.push(qs ? `/blog?${qs}` : "/blog");
   };
 
-  const applyTagFilter = (e) => {
+  const applyFilters = (e) => {
     e?.preventDefault?.();
-    updateUrl(tagInput, sortMode);
+    updateUrl(tagInput, sortMode, titleInput);
   };
 
-  const clearTagFilter = () => {
+  const clearFilters = () => {
     setTagInput("");
-    updateUrl("", sortMode);
+    setTitleInput("");
+    updateUrl("", "newest", "");
   };
 
   const handleSortChange = (e) => {
@@ -74,19 +80,8 @@ export default function BlogPage() {
     setSortMode(newSort);
 
     const effectiveTag = tagInput.trim() || currentTag || "";
-    updateUrl(effectiveTag, newSort);
-  };
-
-  // NEW: click on preset tag to toggle filter
-  const handlePresetClick = (tag) => {
-    const current = (tagInput || currentTag || "").toLowerCase().trim();
-    const clicked = tag.toLowerCase();
-
-    // if clicking the same tag again -> clear
-    const newTag = current === clicked ? "" : tag;
-
-    setTagInput(newTag);
-    updateUrl(newTag, sortMode);
+    const effectiveTitle = titleInput.trim() || currentTitle || "";
+    updateUrl(effectiveTag, newSort, effectiveTitle);
   };
 
   return (
@@ -152,46 +147,38 @@ export default function BlogPage() {
             </div>
           </div>
 
-          {/* Tag filter + Sort controls */}
+          {/* Tag filter + title search + Sort controls */}
           <div className="w-full max-w-3xl mx-auto mt-5">
             <form
-              onSubmit={applyTagFilter}
+              onSubmit={applyFilters}
               className="flex flex-col gap-3 sm:flex-row sm:items-end rounded-2xl border border-emerald-100 bg-white/80 px-4 py-3 shadow-sm"
             >
-              {/* Tag input */}
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
-                  Filter by tag
-                </label>
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  placeholder="e.g. cat, homework, question"
-                  className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
-                />
+              {/* Tag + title inputs */}
+              <div className="flex-1 space-y-2">
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
+                    Filter by tag
+                  </label>
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    placeholder="e.g. cat, homework, question"
+                    className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
+                  />
+                </div>
 
-                {/* NEW: preset tag buttons */}
-                <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                  {PRESET_TAGS.map((tag) => {
-                    const isActive =
-                      (tagInput || currentTag || "").toLowerCase().trim() ===
-                      tag.toLowerCase();
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => handlePresetClick(tag)}
-                        className={`inline-flex items-center rounded-full border px-3 py-1 transition-colors ${
-                          isActive
-                            ? "bg-emerald-500 border-emerald-500 text-white"
-                            : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                        }`}
-                      >
-                        #{tag}
-                      </button>
-                    );
-                  })}
+                <div>
+                  <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
+                    Search by title
+                  </label>
+                  <input
+                    type="text"
+                    value={titleInput}
+                    onChange={(e) => setTitleInput(e.target.value)}
+                    placeholder="Type part of the blog title…"
+                    className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
+                  />
                 </div>
               </div>
 
@@ -220,7 +207,7 @@ export default function BlogPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={clearTagFilter}
+                  onClick={clearFilters}
                   className="inline-flex items-center justify-center rounded-xl border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
                 >
                   Clear

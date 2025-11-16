@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Avatar from "../Note/Avatar";
 
-const MAX_PREVIEW_CHARS = 120; // limit preview text length
-const SOFT_BREAK_EVERY = 80;  // force break every 80 chars
+const MAX_PREVIEW_CHARS = 120;
+const SOFT_BREAK_EVERY = 80;
 
 // Insert invisible soft-break every N characters (fix long long word overflow)
 function insertSoftBreaks(text, every = SOFT_BREAK_EVERY) {
@@ -19,10 +19,11 @@ export default function BlogList({ initialBlogs = [] }) {
   const [blogs, setBlogs] = useState(initialBlogs);
   const searchParams = useSearchParams();
 
-  // raw tag query from URL: e.g. "homework,food"
   const rawTagQuery = searchParams.get("tag") || "";
+  const sortMode = (searchParams.get("sort") || "newest").toLowerCase();
+  const titleQuery = (searchParams.get("q") || "").trim().toLowerCase();
 
-  // normalize filter tags: ["homework", "food"]
+  // tags from URL: "homework,food" -> ["homework","food"]
   const filterTags = rawTagQuery
     .split(",")
     .map((t) => t.trim().toLowerCase())
@@ -46,7 +47,7 @@ export default function BlogList({ initialBlogs = [] }) {
     return <div className="text-gray-500">No posts yet.</div>;
   }
 
-  // Normalize blogs: ensure tags array + lowercase version for matching
+  // Normalize blogs: ensure tags arrays and lowercases
   const normalized = blogs.map((b) => {
     const tags =
       Array.isArray(b.tags)
@@ -63,16 +64,39 @@ export default function BlogList({ initialBlogs = [] }) {
     return { ...b, tags, tagsLower };
   });
 
-  // Apply AND filter: blog must contain *all* selected tags
-  let filteredBlogs = normalized;
+  // ----- FILTERING -----
+  let filtered = normalized;
 
+  // AND-tag filter
   if (filterTags.length > 0) {
-    filteredBlogs = normalized.filter((b) =>
+    filtered = filtered.filter((b) =>
       filterTags.every((ft) => b.tagsLower.includes(ft))
     );
   }
 
-  // Pretty label for "Showing posts tagged …"
+  // title search
+  if (titleQuery) {
+    filtered = filtered.filter((b) =>
+      (b.blog_title || "").toLowerCase().includes(titleQuery)
+    );
+  }
+
+  // ----- SORTING -----
+  const sorted = filtered.slice().sort((a, b) => {
+    const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+    if (sortMode === "top") {
+      const scoreA = (a.blog_up ?? 0) - (a.blog_down ?? 0);
+      const scoreB = (b.blog_up ?? 0) - (b.blog_down ?? 0);
+      if (scoreB !== scoreA) return scoreB - scoreA; // higher score first
+      return timeB - timeA; // tie-break by newest
+    }
+
+    // default: newest first
+    return timeB - timeA;
+  });
+
   const humanTagLabel =
     filterTags.length === 0
       ? ""
@@ -102,7 +126,8 @@ export default function BlogList({ initialBlogs = [] }) {
       {filterTags.length > 0 && (
         <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           <span>
-            Showing posts tagged <span className="font-semibold">{humanTagLabel}</span>
+            Showing posts tagged{" "}
+            <span className="font-semibold">{humanTagLabel}</span>
           </span>
           <Link
             href="/blog"
@@ -114,16 +139,14 @@ export default function BlogList({ initialBlogs = [] }) {
       )}
 
       <div className="space-y-4">
-        {filteredBlogs.map((b) => {
+        {sorted.map((b) => {
           const fullMessage = b.message || "";
 
-          // Short preview
           let previewMessage =
             fullMessage.length > MAX_PREVIEW_CHARS
               ? fullMessage.slice(0, MAX_PREVIEW_CHARS) + "…"
               : fullMessage;
 
-          // Fix long single-word overflow
           previewMessage = insertSoftBreaks(previewMessage);
 
           return (
@@ -220,10 +243,10 @@ export default function BlogList({ initialBlogs = [] }) {
           );
         })}
 
-        {/* No posts match tags */}
-        {filterTags.length > 0 && filteredBlogs.length === 0 && (
+        {/* No posts match current filters */}
+        {(filterTags.length > 0 || titleQuery) && sorted.length === 0 && (
           <div className="text-sm text-gray-500 mt-4">
-            No posts found for tag(s) <b>{humanTagLabel}</b>.
+            No posts found with current filters.
           </div>
         )}
       </div>
