@@ -6,19 +6,27 @@ import { useSearchParams } from "next/navigation";
 import Avatar from "../Note/Avatar";
 
 const MAX_PREVIEW_CHARS = 120; // limit preview text length
-const SOFT_BREAK_EVERY = 80;   // force break every 80 chars
+const SOFT_BREAK_EVERY = 80;  // force break every 80 chars
 
 // Insert invisible soft-break every N characters (fix long long word overflow)
 function insertSoftBreaks(text, every = SOFT_BREAK_EVERY) {
-  return text.replace(new RegExp(`(.{${every}})`, "g"), "$1\u200B");
+  if (!text) return "";
+  const re = new RegExp(`(.{${every}})`, "g");
+  return text.replace(re, "$1\u200B");
 }
 
 export default function BlogList({ initialBlogs = [] }) {
   const [blogs, setBlogs] = useState(initialBlogs);
   const searchParams = useSearchParams();
 
-  const filterTag = searchParams.get("tag");
-  const sortParam = (searchParams.get("sort") || "newest").toLowerCase(); // "newest" | "top"
+  // raw tag query from URL: e.g. "homework,food"
+  const rawTagQuery = searchParams.get("tag") || "";
+
+  // normalize filter tags: ["homework", "food"]
+  const filterTags = rawTagQuery
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
 
   useEffect(() => {
     (async () => {
@@ -38,7 +46,7 @@ export default function BlogList({ initialBlogs = [] }) {
     return <div className="text-gray-500">No posts yet.</div>;
   }
 
-  // ⭐ Normalize tags
+  // Normalize blogs: ensure tags array + lowercase version for matching
   const normalized = blogs.map((b) => {
     const tags =
       Array.isArray(b.tags)
@@ -49,36 +57,28 @@ export default function BlogList({ initialBlogs = [] }) {
             .map((t) => t.trim())
             .filter(Boolean)
         : [];
-    return { ...b, tags };
+
+    const tagsLower = tags.map((t) => t.toLowerCase());
+
+    return { ...b, tags, tagsLower };
   });
 
-  // ⭐ Filter by tag (if any)
-  const lowerFilter = filterTag?.toLowerCase().trim();
-  const filteredBlogs =
-    lowerFilter && lowerFilter.length > 0
-      ? normalized.filter((b) =>
-          b.tags.some((t) => t.toLowerCase() === lowerFilter)
-        )
-      : normalized;
+  // Apply AND filter: blog must contain *all* selected tags
+  let filteredBlogs = normalized;
 
-  // ⭐ Sort according to ?sort=
-  const sortedBlogs = [...filteredBlogs].sort((a, b) => {
-    const aUp = a.blog_up ?? 0;
-    const bUp = b.blog_up ?? 0;
-    const aDate = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const bDate = b.created_at ? new Date(b.created_at).getTime() : 0;
+  if (filterTags.length > 0) {
+    filteredBlogs = normalized.filter((b) =>
+      filterTags.every((ft) => b.tagsLower.includes(ft))
+    );
+  }
 
-    if (sortParam === "top") {
-      // Most liked first, then newest
-      if (bUp !== aUp) return bUp - aUp;
-      return bDate - aDate;
-    }
-
-    // Default: newest first
-    if (bDate !== aDate) return bDate - aDate;
-    // fallback: larger id first
-    return (b.blog_id ?? 0) - (a.blog_id ?? 0);
-  });
+  // Pretty label for "Showing posts tagged …"
+  const humanTagLabel =
+    filterTags.length === 0
+      ? ""
+      : filterTags.length === 1
+      ? `#${filterTags[0]}`
+      : filterTags.map((t) => `#${t}`).join(", ");
 
   return (
     <>
@@ -98,12 +98,11 @@ export default function BlogList({ initialBlogs = [] }) {
       `}
       </style>
 
-      {/* Active Tag Filter */}
-      {filterTag && (
+      {/* Active Tag Filter banner */}
+      {filterTags.length > 0 && (
         <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           <span>
-            Showing posts tagged{" "}
-            <span className="font-semibold">#{filterTag}</span>
+            Showing posts tagged <span className="font-semibold">{humanTagLabel}</span>
           </span>
           <Link
             href="/blog"
@@ -115,7 +114,7 @@ export default function BlogList({ initialBlogs = [] }) {
       )}
 
       <div className="space-y-4">
-        {sortedBlogs.map((b) => {
+        {filteredBlogs.map((b) => {
           const fullMessage = b.message || "";
 
           // Short preview
@@ -221,10 +220,10 @@ export default function BlogList({ initialBlogs = [] }) {
           );
         })}
 
-        {/* No posts match tag */}
-        {filterTag && sortedBlogs.length === 0 && (
+        {/* No posts match tags */}
+        {filterTags.length > 0 && filteredBlogs.length === 0 && (
           <div className="text-sm text-gray-500 mt-4">
-            No posts found for tag <b>#{filterTag}</b>.
+            No posts found for tag(s) <b>{humanTagLabel}</b>.
           </div>
         )}
       </div>

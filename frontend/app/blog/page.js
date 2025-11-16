@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Avatar from "../components/Note/Avatar";
 import BlogList from "../components/blog/BlogList";
 
+// Preset tags for quick filtering
+const PRESET_TAGS = ["homework", "health", "game", "anime", "food", "other"];
+
 export default function BlogPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -72,6 +75,18 @@ export default function BlogPage() {
 
     const effectiveTag = tagInput.trim() || currentTag || "";
     updateUrl(effectiveTag, newSort);
+  };
+
+  // NEW: click on preset tag to toggle filter
+  const handlePresetClick = (tag) => {
+    const current = (tagInput || currentTag || "").toLowerCase().trim();
+    const clicked = tag.toLowerCase();
+
+    // if clicking the same tag again -> clear
+    const newTag = current === clicked ? "" : tag;
+
+    setTagInput(newTag);
+    updateUrl(newTag, sortMode);
   };
 
   return (
@@ -155,6 +170,29 @@ export default function BlogPage() {
                   placeholder="e.g. cat, homework, question"
                   className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
                 />
+
+                {/* NEW: preset tag buttons */}
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                  {PRESET_TAGS.map((tag) => {
+                    const isActive =
+                      (tagInput || currentTag || "").toLowerCase().trim() ===
+                      tag.toLowerCase();
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handlePresetClick(tag)}
+                        className={`inline-flex items-center rounded-full border px-3 py-1 transition-colors ${
+                          isActive
+                            ? "bg-emerald-500 border-emerald-500 text-white"
+                            : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                        }`}
+                      >
+                        #{tag}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Sort selector */}
