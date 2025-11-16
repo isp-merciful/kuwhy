@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import Avatar from "../Note/Avatar";
 
 const MAX_PREVIEW_CHARS = 120;
 const SOFT_BREAK_EVERY = 80;
@@ -149,6 +148,10 @@ export default function BlogList({ initialBlogs = [] }) {
 
           previewMessage = insertSoftBreaks(previewMessage);
 
+          // ✅ ใช้ค่า user_name และ img จาก backend (ที่ flatten แล้ว)
+          const authorName = b.user_name || "anonymous";
+          const authorImg = b.img || null;
+
           return (
             <div
               key={b.blog_id}
@@ -167,10 +170,17 @@ export default function BlogList({ initialBlogs = [] }) {
                       }}
                     >
                       <div className="rounded-full overflow-hidden bg-white">
-                        <Avatar
-                          size={96}
-                          seed={b.user_id ?? b.user_name ?? "anon"}
-                        />
+                        {authorImg ? (
+                          <img
+                            src={authorImg}
+                            alt={authorName}
+                            className="w-24 h-24 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-semibold text-emerald-700">
+                            {authorName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -190,7 +200,7 @@ export default function BlogList({ initialBlogs = [] }) {
                     <div className="text-xs text-gray-600 mt-1">
                       posted by{" "}
                       <span className="font-medium text-emerald-700">
-                        {b.user_name ?? "anonymous"}
+                        {authorName}
                       </span>
                     </div>
 

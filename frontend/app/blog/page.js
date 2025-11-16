@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Avatar from "../components/Note/Avatar";
 import BlogList from "../components/blog/BlogList";
 
 export default function BlogPage() {
@@ -33,13 +32,14 @@ export default function BlogPage() {
     setTitleInput(currentTitle);
   }, [currentTitle]);
 
+  // ✅ ใช้ session.user.name เป็นหลัก (มาจาก users.user_name ใน DB)
   const displayName =
-    session?.user?.user_name ||
-    session?.user?.login_name ||
     session?.user?.name ||
-    "username";
+    session?.user?.login_name ||
+    "anonymous";
 
-  const avatarSeed = session?.user?.id || "blog-header-default";
+  // ✅ ดึงรูปจาก session.user.image (มาจาก users.img)
+  const avatarImg = session?.user?.image || null;
 
   const handleBack = () => {
     router.push("/");
@@ -115,14 +115,27 @@ export default function BlogPage() {
 
           {/* Main header card */}
           <div className="w-full max-w-3xl mx-auto">
-            <div className="rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-center sm:items-stretch gap-4">
+            <div
+              className="
+                rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur shadow-sm
+                px-6 py-5 sm:px-8 sm:py-6
+                flex flex-col gap-4
+                sm:flex-row sm:items-center sm:justify-between
+              "
+            >
               <div className="flex items-center gap-4 w-full sm:w-auto">
-                <Avatar
-                  center={false}
-                  size={64}
-                  style="thumbs"
-                  seed={avatarSeed}
-                />
+                {avatarImg ? (
+                  <img
+                    src={avatarImg}
+                    alt={displayName}
+                    className="w-16 h-16 rounded-full object-cover border border-emerald-200 bg-emerald-50"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-lg font-semibold text-emerald-700">
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+
                 <div>
                   <div className="text-xs uppercase tracking-wide text-emerald-500 font-semibold">
                     Signed in as
@@ -136,9 +149,10 @@ export default function BlogPage() {
                 </div>
               </div>
 
-              <div className="w-full sm:w-auto flex sm:items-center">
+              {/* ขวา: ปุ่ม */}
+              <div className="w-full sm:w-auto flex justify-end sm:items-center">
                 <button
-                  className="w-full sm:w-auto inline-flex justify-center items-center rounded-3xl px-6 py-3 text-sm font-semibold shadow-md bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+                  className="inline-flex items-center rounded-3xl px-6 py-3 text-sm font-semibold shadow-md bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
                   onClick={handleNewPost}
                 >
                   Type your question here...
@@ -146,6 +160,7 @@ export default function BlogPage() {
               </div>
             </div>
           </div>
+
 
           {/* Tag filter + title search + Sort controls */}
           <div className="w-full max-w-3xl mx-auto mt-5">

@@ -5,7 +5,7 @@ import Link from "next/link";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
-
+import { useParams } from "next/navigation";
 /* ---------------------- API base ---------------------- */
 
 const API_BASE = "http://localhost:8000";
@@ -102,10 +102,11 @@ async function fetchAllPosts() {
   return normalizeMany(await fetchJSON(`${API_BASE}/api/blog`));
 }
 
-/* ---------------------- page component ---------------------- */
+/* ---------------------- page component (client) ---------------------- */
 
 export default function BlogPostPage({ params }) {
-  const id = params?.id;
+  const params = useParams();
+  const id = params?.id; // string ของ [id]
 
   const [post, setPost] = useState(null);
   const [allPosts, setAllPosts] = useState([]);
@@ -143,7 +144,7 @@ export default function BlogPostPage({ params }) {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl py-10">
+      <div className="mx-auto max-w-5xl px-4 pt-24 pb-10">
         <div className="mb-4">
           <Link href="/blog" className="text-sm text-gray-600 hover:underline">
             ← Back to Community Blog
@@ -160,7 +161,7 @@ export default function BlogPostPage({ params }) {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-2xl py-10">
+      <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Something went wrong</h1>
         <p className="mt-2 text-gray-600">{error}</p>
         <Link
@@ -175,7 +176,7 @@ export default function BlogPostPage({ params }) {
 
   if (!post) {
     return (
-      <div className="mx-auto max-w-2xl py-10">
+      <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Post not found</h1>
         <p className="mt-2 text-gray-600">
           We couldn&apos;t find a blog post with ID <code>{id}</code>.
@@ -204,16 +205,8 @@ export default function BlogPostPage({ params }) {
   }
   const atts = Array.isArray(rawAtts) ? rawAtts : [];
 
-  // ⭐ normalize tags for safe rendering
-  const tags =
-    Array.isArray(post.tags)
-      ? post.tags
-      : typeof post.tags === "string"
-      ? post.tags.split(",").map((t) => t.trim())
-      : [];
-
   return (
-    <div className="mx-auto max-w-5xl py-10">
+    <div className="mx-auto max-w-5xl px-4 pt-24 pb-10">
       <div className="mb-4">
         <Link href="/blog" className="text-sm text-gray-600 hover:underline">
           ← Back to Community Blog
@@ -231,21 +224,6 @@ export default function BlogPostPage({ params }) {
                 {post.created_at ? formatDate(post.created_at) : ""}
               </time>
             </div>
-
-            {/* ⭐ Tag pills (clickable) */}
-            {tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                {tags.map((tag) => (
-                  <Link
-                    key={tag}
-                    href={`/blog?tag=${encodeURIComponent(tag)}`}
-                    className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-emerald-700 hover:bg-emerald-100"
-                  >
-                    #{tag}
-                  </Link>
-                ))}
-              </div>
-            )}
           </header>
 
           <section className="prose mt-4 max-w-none">

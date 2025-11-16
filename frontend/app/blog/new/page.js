@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Avatar from "../../components/Note/Avatar";
 
 // Resolve API base (works with Docker too)
 const API_BASE = "http://localhost:8000";
@@ -21,8 +20,10 @@ export default function NewBlogPage() {
 
   // apiToken อยู่บน session (เหมือนหน้า debug / note)
   const apiToken = authed ? session?.apiToken : null;
-  const avatarSeed = session?.user?.id || "blog-header-default";
-  
+
+  // ✅ ดึง avatar จาก session.user.image (ที่ map มาจาก DB)
+  const avatarImg = session?.user?.image || null;
+
   const authHeaders = useMemo(
     () => (apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
     [apiToken]
@@ -35,11 +36,10 @@ export default function NewBlogPage() {
   const [tagsInput, setTagsInput] = useState(""); // free-typed tags
   const [presetTags, setPresetTags] = useState([]); // selected preset tags
 
-  // ดึงชื่อจาก session
+  // ✅ ชื่อหลักใช้ session.user.name (ซึ่งคือ users.user_name ใน DB)
   const displayName =
-    session?.user?.user_name ||
-    session?.user?.login_name ||
     session?.user?.name ||
+    session?.user?.login_name || // fallback
     "anonymous";
 
   // preview สำหรับรูป
@@ -157,12 +157,20 @@ export default function NewBlogPage() {
           </div>
 
           <div className="flex items-start gap-6 mb-8">
-                          <Avatar
-                            center={false}
-                            size={64}
-                            style="thumbs"           
-                            seed={avatarSeed}        
-                          />
+            {/* ✅ ใช้รูปโปรไฟล์จริงจาก session.user.image */}
+            {avatarImg ? (
+              <img
+                src={avatarImg}
+                alt={displayName}
+                className="w-16 h-16 rounded-full object-cover border border-emerald-200 bg-emerald-50"
+              />
+            ) : (
+              // fallback ถ้า user ยังไม่มี img ใน DB
+              <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-lg font-semibold text-emerald-700">
+                {displayName.charAt(0).toUpperCase()}
+              </div>
+            )}
+
             <div className="flex-1 max-w-2xl mx-auto">
               <div className="text-gray-500 mb-2 text-center">
                 {displayName}
