@@ -18,16 +18,21 @@ export default function OtherPostsSearch({ posts = [] }) {
     return s ? filtered : filtered.slice(0, 3);
   }, [q, filtered]);
 
+  const total = filtered.length;
+  const shown = q ? visible.length : Math.min(3, total);
+
   return (
     <div className="sticky top-6 rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur p-5 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-emerald-900">Other Posts</h2>
-        <span className="text-xs text-emerald-700/70">
-          {q ? `${visible.length}/${filtered.length}` : `3/${filtered.length}`}
-        </span>
+        {total > 0 && (
+          <span className="text-xs text-emerald-700/70">
+            {shown}/{total}
+          </span>
+        )}
       </div>
-  
+
       {/* Search Box */}
       <div className="mt-4">
         <input
@@ -37,7 +42,7 @@ export default function OtherPostsSearch({ posts = [] }) {
           className="w-full rounded-xl border border-emerald-200 px-3 py-2 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white/80 placeholder-emerald-700/40 shadow-sm"
         />
       </div>
-  
+
       {/* Results */}
       {visible.length === 0 ? (
         <p className="mt-4 text-sm text-emerald-700/70">
@@ -62,9 +67,9 @@ export default function OtherPostsSearch({ posts = [] }) {
           ))}
         </ul>
       )}
-  
+
       {/* Optional: See all link */}
-      {!q && filtered.length > 3 && (
+      {!q && total > 3 && (
         <div className="mt-4 text-right">
           <Link
             href="/blog"
@@ -75,5 +80,5 @@ export default function OtherPostsSearch({ posts = [] }) {
         </div>
       )}
     </div>
-  );  
+  );
 }

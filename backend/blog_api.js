@@ -30,6 +30,40 @@ function filesToAttachments(files = []) {
   }));
 }
 
+// helper: normalize tags
+function normalizeTags(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw
+      .map((t) => String(t).trim())
+      .filter((t) => t.length > 0);
+  }
+  if (typeof raw === "string") {
+    return raw
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+  }
+  return [];
+}
+
+// helper: map prisma blog -> API shape
+function mapBlog(b) {
+  return {
+    blog_id: b.blog_id,
+    blog_title: b.blog_title,
+    message: b.message,
+    img: b.users?.img || null,
+    user_name: b.users?.user_name || "anonymous",
+    user_id: b.user_id,
+    created_at: b.created_at,
+    attachments: Array.isArray(b.attachments) ? b.attachments : [],
+    blog_up: b.blog_up ?? 0,
+    blog_down: b.blog_down ?? 0,
+    tags: Array.isArray(b.tags) ? b.tags : [],
+  };
+}
+
 /* ----------------------- CREATE BLOG ----------------------- */
 
 router.post(
@@ -49,15 +83,7 @@ router.post(
         return res.status(400).json({ error: "Missing fields" });
       }
 
-      // parse comma-separated tags: "homework, cat" -> ["homework","cat"]
-      let tags = [];
-      if (typeof rawTags === "string") {
-        tags = rawTags
-          .split(",")
-          .map((t) => t.trim())
-          .filter((t) => t.length > 0);
-      }
-
+      const tags = normalizeTags(rawTags);
       const uploaded = filesToAttachments(req.files);
 
       console.log("Creating blog:", {
@@ -76,7 +102,7 @@ router.post(
           blog_up: 0,
           blog_down: 0,
           ...(uploaded.length > 0 ? { attachments: uploaded } : {}),
-          ...(tags.length > 0 ? { tags } : {}), // ⭐ save tags JSON
+          ...(tags.length > 0 ? { tags } : {}),
         },
       });
 
@@ -112,23 +138,12 @@ router.get("/", optionalAuth, async (_req, res) => {
         created_at: true,
         updated_at: true,
         attachments: true,
-        tags: true, // ⭐ include tags
+        tags: true,
         users: { select: { img: true, user_name: true } },
       },
     });
 
-    const blogs = result.map((b) => ({
-      blog_id: b.blog_id,
-      blog_title: b.blog_title,
-      message: b.message,
-      img: b.users?.img || null,
-      user_name: b.users?.user_name || "anonymous",
-      created_at: b.created_at,
-      attachments: Array.isArray(b.attachments) ? b.attachments : [],
-      blog_up: b.blog_up ?? 0,
-      blog_down: b.blog_down ?? 0,
-      tags: Array.isArray(b.tags) ? b.tags : [], // ⭐ normalized tags
-    }));
+    const blogs = result.map((b) => mapBlog(b));
 
     res.json(blogs);
   } catch (error) {
@@ -156,48 +171,134 @@ router.get("/:id", optionalAuth, async (req, res) => {
         created_at: true,
         updated_at: true,
         attachments: true,
-        tags: true, // ⭐ include tags
+        tags: true,
         users: { select: { img: true, user_name: true } },
       },
     });
     if (!b) return res.status(404).json({ error: "Not found" });
 
-    res.json({
-      blog_id: b.blog_id,
-      blog_title: b.blog_title,
-      message: b.message,
-      img: b.users?.img || null,
-      user_name: b.users?.user_name || "anonymous",
-      created_at: b.created_at,
-      attachments: Array.isArray(b.attachments) ? b.attachments : [],
-      blog_up: b.blog_up ?? 0,
-      blog_down: b.blog_down ?? 0,
-      tags: Array.isArray(b.tags) ? b.tags : [], // ⭐ normalized tags
-    });
+    res.json(mapBlog(b));
   } catch (error) {
     console.error("GET /api/blog/:id failed:", error);
     res.status(500).json({ error: "fetch post fail" });
   }
 });
 
-/* ----------------------- UPDATE BLOG (message only) ----------------------- */
+/* ----------------------- UPDATE BLOG (title/message/tags/attachments) ----------------------- */
 
-router.put("/", requireMember, async (req, res) => {
-  try {
-    const { message, blog_id } = req.body || {};
-    if (!blog_id) return res.status(400).json({ error: "Missing blog_id" });
+router.put(
+  "/:id",
+  requireMember,
+  upload.array("attachments", 10),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (Number.isNaN(id)) {
+        return res.status(400).json({ error: "Bad id" });
+      }
 
-    await prisma.blog.update({
-      where: { blog_id: Number(blog_id) },
-      data: { message },
-    });
+      const { blog_title, message, tags: rawTags, attachments_json } =
+        req.body || {};
+      const userId = req.user?.id;
 
-    res.json({ message: "updatesuccess" });
-  } catch (err) {
-    console.error("PUT /api/blog failed:", err);
-    res.status(500).json({ error: "Failed to update blog" });
+      const existing = await prisma.blog.findUnique({
+        where: { blog_id: id },
+        select: {
+          blog_id: true,
+          user_id: true,
+          attachments: true,
+        },
+      });
+
+      if (!existing) {
+        return res.status(404).json({ error: "Not found" });
+      }
+
+      if (!userId || existing.user_id !== userId) {
+        return res.status(403).json({ error: "Forbidden: not your blog" });
+      }
+
+      const data = {};
+
+      if (typeof blog_title === "string" && blog_title.trim()) {
+        data.blog_title = blog_title.trim();
+      }
+      if (typeof message === "string" && message.trim()) {
+        data.message = message;
+      }
+
+      const tagsArr = normalizeTags(rawTags);
+      if (tagsArr.length > 0) {
+        data.tags = tagsArr;
+      }
+
+      // ------------ attachments ------------
+      // Frontend always sends attachments_json (string), e.g. "[]"
+      // so we treat it as "the exact list we want to keep",
+      // and then append any new uploads.
+      let kept = [];
+      const hasAttachmentsJson =
+        typeof attachments_json !== "undefined" && attachments_json !== null;
+
+      if (hasAttachmentsJson) {
+        try {
+          const parsed = JSON.parse(attachments_json);
+          if (Array.isArray(parsed)) {
+            kept = parsed.map((a) => ({
+              url: a.url,
+              name: a.name,
+              type: a.type,
+              size: a.size,
+            }));
+          }
+        } catch (e) {
+          console.warn("Failed to parse attachments_json:", e);
+        }
+      }
+
+      const newUploaded = filesToAttachments(req.files || []);
+
+      if (hasAttachmentsJson) {
+        // ⭐ even if kept & newUploaded are both empty → set attachments = []
+        data.attachments = [...kept, ...newUploaded];
+      } else if (newUploaded.length > 0) {
+        // fallback: no attachments_json, just append to existing ones
+        const existingAtts = Array.isArray(existing.attachments)
+          ? existing.attachments
+          : [];
+        data.attachments = [...existingAtts, ...newUploaded];
+      }
+      // ------------ end attachments ------------
+
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: "No fields to update" });
+      }
+
+      const updated = await prisma.blog.update({
+        where: { blog_id: id },
+        data,
+        select: {
+          blog_id: true,
+          blog_title: true,
+          message: true,
+          blog_up: true,
+          blog_down: true,
+          user_id: true,
+          created_at: true,
+          updated_at: true,
+          attachments: true,
+          tags: true,
+          users: { select: { img: true, user_name: true } },
+        },
+      });
+
+      return res.json(mapBlog(updated));
+    } catch (err) {
+      console.error("PUT /api/blog/:id failed:", err);
+      res.status(500).json({ error: "Failed to update blog" });
+    }
   }
-});
+);
 
 /* ----------------------- DELETE BLOG ----------------------- */
 
@@ -225,8 +326,7 @@ router.post("/:id/vote-simple", optionalAuth, async (req, res) => {
       return res.status(400).json({ error: "Invalid blog id" });
     }
 
-    const normalize = (v) =>
-      v === "up" || v === "down" ? v : null;
+    const normalize = (v) => (v === "up" || v === "down" ? v : null);
 
     prev = normalize(prev);
     next = normalize(next);
@@ -257,7 +357,6 @@ router.post("/:id/vote-simple", optionalAuth, async (req, res) => {
       }
     }
 
-    // clamp at 0
     up = Math.max(0, up);
     down = Math.max(0, down);
 

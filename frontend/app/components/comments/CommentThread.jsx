@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import useUserId from "../Note/useUserId"; // adjust path if needed
+import useUserId from "../Note/useUserId";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -21,7 +21,11 @@ function formatDate(iso) {
   } catch {
     const d = new Date(iso);
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(
+      d.getUTCDate()
+    )} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(
+      d.getUTCSeconds()
+    )} UTC`;
   }
 }
 
@@ -32,22 +36,34 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
   return (
     <li className="rounded-lg border border-gray-200 p-4">
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-        <img src={node.img || "/images/pfp.png"} alt="" className="h-8 w-8 rounded-full object-cover" />
+        <img
+          src={node.img || "/images/pfp.png"}
+          alt=""
+          className="h-8 w-8 rounded-full object-cover"
+        />
         <span className="font-medium">{node.user_name ?? "Anonymous"}</span>
         <span className="text-gray-400">·</span>
         <time title={`Created: ${formatDate(node.created_at)}`}>
           {node.created_at ? formatDate(node.created_at) : ""}
         </time>
+
         {node.updated_at &&
-          new Date(node.updated_at).getTime() !== new Date(node.created_at).getTime() && (
+          new Date(node.updated_at).getTime() !==
+            new Date(node.created_at).getTime() && (
             <span className="text-gray-400">(edited)</span>
           )}
-        <button onClick={() => onReply(node.comment_id)} className="ml-auto text-xs text-blue-600 hover:underline">
+
+        <button
+          onClick={() => onReply(node.comment_id)}
+          className="ml-auto text-xs text-blue-600 hover:underline"
+        >
           Reply
         </button>
       </div>
 
-      <p className="mt-2 whitespace-pre-wrap text-gray-800">{node.message}</p>
+      <p className="mt-2 whitespace-pre-wrap text-gray-800">
+        {node.message}
+      </p>
 
       {isReplying && (
         <form
@@ -65,8 +81,19 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
             className="w-full min-h-[70px] rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <div className="mt-2 flex gap-2">
-            <button type="submit" className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50">Reply</button>
-            <button type="button" onClick={() => onReply(null)} className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50">Cancel</button>
+            <button
+              type="submit"
+              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
+            >
+              Reply
+            </button>
+            <button
+              type="button"
+              onClick={() => onReply(null)}
+              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
+            >
+              Cancel
+            </button>
           </div>
         </form>
       )}
@@ -90,17 +117,12 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
   );
 }
 
-/** Props:
- *  - blogId: string | number   ← use this (from page)
- *  - currentUserId?: string | null (optional; if not provided we read from useUserId())
- */
 export default function CommentThread({ blogId, currentUserId = null }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rootText, setRootText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
 
-  // prefer provided id; otherwise take the hook
   const hookUserId = useUserId();
   const userId = currentUserId || hookUserId;
 
@@ -112,10 +134,11 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/comment/blog/${blogId}`, { cache: "no-store" });
+      const res = await fetch(`${API_BASE}/api/comment/blog/${blogId}`, {
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // backend: { message: "getblog", comment: [...] }
       const list = Array.isArray(json?.comment) ? json.comment : [];
       setItems(list);
     } catch (e) {
@@ -126,21 +149,26 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     }
   }
 
-  useEffect(() => { load(); }, [blogId]);
+  useEffect(() => {
+    load();
+  }, [blogId]);
 
   async function postComment({ message, parent_comment_id = null }) {
     if (!message?.trim()) return;
+
     const body = {
-      user_id: userId,                     // always send your user_id
+      user_id: userId,
       message: message.trim(),
       blog_id: Number(blogId),
       parent_comment_id,
     };
+
     const res = await fetch(`${API_BASE}/api/comment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+
     if (!res.ok) {
       let msg = "Failed to add comment";
       try {
@@ -155,6 +183,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     e.preventDefault();
     const text = rootText.trim();
     if (!text) return;
+
     try {
       await postComment({ message: text });
       setRootText("");
@@ -167,7 +196,10 @@ export default function CommentThread({ blogId, currentUserId = null }) {
 
   async function submitReply(parentId, text, clear) {
     try {
-      await postComment({ message: text, parent_comment_id: parentId });
+      await postComment({
+        message: text,
+        parent_comment_id: parentId,
+      });
       clear?.();
       setReplyingTo(null);
       await load();
@@ -189,11 +221,18 @@ export default function CommentThread({ blogId, currentUserId = null }) {
       >
         Comments {items?.length ? `(${items.length})` : ""}
       </h2>
-  
-      {/* --- ROOT COMMENT COMPOSER --- */}
+
+      {/* --- NEW: No comments message ABOVE form --- */}
+      {!loading && items.length === 0 && (
+        <p className="mt-4 mb-2 text-sm text-emerald-700/70">
+          No comments yet. Be the first to comment!
+        </p>
+      )}
+
+      {/* --- ROOT COMMENT BOX --- */}
       <form
         onSubmit={submitRoot}
-        className="mt-5 rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur px-5 py-5 shadow-sm space-y-4"
+        className="mt-3 rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur px-5 py-5 shadow-sm space-y-4"
       >
         <div>
           <label
@@ -206,7 +245,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
             Your comment will be posted under your account
           </p>
         </div>
-  
+
         <textarea
           id="comment-input"
           value={rootText}
@@ -214,7 +253,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
           placeholder="Share your thoughts…"
           className="w-full min-h-[120px] rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 placeholder-emerald-700/40 shadow-sm"
         />
-  
+
         <div className="flex items-center justify-end">
           <button
             type="submit"
@@ -225,11 +264,13 @@ export default function CommentThread({ blogId, currentUserId = null }) {
           </button>
         </div>
       </form>
-  
+
       {/* --- COMMENT LIST --- */}
       {loading ? (
-        <p className="mt-8 text-sm text-emerald-700/70">Loading comments…</p>
-      ) : items?.length ? (
+        <p className="mt-8 text-sm text-emerald-700/70">
+          Loading comments…
+        </p>
+      ) : items.length > 0 ? (
         <ul className="mt-8 space-y-5">
           {items.map((n) => (
             <CommentItem
@@ -241,11 +282,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
             />
           ))}
         </ul>
-      ) : (
-        <p className="mt-8 text-sm text-emerald-700/70">
-          No comments yet. Be the first to comment!
-        </p>
-      )}
+      ) : null}
     </section>
-  );  
+  );
 }
