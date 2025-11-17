@@ -304,16 +304,37 @@ router.put(
 
 router.delete("/:id", requireMember, async (req, res) => {
   try {
-    await prisma.blog.delete({
-      where: { blog_id: Number(req.params.id) },
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ error: "Bad id" });
+    }
+
+    const userId = req.user?.id;
+
+    const blog = await prisma.blog.findUnique({
+      where: { blog_id: id },
+      select: { user_id: true },
     });
 
-    res.json("delete success");
+    if (!blog) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    if (!userId || blog.user_id !== userId) {
+      return res.status(403).json({ error: "Forbidden: not your blog" });
+    }
+
+    await prisma.blog.delete({
+      where: { blog_id: id },
+    });
+
+    res.json({ message: "delete success" });
   } catch (error) {
     console.error("DELETE /api/blog/:id failed:", error);
     res.status(500).json({ error: "can't deleted blog" });
   }
 });
+
 
 /* ----------------------- VOTE SIMPLE (LIKE/DISLIKE) ----------------------- */
 

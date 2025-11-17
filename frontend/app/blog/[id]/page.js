@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { useParams, useRouter } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
@@ -109,26 +108,36 @@ async function fetchAllPosts() {
 export default function BlogPostPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params?.id; // string ของ [id]
+  const id = params?.id; // [id] from URL
 
-  // session จาก next-auth (ใช้เช็ค owner + apiToken)
   const { data: session } = useSession();
+
+  // ⭐ use the SAME token as /blog/new page
   const apiToken = session?.apiToken || null;
-  const currentUserId = session?.user?.id || session?.user?.user_id || null;
+
+  const authHeaders = useMemo(
+    () => (apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+    [apiToken]
+  );
+
+  const currentUserId =
+    session?.user?.id || session?.user?.user_id || null;
 
   const [post, setPost] = useState(null);
   const [allPosts, setAllPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // editing state
+  // edit state
   const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editMessage, setEditMessage] = useState("");
-  const [editTags, setEditTags] = useState(""); // comma separated
-  const [editAttachments, setEditAttachments] = useState([]); // attachments to keep
-  const [newFiles, setNewFiles] = useState([]); // File[]
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftMessage, setDraftMessage] = useState("");
+  const [draftTags, setDraftTags] = useState(""); // "tag1, tag2"
+  const [draftAtts, setDraftAtts] = useState([]); // kept attachments
+  const [newFiles, setNewFiles] = useState([]); // File[]
 
   useEffect(() => {
     if (!id) return;
@@ -159,45 +168,27 @@ export default function BlogPostPage() {
     };
   }, [id]);
 
-  // เมื่อ post เปลี่ยน → sync เข้า edit state
+  // sync drafts when we enter edit mode
   useEffect(() => {
-    if (!post) return;
-
-    setEditTitle(post.blog_title || "");
-    setEditMessage(post.message || "");
-
-    const tagStr = Array.isArray(post.tags)
-      ? post.tags.join(", ")
-      : typeof post.tags === "string"
-      ? post.tags
-      : "";
-    setEditTags(tagStr);
-
-    const atts =
-      typeof post.attachments === "string"
-        ? (() => {
-            try {
-              const arr = JSON.parse(post.attachments);
-              return Array.isArray(arr) ? arr : [];
-            } catch {
-              return [];
-            }
-          })()
-        : Array.isArray(post.attachments)
-        ? post.attachments
-        : [];
-
-    setEditAttachments(atts);
+    if (!post || !isEditing) return;
+    setDraftTitle(post.blog_title || "");
+    setDraftMessage(post.message || "");
+    const tagsStr = Array.isArray(post.tags) ? post.tags.join(", ") : "";
+    setDraftTags(tagsStr);
+    setDraftAtts(Array.isArray(post.attachments) ? post.attachments : []);
     setNewFiles([]);
-  }, [post]);
+  }, [post, isEditing]);
 
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 pt-24 pb-10">
         <div className="mb-4">
-          <Link href="/blog" className="text-sm text-gray-600 hover:underline">
+          <button
+            onClick={() => router.push("/blog")}
+            className="text-sm text-gray-600 hover:underline"
+          >
             ← Back to Community Blog
-          </Link>
+          </button>
         </div>
         <div className="animate-pulse space-y-4">
           <div className="h-6 w-1/3 bg-gray-200 rounded" />
@@ -213,12 +204,12 @@ export default function BlogPostPage() {
       <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Something went wrong</h1>
         <p className="mt-2 text-gray-600">{error}</p>
-        <Link
-          href="/blog"
+        <button
+          onClick={() => router.push("/blog")}
           className="mt-4 inline-block text-sm text-blue-600 underline"
         >
           ← Back to Community Blog
-        </Link>
+        </button>
       </div>
     );
   }
@@ -230,22 +221,25 @@ export default function BlogPostPage() {
         <p className="mt-2 text-gray-600">
           We couldn&apos;t find a blog post with ID <code>{id}</code>.
         </p>
-        <Link
-          href="/blog"
+        <button
+          onClick={() => router.push("/blog")}
           className="mt-4 inline-block text-sm text-blue-600 underline"
         >
           ← Back to Community Blog
-        </Link>
+        </button>
       </div>
     );
   }
 
-  // sidebar posts
+  const isOwner =
+    currentUserId &&
+    post.user_id &&
+    String(currentUserId) === String(post.user_id);
+
   const otherPosts = (Array.isArray(allPosts) ? allPosts : [])
     .filter((p) => String(p.blog_id) !== String(id))
     .slice(0, 8);
 
-  // attachments for view mode
   let rawAtts = post.attachments;
   if (typeof rawAtts === "string") {
     try {
@@ -255,9 +249,7 @@ export default function BlogPostPage() {
     }
   }
   const atts = Array.isArray(rawAtts) ? rawAtts : [];
-  const displayAtts = isEditing ? editAttachments : atts;
 
-  // tags (for view mode)
   const tagList = Array.isArray(post.tags)
     ? post.tags
     : typeof post.tags === "string"
@@ -267,97 +259,129 @@ export default function BlogPostPage() {
         .filter(Boolean)
     : [];
 
-  // owner check
-  const isOwner =
-    currentUserId &&
-    post.user_id &&
-    String(currentUserId) === String(post.user_id);
+  /* ------- edit handlers ------- */
 
-  function handleRemoveAttachment(idx) {
-    setEditAttachments((prev) => prev.filter((_, i) => i !== idx));
+  function startEdit() {
+    if (!isOwner) return;
+    setDraftTitle(post.blog_title || "");
+    setDraftMessage(post.message || "");
+    const tagsStr = Array.isArray(post.tags) ? post.tags.join(", ") : "";
+    setDraftTags(tagsStr);
+    setDraftAtts(Array.isArray(post.attachments) ? post.attachments : []);
+    setNewFiles([]);
+    setIsEditing(true);
   }
 
-  function handleNewFilesChange(e) {
-    const files = Array.from(e.target.files || []);
-    setNewFiles(files);
-  }
-
-  function handleCancelEdit() {
+  function cancelEdit() {
     setIsEditing(false);
-    // reset back to current post values
-    setEditTitle(post.blog_title || "");
-    setEditMessage(post.message || "");
-    const tagStr = Array.isArray(post.tags)
-      ? post.tags.join(", ")
-      : typeof post.tags === "string"
-      ? post.tags
-      : "";
-    setEditTags(tagStr);
-    const currentAtts = Array.isArray(atts) ? atts : [];
-    setEditAttachments(currentAtts);
     setNewFiles([]);
   }
 
-  async function handleSaveEdit() {
-    if (!isOwner) {
-      alert("You are not allowed to edit this post.");
-      return;
-    }
+  function handleNewFiles(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setNewFiles((prev) => [...prev, ...files]);
+    e.target.value = "";
+  }
+
+  function removeExistingAttachment(idx) {
+    setDraftAtts((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function removeNewFile(idx) {
+    setNewFiles((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleSave() {
+    if (!post) return;
+
     if (!apiToken) {
-      alert("Please log in again before editing this post.");
-      return;
-    }
-
-    const title = editTitle.trim();
-    const message = editMessage.trim();
-    const tags = editTags;
-
-    if (!title || !message) {
-      alert("Title and message cannot be empty.");
+      alert("Session expired. Please login again to edit this post.");
+      router.push(`/login?callbackUrl=/blog/${post.blog_id}`);
       return;
     }
 
     try {
       setSaving(true);
-
-      const form = new FormData();
-      form.append("blog_title", title);
-      form.append("message", message);
-      form.append("tags", tags || "");
-      // ส่ง attachments ที่จะเก็บไว้เป็น JSON
-      form.append("attachments_json", JSON.stringify(editAttachments));
-
-      // แนบไฟล์ใหม่ (ถ้ามี)
-      for (const f of newFiles) {
-        form.append("attachments", f);
+      const formData = new FormData();
+      formData.append("blog_title", draftTitle || "");
+      formData.append("message", draftMessage || "");
+      formData.append("tags", draftTags || "");
+      formData.append("attachments_json", JSON.stringify(draftAtts));
+      for (const file of newFiles) {
+        formData.append("attachments", file);
       }
 
       const res = await fetch(`${API_BASE}/api/blog/${post.blog_id}`, {
         method: "PUT",
+        body: formData,
+        credentials: "include",
         headers: {
-          // important: อย่าใส่ Content-Type เอง เวลาใช้ FormData
-          Authorization: `Bearer ${apiToken}`,
+          ...authHeaders, // Bearer apiToken
         },
-        body: form,
       });
 
       if (!res.ok) {
         const text = await res.text();
-        console.error("Update failed:", res.status, text);
-        alert(`Failed to update post (${res.status}).`);
-        return;
+        throw new Error(`Update failed: ${res.status} ${text}`);
       }
 
       const updated = await res.json();
       setPost(updated);
+      setAllPosts((prev) =>
+        Array.isArray(prev)
+          ? prev.map((b) =>
+              b.blog_id === updated.blog_id ? { ...b, ...updated } : b
+            )
+          : prev
+      );
       setIsEditing(false);
+      setNewFiles([]);
     } catch (err) {
-      console.error("Update error:", err);
-      alert("Unexpected error while updating the post.");
+      console.error(err);
+      alert(err.message || "Failed to update post");
     } finally {
       setSaving(false);
     }
   }
+
+  async function handleDelete() {
+    if (!post || !isOwner) return;
+
+    if (!apiToken) {
+      alert("Session expired. Please login again to delete this post.");
+      router.push(`/login?callbackUrl=/blog/${post.blog_id}`);
+      return;
+    }
+
+    const ok = window.confirm(
+      "Are you sure you want to delete this post? This action cannot be undone."
+    );
+    if (!ok) return;
+
+    try {
+      setDeleting(true);
+      const res = await fetch(`${API_BASE}/api/blog/${post.blog_id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...authHeaders, // Bearer apiToken
+        },
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Delete failed: ${res.status} ${text}`);
+      }
+      router.push("/blog");
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Failed to delete post");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  /* ------- render ------- */
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 pt-28 pb-12 px-4">
@@ -377,59 +401,46 @@ export default function BlogPostPage() {
         {/* ----- MAIN POST CARD ----- */}
         <article className="lg:col-span-2 rounded-3xl border border-emerald-100 bg-white/80 px-8 py-8 shadow-sm">
           {/* Header */}
-          <header>
-            {/* title */}
-            {isEditing ? (
-              <input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xl sm:text-2xl font-semibold text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                placeholder="Edit title..."
-              />
-            ) : (
-              <h1 className="text-2xl sm:text-3xl font-bold text-emerald-900">
-                {post.blog_title}
-              </h1>
-            )}
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              {isEditing ? (
+                <input
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  className="w-full rounded-xl border border-emerald-200 px-3 py-2 text-xl font-semibold text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400"
+                  placeholder="Post title"
+                />
+              ) : (
+                <h1 className="text-2xl sm:text-3xl font-bold text-emerald-900">
+                  {post.blog_title}
+                </h1>
+              )}
 
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-700/80">
-              <span>
+              <div className="mt-2 text-sm text-emerald-700/80">
                 by{" "}
                 <span className="font-semibold">
                   {post.user_name ?? "anonymous"}
-                </span>
-              </span>
-              <span>·</span>
-              <time dateTime={post.created_at}>
-                {post.created_at ? formatDate(post.created_at) : ""}
-              </time>
-
-              {isOwner && !isEditing && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="ml-auto rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
-                >
-                  Edit post
-                </button>
-              )}
-            </div>
-
-            {/* tags */}
-            {isEditing ? (
-              <div className="mt-3">
-                <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
-                  Tags (comma-separated)
-                </label>
-                <input
-                  value={editTags}
-                  onChange={(e) => setEditTags(e.target.value)}
-                  placeholder="homework, cat, exam"
-                  className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                />
+                </span>{" "}
+                ·{" "}
+                <time dateTime={post.created_at}>
+                  {post.created_at ? formatDate(post.created_at) : ""}
+                </time>
               </div>
-            ) : (
-              tagList.length > 0 && (
+
+              {/* Tags */}
+              {isEditing ? (
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-emerald-700 mb-1">
+                    Tags (comma separated)
+                  </label>
+                  <input
+                    value={draftTags}
+                    onChange={(e) => setDraftTags(e.target.value)}
+                    placeholder="homework, quiz, project"
+                    className="w-full rounded-xl border border-emerald-200 px-3 py-2 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
+              ) : tagList.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {tagList.map((tag) => (
                     <button
@@ -444,28 +455,50 @@ export default function BlogPostPage() {
                     </button>
                   ))}
                 </div>
-              )
-            )}
+              ) : null}
+            </div>
 
-            {/* edit action buttons */}
-            {isOwner && isEditing && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleSaveEdit}
-                  disabled={saving}
-                  className="inline-flex items-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {saving ? "Saving..." : "Save changes"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  disabled={saving}
-                  className="inline-flex items-center rounded-xl border border-emerald-200 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Cancel
-                </button>
+            {/* Owner controls */}
+            {isOwner && (
+              <div className="flex flex-wrap gap-2">
+                {isEditing ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="rounded-xl bg-emerald-500 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:opacity-60"
+                    >
+                      {saving ? "Saving…" : "Save changes"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={saving}
+                      className="rounded-xl border border-emerald-200 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={startEdit}
+                      className="rounded-xl border border-emerald-200 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                    >
+                      Edit post
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="rounded-xl border border-red-200 px-4 py-2 text-xs sm:text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {deleting ? "Deleting…" : "Delete"}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </header>
@@ -474,109 +507,177 @@ export default function BlogPostPage() {
           <section className="prose mt-5 max-w-none text-emerald-900">
             {isEditing ? (
               <textarea
-                value={editMessage}
-                onChange={(e) => setEditMessage(e.target.value)}
-                className="w-full min-h-[200px] rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                placeholder="Edit your content..."
+                value={draftMessage}
+                onChange={(e) => setDraftMessage(e.target.value)}
+                className="w-full min-h-[180px] rounded-xl border border-emerald-200 px-4 py-3 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400"
+                placeholder="Write your post…"
               />
             ) : (
               <p className="whitespace-pre-wrap">{post.message}</p>
             )}
           </section>
 
-          {/* ----- ATTACHMENTS (view + edit) ----- */}
-          {(displayAtts.length > 0 || post.file_url || (isEditing && true)) && (
+          {/* Attachments (view + edit) */}
+          {(atts.length > 0 || post.file_url || isEditing) && (
             <section className="mt-8">
               <h3 className="text-sm font-semibold text-emerald-700 mb-2">
                 Attachments
               </h3>
 
-              {displayAtts.length > 0 && (
-                <ul className="space-y-3">
-                  {displayAtts.map((att, idx) => {
-                    const url = toAbs(att.url);
-                    const isImg = (att.type || "").startsWith("image/");
-                    return (
-                      <li
-                        key={att.url || idx}
-                        className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm flex flex-col gap-2"
-                      >
-                        {isImg ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={url}
-                            alt={att.name || `image-${idx}`}
-                            className="max-h-80 w-auto rounded-xl border border-emerald-100"
-                          />
-                        ) : (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            download
-                            className="text-emerald-700 underline break-all"
+              {/* View mode */}
+              {!isEditing && (
+                <>
+                  {atts.length > 0 && (
+                    <ul className="space-y-3">
+                      {atts.map((att, idx) => {
+                        const url = toAbs(att.url);
+                        const isImg = (att.type || "").startsWith("image/");
+                        return (
+                          <li
+                            key={idx}
+                            className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm"
                           >
-                            {att.name || url}
-                          </a>
-                        )}
+                            {isImg ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={url}
+                                alt={att.name || `image-${idx}`}
+                                className="max-h-80 w-auto rounded-xl border border-emerald-100"
+                              />
+                            ) : (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                download
+                                className="text-emerald-700 underline break-all"
+                              >
+                                {att.name || url}
+                              </a>
+                            )}
 
-                        <div className="flex items-center justify-between text-xs text-emerald-700/70">
-                          {att.size && (
-                            <span>{(att.size / 1024).toFixed(1)} KB</span>
-                          )}
+                            {att.size && (
+                              <div className="text-xs text-emerald-700/70 mt-1">
+                                {(att.size / 1024).toFixed(1)} KB
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
 
-                          {isEditing && (
+                  {post.file_url && !post.attachments && (
+                    <div className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm">
+                      <a
+                        href={toAbs(post.file_url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        download
+                        className="text-emerald-700 underline break-all"
+                      >
+                        Download attachment
+                      </a>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Edit mode attachments */}
+              {isEditing && (
+                <div className="space-y-4">
+                  {/* existing attachments with remove */}
+                  {draftAtts.length > 0 && (
+                    <ul className="space-y-3">
+                      {draftAtts.map((att, idx) => {
+                        const url = toAbs(att.url);
+                        const isImg = (att.type || "").startsWith("image/");
+                        return (
+                          <li
+                            key={idx}
+                            className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm"
+                          >
+                            <div className="flex-1">
+                              {isImg ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={url}
+                                  alt={att.name || `image-${idx}`}
+                                  className="max-h-40 w-auto rounded-xl border border-emerald-100"
+                                />
+                              ) : (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-emerald-700 underline break-all"
+                                >
+                                  {att.name || url}
+                                </a>
+                              )}
+                              {att.size && (
+                                <div className="text-xs text-emerald-700/70 mt-1">
+                                  {(att.size / 1024).toFixed(1)} KB
+                                </div>
+                              )}
+                            </div>
                             <button
                               type="button"
-                              onClick={() => handleRemoveAttachment(idx)}
-                              className="rounded-full border border-red-200 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50"
+                              onClick={() => removeExistingAttachment(idx)}
+                              className="text-xs rounded-full border border-red-200 px-3 py-1 text-red-600 hover:bg-red-50"
                             >
                               Remove
                             </button>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-
-              {/* legacy single file_url (view only) */}
-              {post.file_url && !post.attachments && !isEditing && (
-                <div className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm">
-                  <a
-                    href={toAbs(post.file_url)}
-                    target="_blank"
-                    rel="noreferrer"
-                    download
-                    className="text-emerald-700 underline break-all"
-                  >
-                    Download attachment
-                  </a>
-                </div>
-              )}
-
-              {/* file input for new attachments (edit mode) */}
-              {isEditing && (
-                <div className="mt-4 space-y-2">
-                  <label className="block text-xs font-semibold text-emerald-700/80">
-                    Add more attachments
-                  </label>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleNewFilesChange}
-                    className="block w-full text-xs text-emerald-900"
-                  />
-                  {newFiles.length > 0 && (
-                    <ul className="mt-1 text-xs text-emerald-700/80 list-disc list-inside">
-                      {newFiles.map((f, idx) => (
-                        <li key={idx}>
-                          {f.name} ({(f.size / 1024).toFixed(1)} KB)
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
+
+                  {/* new files list */}
+                  {newFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold text-emerald-700">
+                        New files to upload:
+                      </div>
+                      <ul className="space-y-1 text-xs text-emerald-800">
+                        {newFiles.map((f, idx) => (
+                          <li
+                            key={idx}
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <span className="truncate">
+                              {f.name} ({(f.size / 1024).toFixed(1)} KB)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeNewFile(idx)}
+                              className="rounded-full border border-red-200 px-2 py-0.5 text-[11px] text-red-600 hover:bg-red-50"
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* file input */}
+                  <div className="text-xs text-emerald-700/80">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">
+                      <span>+ Add files</span>
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={handleNewFiles}
+                      />
+                    </label>
+                    <div className="mt-1 text-[11px] text-emerald-700/60">
+                      You can remove existing files above, and add new ones
+                      here.
+                    </div>
+                  </div>
                 </div>
               )}
             </section>
