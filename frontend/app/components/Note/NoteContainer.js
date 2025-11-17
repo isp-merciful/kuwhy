@@ -15,6 +15,9 @@ export default function NoteContainer() {
   const [selectedNote, setSelectedNote] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
 
+  // filter: all | normal | party
+  const [filter, setFilter] = useState("all");
+
   useEffect(() => {
     async function fetchNotes() {
       try {
@@ -43,15 +46,22 @@ export default function NoteContainer() {
     fetchNotes();
   }, []);
 
-  // ซ่อนโน้ตของตัวเองออกจาก community
-  const visibleNotes = useMemo(
-    () =>
-      (notes || []).filter((n) => {
-        if (!userId) return true;
-        return n.user_id !== userId;
-      }),
-    [notes, userId]
-  );
+  // ซ่อนโน้ตของตัวเองออกจาก community + filter ตาม category
+  const visibleNotes = useMemo(() => {
+    let base = (notes || []).filter((n) => {
+      if (!userId) return true;
+      return n.user_id !== userId;
+    });
+
+    if (filter === "party") {
+      // party note เท่านั้น
+      base = base.filter((n) => (n.max_party ?? 0) > 0);
+    } else if (filter === "normal") {
+      // โน้ตปกติเท่านั้น (ไม่ใช่ party)
+      base = base.filter((n) => (n.max_party ?? 0) <= 0);
+    }
+    return base;
+  }, [notes, userId, filter]);
 
   const hasAnyNotes = visibleNotes.length > 0;
 
@@ -60,10 +70,9 @@ export default function NoteContainer() {
     setShowPopup(true);
   };
 
-    const handleAfterJoin = ({ noteId, crr_party, max_party }) => {
+  const handleAfterJoin = ({ noteId, crr_party, max_party }) => {
     const targetId = Number(noteId);
     if (!targetId) return;
-
 
     setNotes((prev) =>
       (prev || []).map((n) =>
@@ -79,7 +88,6 @@ export default function NoteContainer() {
       )
     );
 
-    
     setSelectedNote((prev) => {
       if (!prev || Number(prev.note_id) !== targetId) return prev;
       return {
@@ -113,15 +121,48 @@ export default function NoteContainer() {
               </div>
             </div>
 
-            {/* Badge อธิบายว่า party note ถูก highlight */}
+            {/* Filter category: All / Normal / Party */}
             <div className="flex items-center gap-2 text-[11px] sm:text-xs">
-              <span className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-sky-700">
-                <span className="text-sm">🎉</span>
-                <span className="font-medium">Party notes</span>
-                <span className="hidden sm:inline text-sky-500/80">
-                  highlighted with badge
-                </span>
+              <span className="hidden sm:inline text-gray-400">
+                Filter:
               </span>
+              <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-1 py-1">
+                <button
+                  type="button"
+                  onClick={() => setFilter("all")}
+                  className={`px-2.5 py-1 rounded-full font-medium transition text-[11px] sm:text-xs ${
+                    filter === "all"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter("normal")}
+                  className={`px-2.5 py-1 rounded-full font-medium transition text-[11px] sm:text-xs ${
+                    filter === "normal"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="text-sm">📝</span>
+                  <span className="hidden sm:inline">Normal</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter("party")}
+                  className={`px-2.5 py-1 rounded-full font-medium transition text-[11px] sm:text-xs flex items-center gap-1 ${
+                    filter === "party"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <span className="text-sm">🎉</span>
+                  <span className="hidden sm:inline">Party</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -142,7 +183,7 @@ export default function NoteContainer() {
             <NoteList notes={visibleNotes} onNoteClick={handleCardClick} />
           ) : (
             <p className="text-sm text-gray-500 mt-2">
-              Looks like no notes yet. Why not add yours?✨
+              Looks like no notes in this filter. ✨
             </p>
           )}
         </div>
@@ -163,20 +204,9 @@ export default function NoteContainer() {
             ownerId={selectedNote.user_id}
             viewerUserId={userId}
             onAfterJoin={handleAfterJoin}
-
           />
         </div>
       )}
-
-        {/* {showPopup && selectedNote && (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 shadow-xl">
-        <p className="font-semibold mb-2">Debug popup</p>
-        <p className="text-sm text-gray-600">{selectedNote.message}</p>
-      </div>
-    </div>
-)} */}
-
     </div>
   );
 }
