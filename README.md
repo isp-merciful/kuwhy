@@ -127,12 +127,14 @@ kuwhy/
 git clone https://github.com/isp-merciful/kuwhy.git
 cd kuwhy
 # setup all .env in kuwhy(root),frontend,backend
+
 # 2. Start all services with Docker
 docker-compose up --build -d
 
 # 3. Access the application
 Frontend: http://localhost:[FRONTEND_PORT] -- to be add
 Backend: http://localhost:[API_PORT] -- to be add
+
 # 4.Turn off
 docker-compose down -v
 ```
