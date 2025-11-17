@@ -252,53 +252,74 @@ export default function Popup({
       return;
     }
 
-    (async () => {
-      try {
-        const res = await fetch("http://localhost:8000/api/note/join", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders },
-          body: JSON.stringify({ note_id: Number(noteId) }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok || data?.error === "already joined") {
-          setJoined(true);
-          if (typeof data?.data?.crr_party === "number")
-            setCurr(Number(data.data.crr_party));
-          if (typeof data?.data?.max_party === "number")
-            setMax(Number(data.data.max_party));
+(async () => {
+  try {
+    const res = await fetch("http://localhost:8000/api/note/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ note_id: Number(noteId) }),
+    });
+    const data = await res.json().catch(() => ({}));
 
-          try {
-            router.refresh();
-          } catch (e) {
-            console.warn("router.refresh failed (autoJoin):", e);
-          }
-        } else {
-          if (data?.error_code === "ALREADY_IN_PARTY") {
-            setAlreadyInAnotherParty(true);
-            setCurrentPartyId(data?.current_note_id ?? null);
-            showToast(
-              "You are already in another party. Leave it first.",
-              "info"
-            );
-          } else if (data?.error_code === "PARTY_FULL") {
-            showToast("Party is full", "error");
-          } else {
-            showToast((data?.error || "Join failed").toString(), "error");
-          }
+    if (res.ok || data?.error === "already joined") {
+      // อัปเดต state เดิมเหมือนเคย
+      setJoined(true);
+      if (typeof data?.data?.crr_party === "number")
+        setCurr(Number(data.data.crr_party));
+      if (typeof data?.data?.max_party === "number")
+        setMax(Number(data.data.max_party));
+
+      // ✅ ยิง noti เฉพาะตอน "เพิ่ง join สำเร็จจริง ๆ" (res.ok)
+      //    ไม่ยิงตอน backend ตอบ already joined (ไม่ใช่การ join ใหม่)
+      try {
+        if (res.ok && userId) {
+          await fetch("http://localhost:8000/api/noti", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sender_id: userId,          // คนที่เพิ่ง join
+              note_id: Number(noteId),    // party ของ note ไหน
+              event_type: "party_join",   // ให้ backend ส่ง noti แบบ join
+            }),
+          });
         }
-      } catch {
-        showToast("Cannot join party right now", "error");
-      } finally {
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.delete("autoJoin");
-          router.replace(
-            url.pathname +
-              (url.search ? "?" + url.searchParams.toString() : "")
-          );
-        } catch {}
+      } catch (e) {
+        console.error("send party_join notification failed:", e);
       }
-    })();
+
+      try {
+        router.refresh();
+      } catch (e) {
+        console.warn("router.refresh failed (autoJoin):", e);
+      }
+    } else {
+      if (data?.error_code === "ALREADY_IN_PARTY") {
+        setAlreadyInAnotherParty(true);
+        setCurrentPartyId(data?.current_note_id ?? null);
+        showToast(
+          "You are already in another party. Leave it first.",
+          "info"
+        );
+      } else if (data?.error_code === "PARTY_FULL") {
+        showToast("Party is full", "error");
+      } else {
+        showToast((data?.error || "Join failed").toString(), "error");
+      }
+    }
+  } catch {
+    showToast("Cannot join party right now", "error");
+  } finally {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("autoJoin");
+      router.replace(
+        url.pathname +
+          (url.search ? "?" + url.searchParams.toString() : "")
+      );
+    } catch {}
+  }
+})();
+
   }, [search, isParty, joined, noteId, authed, authHeaders, router]);
 
   async function softFetchActiveNote() {

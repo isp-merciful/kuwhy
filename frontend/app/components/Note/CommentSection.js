@@ -574,8 +574,10 @@ export default function CommentSection({ noteId, userId }) {
       note_id: noteId,
       parent_comment_id: null,
     };
+
     try {
       setSubmitting(true);
+
       const res = await fetch(`${API}/comment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -585,11 +587,13 @@ export default function CommentSection({ noteId, userId }) {
       let data = null;
       try {
         data = await res.json();
-      } catch (_) {}
+      } catch (_) {
+        // เผื่อ backend ไม่ได้ส่ง JSON กลับมา (แต่ปกติจะมี)
+      }
 
       if (!res.ok) {
+        // ✅ เคส rate limit
         if (res.status === 429) {
-          // ดึง retry_after จาก backend ถ้าไม่มีให้ default = 5 วินาที
           let retryAfterSec = Number(data?.retry_after);
           if (!Number.isFinite(retryAfterSec) || retryAfterSec <= 0) {
             retryAfterSec = 5;
@@ -601,7 +605,6 @@ export default function CommentSection({ noteId, userId }) {
               : "You are commenting too fast. Please wait a moment.";
 
           const until = Date.now() + retryAfterSec * 1000;
-
           setRateLimit({ message: msg, until });
         }
         return;
@@ -610,7 +613,27 @@ export default function CommentSection({ noteId, userId }) {
       // ok → clear rate limit error (ถ้ามี)
       setRateLimit(null);
 
+      // ⚡ ยิง notification ไปหาเจ้าของโน้ต
+      const newCommentId = data?.id ?? data?.comment?.comment_id;
+      if (newCommentId && userId && noteId != null) {
+        try {
+          await fetch(`${API}/noti`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sender_id: userId,
+              comment_id: Number(newCommentId),
+              note_id: Number(noteId),
+              parent_comment_id: null,
+            }),
+          });
+        } catch (e) {
+          console.error("create comment notification failed:", e);
+        }
+      }
+
       await refresh();
+
       if (scrollRef.current) {
         requestAnimationFrame(() => {
           if (scrollRef.current) {
@@ -634,6 +657,7 @@ export default function CommentSection({ noteId, userId }) {
       note_id: noteId,
       parent_comment_id: parentId,
     };
+
     try {
       const res = await fetch(`${API}/comment`, {
         method: "POST",
@@ -664,11 +688,32 @@ export default function CommentSection({ noteId, userId }) {
       }
 
       setRateLimit(null);
+
+      // ⚡ ยิง notification ไปหาเจ้าของคอมเมนต์แม่ (และผูกกับ note นี้)
+      const newCommentId = data?.id ?? data?.comment?.comment_id;
+      if (newCommentId && userId && noteId != null && parentId != null) {
+        try {
+          await fetch(`${API}/noti`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sender_id: userId,
+              comment_id: Number(newCommentId),
+              note_id: Number(noteId),
+              parent_comment_id: Number(parentId),
+            }),
+          });
+        } catch (e) {
+          console.error("create reply notification failed:", e);
+        }
+      }
+
       await refresh();
     } catch (e) {
       console.error("reply failed", e);
     }
   }
+
 
   // edit
   async function handleEdit(id, message) {
