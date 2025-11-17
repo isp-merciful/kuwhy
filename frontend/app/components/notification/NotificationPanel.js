@@ -1,10 +1,10 @@
-// frontend/app/components/notifications/NotificationPanel.js
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import Popup from "../Note/Popup";
-import useUserId from "../Note/useUserId"; // เหมือนที่ใช้ใน NoteBubble / NoteContainer
+import useUserId from "../Note/useUserId";
 
 const API_BASE = "http://localhost:8000";
 
@@ -20,38 +20,43 @@ function formatDate(iso) {
   }
 }
 
-// เลือกข้อความสำหรับ noti
 function getNotiMessage(noti) {
-  // reply comment
   if (noti.type === "reply") {
     return noti.blog_id
       ? "replied to your comment on your blog"
       : "replied to your comment";
   }
 
-  // party events
-  if (noti.type === "party_join") {
-    return "joined your party";
-  }
-  if (noti.type === "party_chat") {
-    return "sent a message in your party";
-  }
+  if (noti.type === "party_join") return "joined your party";
+  if (noti.type === "party_chat") return "sent a message in your party";
 
-  // comment
-  if (noti.blog_id) {
-    return "commented on your blog";
-  }
+  if (noti.blog_id) return "commented on your blog";
   return "commented on your note";
 }
 
-export default function NotificationPanel({ notifications, onNotificationRead }) {
+export default function NotificationPanel({
+  notifications,
+  onNotificationRead,
+  onPopupOpenChange, // ✅ เพิ่ม prop
+}) {
   const router = useRouter();
-  const viewerUserId = useUserId(); // user id ของคนที่เปิด panel
+  const viewerUserId = useUserId();
 
   const [popupNote, setPopupNote] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
 
-  // ----- helper: โหลด note แล้วแสดงเป็น Popup (สำหรับ reply เท่านั้น) -----
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // ✅ แจ้งให้ NotificationBell รู้เมื่อ popup เปิด/ปิด
+  useEffect(() => {
+    if (typeof onPopupOpenChange === "function") {
+      onPopupOpenChange(showPopup);
+    }
+  }, [showPopup, onPopupOpenChange]);
+
   const openReplyPopup = async (noteId) => {
     try {
       const res = await fetch(`${API_BASE}/api/note/${noteId}`);
@@ -69,15 +74,12 @@ export default function NotificationPanel({ notifications, onNotificationRead })
     }
   };
 
-  // ----- helper: สั่งให้ NoteBubble เข้าโหมด composing -----
   const openNoteBubbleComposing = () => {
-    // ไปหน้า /note พร้อม query ให้ NoteBubble เปิด composing
     router.push("/note?openCompose=1");
   };
 
   const handleClickNoti = async (noti) => {
     try {
-      // 1) mark as read
       if (!noti.is_read) {
         const res = await fetch(
           `${API_BASE}/api/noti/${noti.notification_id}`,
@@ -92,30 +94,21 @@ export default function NotificationPanel({ notifications, onNotificationRead })
         }
       }
 
-      // 2) ตัดสิน flow ตาม type
-
-      // 2.1 blog notification → ไปหน้า blog
       if (noti.blog_id) {
         router.push(`/blog/${noti.blog_id}`);
         return;
       }
 
-      // ไม่มี note_id / blog_id ก็ไปไหนไม่ได้
       if (!noti.note_id) {
-        console.warn(
-          "notification ไม่มี note_id หรือ blog_id ให้ตามต่อ",
-          noti
-        );
+        console.warn("notification ไม่มี note_id หรือ blog_id", noti);
         return;
       }
 
-      // 2.2 reply บน note (เคส: มีคน reply comment ของเราใน note คนอื่น)
       if (noti.type === "reply") {
         await openReplyPopup(noti.note_id);
         return;
       }
 
-      // 2.3 โน้ตของเรา + party events → ให้ไปที่ NoteBubble โหมด composing
       if (
         noti.type === "comment" ||
         noti.type === "party_chat" ||
@@ -125,7 +118,6 @@ export default function NotificationPanel({ notifications, onNotificationRead })
         return;
       }
 
-      // 2.4 type อื่น ๆ (fallback) → ใช้ popup แบบ reply ไปก่อน
       await openReplyPopup(noti.note_id);
     } catch (err) {
       console.error("❌ Failed to open from notification:", err);
@@ -134,58 +126,68 @@ export default function NotificationPanel({ notifications, onNotificationRead })
 
   return (
     <>
-      {/* ตัว Notification panel ใต้ icon กระดิ่ง */}
-      <div className="w-80 max-h-[70vh] overflow-y-auto bg-white shadow-lg rounded-xl p-3">
+      {/* กล่อง Notifications ใต้กระดิ่ง */}
+      <div
+        className="w-80 bg-white shadow-lg rounded-xl p-3"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="font-bold mb-2">Notifications</h3>
 
-        {notifications.length === 0 ? (
-          <p className="text-gray-400 text-sm">No notifications yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {notifications.map((noti) => (
-              <li
-                key={noti.notification_id}
-                onClick={() => handleClickNoti(noti)}
-                className={`cursor-pointer p-2 rounded-md flex items-center gap-2 ${
-                  noti.is_read ? "bg-gray-100" : "bg-blue-50"
-                } hover:bg-blue-100 transition`}
-              >
-                <img
-                  src={noti.sender_img || "/images/person2.png"}
-                  alt="avatar"
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-                <div className="flex-1 text-sm">
-                  <p className="leading-snug">
-                    <span className="font-semibold">{noti.sender_name}</span>{" "}
-                    {getNotiMessage(noti)}
-                  </p>
-                  <span className="text-gray-400 text-xs">
-                    {formatDate(noti.created_at)}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* list เลื่อนเองถ้าเยอะ */}
+        <div className="mt-2 max-h-[60vh] overflow-y-auto">
+          {notifications.length === 0 ? (
+            <p className="text-gray-400 text-sm">No notifications yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {notifications.map((noti) => (
+                <li
+                  key={noti.notification_id}
+                  onClick={() => handleClickNoti(noti)}
+                  className={`cursor-pointer p-2 rounded-md flex items-center gap-2 ${
+                    noti.is_read ? "bg-gray-100" : "bg-blue-50"
+                  } hover:bg-blue-100 transition`}
+                >
+                  <img
+                    src={noti.sender_img || "/images/person2.png"}
+                    alt="avatar"
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                  <div className="flex-1 text-sm">
+                    <p className="leading-snug">
+                      <span className="font-semibold">
+                        {noti.sender_name}
+                      </span>{" "}
+                      {getNotiMessage(noti)}
+                    </p>
+                    <span className="text-gray-400 text-xs">
+                      {formatDate(noti.created_at)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
-      {/* Popup ตอบ reply → อยู่กลางจอเสมอ */}
-      {showPopup && popupNote && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
-          <div className="w-full max-w-3xl px-4">
+      {/* Popup กลางจอ */}
+      {isClient &&
+        showPopup &&
+        popupNote &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[70]">
             <Popup
               showPopup={showPopup}
               setShowPopup={setShowPopup}
               noteId={popupNote.note_id}
               text={popupNote.message}
               name={popupNote.user_name}
-              maxParty={popupNote.max_party ?? 0}
-              currParty={popupNote.crr_party ?? 0}
+              isPosted={true}
+              maxParty={popupNote.max_party || 0}
+              currParty={popupNote.crr_party || 0}
               ownerId={popupNote.user_id}
-              viewerUserId={viewerUserId} // ✅ ส่ง user id ของคนที่เปิด popup
+              viewerUserId={viewerUserId}
               onAfterJoin={() => {
-                // ให้ NoteBubble refresh note ถ้ามี join ผ่าน popup
                 try {
                   if (typeof window !== "undefined") {
                     window.dispatchEvent(
@@ -206,9 +208,9 @@ export default function NotificationPanel({ notifications, onNotificationRead })
                 }
               }}
             />
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

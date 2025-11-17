@@ -20,6 +20,9 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
   const [userId, setUserId] = useState("");
   const rootRef = useRef(null);
 
+  // ✅ track ว่าตอนนี้ popup จาก NotificationPanel เปิดอยู่ไหม
+  const [popupOpen, setPopupOpen] = useState(false);
+
   useEffect(() => {
     try {
       const id = localStorage.getItem("userId");
@@ -70,11 +73,16 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
     if (!open) return;
 
     function onDocClick(e) {
+      // ✅ ถ้า popup เปิดอยู่ ให้ไม่ปิด panel
+      if (popupOpen) return;
+
       if (rootRef.current && !rootRef.current.contains(e.target)) {
         setOpen(false);
       }
     }
     function onEsc(e) {
+      // ✅ กด Esc ตอน popup เปิดอยู่ ก็ไม่ปิด panel เช่นกัน
+      if (popupOpen) return;
       if (e.key === "Escape") setOpen(false);
     }
 
@@ -84,7 +92,7 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onEsc);
     };
-  }, [open, setOpen]);
+  }, [open, setOpen, popupOpen]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
@@ -133,6 +141,8 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
           <NotificationPanel
             notifications={notifications}
             onNotificationRead={handleNotificationRead}
+            // ✅ ให้ panel แจ้งสถานะ popup กลับมาที่ bell
+            onPopupOpenChange={setPopupOpen}
           />
         </div>
       )}
