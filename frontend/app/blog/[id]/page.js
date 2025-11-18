@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
@@ -104,8 +105,10 @@ async function fetchAllPosts() {
 
 /* ---------------------- page component (client) ---------------------- */
 
-export default function BlogPostPage({ params }) {
-  const id = params?.id;
+export default function BlogPostPage() {
+  const router = useRouter();
+  const params = useParams();
+  const id = params?.id; // string ของ [id]
 
   const [post, setPost] = useState(null);
   const [allPosts, setAllPosts] = useState([]);
@@ -143,7 +146,7 @@ export default function BlogPostPage({ params }) {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl py-10">
+      <div className="mx-auto max-w-5xl px-4 pt-24 pb-10">
         <div className="mb-4">
           <Link href="/blog" className="text-sm text-gray-600 hover:underline">
             ← Back to Community Blog
@@ -160,7 +163,7 @@ export default function BlogPostPage({ params }) {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-2xl py-10">
+      <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Something went wrong</h1>
         <p className="mt-2 text-gray-600">{error}</p>
         <Link
@@ -175,7 +178,7 @@ export default function BlogPostPage({ params }) {
 
   if (!post) {
     return (
-      <div className="mx-auto max-w-2xl py-10">
+      <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Post not found</h1>
         <p className="mt-2 text-gray-600">
           We couldn&apos;t find a blog post with ID <code>{id}</code>.
@@ -205,53 +208,68 @@ export default function BlogPostPage({ params }) {
   const atts = Array.isArray(rawAtts) ? rawAtts : [];
 
   return (
-    <div className="mx-auto max-w-5xl py-10">
-      <div className="mb-4">
-        <Link href="/blog" className="text-sm text-gray-600 hover:underline">
-          ← Back to Community Blog
-        </Link>
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100 pt-28 pb-12 px-4">
+      {/* Back button */}
+      <div className="max-w-5xl mx-auto mb-6">
+        <button
+          type="button"
+          onClick={() => router.push("/blog")}
+          className="relative z-[60] inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors"
+        >
+          <span className="text-xl leading-none">←</span>
+          <span>Back</span>
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Main article */}
-        <article className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="max-w-5xl mx-auto grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* ----- MAIN POST CARD ----- */}
+        <article className="lg:col-span-2 rounded-3xl border border-emerald-100 bg-white/80  px-8 py-8 shadow-sm">
+          {/* Header */}
           <header>
-            <h1 className="text-2xl font-bold">{post.blog_title}</h1>
-            <div className="mt-2 text-sm text-gray-500">
-              by {post.user_name ?? "anonymous"} ·{" "}
+            <h1 className="text-2xl sm:text-3xl font-bold text-emerald-900">
+              {post.blog_title}
+            </h1>
+
+            <div className="mt-2 text-sm text-emerald-700/80">
+              by{" "}
+              <span className="font-semibold">
+                {post.user_name ?? "anonymous"}
+              </span>{" "}
+              ·{" "}
               <time dateTime={post.created_at}>
                 {post.created_at ? formatDate(post.created_at) : ""}
               </time>
             </div>
           </header>
 
-          <section className="prose mt-4 max-w-none">
+          {/* Message */}
+          <section className="prose mt-5 max-w-none text-emerald-900">
             <p className="whitespace-pre-wrap">{post.message}</p>
           </section>
 
-          {/* Attachments */}
+          {/* ----- ATTACHMENTS ----- */}
           {(atts.length > 0 || post.file_url) && (
-            <section className="mt-6">
-              <h3 className="text-sm font-semibold text-gray-700">
+            <section className="mt-8">
+              <h3 className="text-sm font-semibold text-emerald-700 mb-2">
                 Attachments
               </h3>
 
               {atts.length > 0 && (
-                <ul className="mt-3 space-y-2">
+                <ul className="space-y-3">
                   {atts.map((att, idx) => {
                     const url = toAbs(att.url);
                     const isImg = (att.type || "").startsWith("image/");
                     return (
                       <li
                         key={idx}
-                        className="rounded-md border border-gray-200 p-3"
+                        className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm"
                       >
                         {isImg ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={url}
-                            alt={att.name || `attachment-${idx}`}
-                            className="max-h-80 w-auto rounded"
+                            alt={att.name || `image-${idx}`}
+                            className="max-h-80 w-auto rounded-xl border border-emerald-100"
                           />
                         ) : (
                           <a
@@ -259,16 +277,17 @@ export default function BlogPostPage({ params }) {
                             target="_blank"
                             rel="noreferrer"
                             download
-                            className="text-blue-600 underline break-all"
+                            className="text-emerald-700 underline break-all"
                           >
                             {att.name || url}
                           </a>
                         )}
-                        {att.size ? (
-                          <div className="text-xs text-gray-500 mt-1">
+
+                        {att.size && (
+                          <div className="text-xs text-emerald-700/70 mt-1">
                             {(att.size / 1024).toFixed(1)} KB
                           </div>
-                        ) : null}
+                        )}
                       </li>
                     );
                   })}
@@ -276,13 +295,13 @@ export default function BlogPostPage({ params }) {
               )}
 
               {post.file_url && !post.attachments && (
-                <div className="mt-3 rounded-md border border-gray-200 p-3">
+                <div className="rounded-2xl border border-emerald-100 bg-white/70 p-4 shadow-sm">
                   <a
                     href={toAbs(post.file_url)}
                     target="_blank"
                     rel="noreferrer"
                     download
-                    className="text-blue-600 underline break-all"
+                    className="text-emerald-700 underline break-all"
                   >
                     Download attachment
                   </a>
@@ -291,8 +310,8 @@ export default function BlogPostPage({ params }) {
             </section>
           )}
 
-          {/* Likes / Dislikes */}
-          <footer className="mt-6 flex items-center gap-4 text-sm text-gray-700">
+          {/* Likes */}
+          <footer className="mt-8 text-emerald-900">
             <LikeButtons
               blogId={post.blog_id}
               initialUp={post.blog_up ?? 0}
@@ -301,12 +320,16 @@ export default function BlogPostPage({ params }) {
           </footer>
 
           {/* Comments */}
-          <CommentThread blogId={post.blog_id} />
+          <div className="mt-10">
+            <CommentThread blogId={post.blog_id} />
+          </div>
         </article>
 
-        {/* Sidebar: Other posts (with search) */}
+        {/* ----- SIDEBAR SEARCH CARD ----- */}
         <aside className="lg:col-span-1">
-          <OtherPostsSearch posts={otherPosts} />
+          <div className="rounded-3xl border border-emerald-100 bg-white/80 p-6 shadow-sm">
+            <OtherPostsSearch posts={otherPosts} />
+          </div>
         </aside>
       </div>
     </div>

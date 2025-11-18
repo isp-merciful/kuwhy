@@ -248,19 +248,41 @@ export default function PartyChat({ noteId, userId }) {
   async function send() {
     const content = String(text || "").trim();
     if (!content || !ready) return;
+
     setPending(true);
     setNetErr("");
+
     try {
       const res = await authFetch(`${API}/chat/party/${noteId}`, {
         method: "POST",
         body: JSON.stringify({ content }),
       });
-      const data = await res.json();
+
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
         alert(data?.error || "Send failed");
       } else if (data?.value) {
+        // เดิม: อัปเดตข้อความแชท + cursor
         setMessages((prev) => [...prev, data.value]);
         cursorRef.current = data.value.message_id;
+
+        // 🔔 ส่ง notification ให้ host + สมาชิกคนอื่นในปาร์ตี้
+        try {
+          if (userId) {
+            await fetch(`${API}/noti`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sender_id: userId,
+                note_id: Number(noteId),
+                event_type: "party_chat",
+              }),
+            });
+          }
+        } catch (e) {
+          console.error("send party_chat notification failed:", e);
+        }
       }
     } catch {
       alert("ไม่สามารถเชื่อมต่อ server ได้");
@@ -269,6 +291,7 @@ export default function PartyChat({ noteId, userId }) {
       setText("");
     }
   }
+
 
   /* ---------- header info: ชื่อกล่อง + avatars ---------- */
 

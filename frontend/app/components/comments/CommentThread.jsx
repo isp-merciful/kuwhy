@@ -178,38 +178,59 @@ export default function CommentThread({ blogId, currentUserId = null }) {
   }
 
   return (
-    <section className="mt-8" aria-labelledby="comments-title">
-      <h2 id="comments-title" className="text-lg font-semibold">
+    <section
+      className="pt-10 mt-6"
+      aria-labelledby="comments-title"
+    >
+      {/* Header */}
+      <h2
+        id="comments-title"
+        className="text-xl font-semibold text-emerald-900"
+      >
         Comments {items?.length ? `(${items.length})` : ""}
       </h2>
-
-      {/* Root composer */}
-      <form onSubmit={submitRoot} className="mt-4 space-y-3">
-        <label className="block text-sm font-medium text-gray-700">
-          Add a comment (posted under your user)
-        </label>
+  
+      {/* --- ROOT COMMENT COMPOSER --- */}
+      <form
+        onSubmit={submitRoot}
+        className="mt-5 rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur px-5 py-5 shadow-sm space-y-4"
+      >
+        <div>
+          <label
+            htmlFor="comment-input"
+            className="block text-sm font-semibold text-emerald-700/80 mb-1"
+          >
+            Add a comment
+          </label>
+          <p className="text-xs text-emerald-700/60 mb-2">
+            Your comment will be posted under your account
+          </p>
+        </div>
+  
         <textarea
+          id="comment-input"
           value={rootText}
           onChange={(e) => setRootText(e.target.value)}
-          placeholder="Write something…"
-          className="w-full min-h-[90px] rounded-lg border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Share your thoughts…"
+          className="w-full min-h-[120px] rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 placeholder-emerald-700/40 shadow-sm"
         />
+  
         <div className="flex items-center justify-end">
           <button
             type="submit"
             disabled={!rootText.trim()}
-            className="rounded-md border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex items-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Post comment
+            Post Comment
           </button>
         </div>
       </form>
-
-      {/* List */}
+  
+      {/* --- COMMENT LIST --- */}
       {loading ? (
-        <p className="mt-6 text-sm text-gray-500">Loading comments…</p>
+        <p className="mt-8 text-sm text-emerald-700/70">Loading comments…</p>
       ) : items?.length ? (
-        <ul className="mt-6 space-y-4">
+        <ul className="mt-8 space-y-5">
           {items.map((n) => (
             <CommentItem
               key={n.comment_id}
@@ -221,8 +242,10 @@ export default function CommentThread({ blogId, currentUserId = null }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-6 text-sm text-gray-500">No comments yet.</p>
+        <p className="mt-8 text-sm text-emerald-700/70">
+          No comments yet. Be the first to comment!
+        </p>
       )}
     </section>
-  );
+  );  
 }
