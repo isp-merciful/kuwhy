@@ -15,10 +15,13 @@ const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
 
 // 1) create app FIRST
-// const app = express();
 const app = express();
+
 // 2) core middlewares
-app.use(express.json()); // replaces bodyParser.json()
+// ✅ single JSON + urlencoded parser, with larger limit for base64 avatars
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
 app.use(
   cors({
     origin:
@@ -37,23 +40,18 @@ app.use("/uploads", express.static(uploadDir));
 // 4) routes
 app.use("/api/blog", blogRouter);
 const { requireMember, requireAdmin } = require("./auth_mw");
-const settings = require("./user_setting_api");   // PUT /api/setting  (session only) 
-
-
-
+const settings = require("./user_setting_api");   // PUT /api/settings  (session only)
 
 // app.options('/:splat*', cors());
 
-app.use(cors({
-  origin: "http://localhost:3000",
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
-
-// === ใช้ session-only สำหรับโปรไฟล์/ตั้งค่า ===
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // === ส่วนอื่นตามสิทธิ์เดิม ===
 app.use("/api/blog", blogRouter);
@@ -62,7 +60,7 @@ app.use("/api/comment", commentRouter);
 app.use("/api/note", noteRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", requireMember, partyChatApi);
-app.use("/api/settings",requireMember,settings)
+app.use("/api/settings", requireMember, settings);
 
 // ⬇️ เพิ่ม: นำเข้า jose แล้วประกาศ secret ให้ตรงกันทั้งไฟล์
 const { jwtDecrypt, jwtVerify } = require('jose');
@@ -171,12 +169,6 @@ app.get('/api/_debug/me', async (req, res) => {
     });
   }
 });
-// ================================================
-
-
-
-
-
 
 // 5) start server (bind 0.0.0.0 for Docker)
 const port = process.env.PORT || 8000;
