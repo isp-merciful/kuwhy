@@ -1,9 +1,17 @@
 // frontend/app/components/NoteBubble.js
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSearchParams, useRouter, usePathname } from "next/navigation"; // ✅ เพิ่มตรงนี้
+
 import MessageInput from "./MessageInput";
 import Avatar from "./Avatar";
 import UserNameEditor from "./UserNameEditor";
@@ -27,6 +35,11 @@ export default function NoteBubble() {
     () => (apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
     [apiToken]
   );
+
+  // ✅ hooks สำหรับอ่าน query / จัดการ URL
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname(); // ควรเป็น "/note"
 
   // --- user id: ตรึงให้เสถียร ---
   const localOrAuthId = useUserId();
@@ -96,6 +109,23 @@ export default function NoteBubble() {
 
   const charCount = text.length;
   const showCharWarning = isComposing && charCount >= WARNING_THRESHOLD;
+
+  // ✅ อ่าน query `openCompose` จาก URL แล้วเปิด composing
+  useEffect(() => {
+    const openCompose = searchParams.get("openCompose");
+    if (openCompose === "1") {
+      // เปิดโหมด compose
+      setIsComposing(true);
+
+      // เคลียร์ query ออกจาก URL ให้สะอาด (กันเปิดซ้ำ)
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("openCompose");
+      const newQuery = params.toString();
+      const newUrl = newQuery ? `${pathname}?${newQuery}` : pathname;
+
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [searchParams, pathname, router]);
 
   // toast auto-hide
   useEffect(() => {
@@ -316,14 +346,16 @@ export default function NoteBubble() {
     };
 
     window.addEventListener("kuwhy-active-note-changed", handler);
-    return () => window.removeEventListener("kuwhy-active-note-changed", handler);
+    return () =>
+      window.removeEventListener("kuwhy-active-note-changed", handler);
   }, [userId, refreshNote]);
 
   // --------------------------
   // Actions
   // --------------------------
   const handlePost = async () => {
-    if (!ready) return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
+    if (!ready)
+      return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
     if (!userId) return alert("ไม่พบผู้ใช้ กรุณารีเฟรชหน้า");
     if (!text.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง!");
 
@@ -351,7 +383,9 @@ export default function NoteBubble() {
       const result = await res.json();
       if (res.ok) {
         const newNoteId =
-          result?.value?.note_id ?? result?.note?.note_id ?? result?.note_id;
+          result?.value?.note_id ??
+          result?.note?.note_id ??
+          result?.note_id;
 
         const serverMax =
           result?.note?.max_party ?? result?.value?.max_party ?? 0;
@@ -386,9 +420,12 @@ export default function NoteBubble() {
         "You have joined this party and cannot delete other people's notes."
       );
     try {
-      const res = await fetch(`http://localhost:8000/api/note/${noteId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `http://localhost:8000/api/note/${noteId}`,
+        {
+          method: "DELETE",
+        }
+      );
       if (res.ok) {
         setText("");
         setNoteId(null);
@@ -699,7 +736,9 @@ export default function NoteBubble() {
                           >
                             <span
                               className={`text-lg font-semibold leading-none ${
-                                isParty ? "text-emerald-600" : "text-sky-500"
+                                isParty
+                                  ? "text-emerald-600"
+                                  : "text-sky-500"
                               }`}
                             >
                               {isParty ? "✓" : ">"}
