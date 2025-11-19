@@ -11,7 +11,7 @@ const noteRouter = require("./note_api");
 const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
-
+const partyChatApi = require("./forgot-password");
 const { requireMember, requireAdmin } = require("./auth_mw");
 const settings = require("./user_setting_api");   // PUT /api/setting  (session only) 
 
@@ -32,6 +32,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // === ส่วนอื่นตามสิทธิ์เดิม ===
+app.use("/forgot-password", );
 app.use("/api/blog", requireMember, blogRouter);
 app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
