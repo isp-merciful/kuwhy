@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import useUserId from "../Note/useUserId"; // adjust path if needed
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
@@ -21,7 +23,11 @@ function formatDate(iso) {
   } catch {
     const d = new Date(iso);
     const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(
+      d.getUTCDate()
+    )} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(
+      d.getUTCSeconds()
+    )} UTC`;
   }
 }
 
@@ -32,22 +38,32 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
   return (
     <li className="rounded-lg border border-gray-200 p-4">
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-        <img src={node.img || "/images/pfp.png"} alt="" className="h-8 w-8 rounded-full object-cover" />
+        <img
+          src={node.img || "/images/pfp.png"}
+          alt=""
+          className="h-8 w-8 rounded-full object-cover"
+        />
         <span className="font-medium">{node.user_name ?? "Anonymous"}</span>
         <span className="text-gray-400">·</span>
         <time title={`Created: ${formatDate(node.created_at)}`}>
           {node.created_at ? formatDate(node.created_at) : ""}
         </time>
         {node.updated_at &&
-          new Date(node.updated_at).getTime() !== new Date(node.created_at).getTime() && (
+          new Date(node.updated_at).getTime() !==
+            new Date(node.created_at).getTime() && (
             <span className="text-gray-400">(edited)</span>
           )}
-        <button onClick={() => onReply(node.comment_id)} className="ml-auto text-xs text-blue-600 hover:underline">
+        <button
+          onClick={() => onReply(node.comment_id)}
+          className="ml-auto text-xs text-blue-600 hover:underline"
+        >
           Reply
         </button>
       </div>
 
-      <p className="mt-2 whitespace-pre-wrap text-gray-800">{node.message}</p>
+      <p className="mt-2 whitespace-pre-wrap text-gray-800">
+        {node.message}
+      </p>
 
       {isReplying && (
         <form
@@ -65,8 +81,19 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
             className="w-full min-h-[70px] rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <div className="mt-2 flex gap-2">
-            <button type="submit" className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50">Reply</button>
-            <button type="button" onClick={() => onReply(null)} className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50">Cancel</button>
+            <button
+              type="submit"
+              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
+            >
+              Reply
+            </button>
+            <button
+              type="button"
+              onClick={() => onReply(null)}
+              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
+            >
+              Cancel
+            </button>
           </div>
         </form>
       )}
@@ -90,7 +117,8 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
   );
 }
 
-/** Props:
+/**
+ * Props:
  *  - blogId: string | number   ← use this (from page)
  *  - currentUserId?: string | null (optional; if not provided we read from useUserId())
  */
@@ -99,6 +127,10 @@ export default function CommentThread({ blogId, currentUserId = null }) {
   const [loading, setLoading] = useState(true);
   const [rootText, setRootText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
+
+  const router = useRouter();
+  const { data: session } = useSession();
+  const apiToken = session?.apiToken || null;
 
   // prefer provided id; otherwise take the hook
   const hookUserId = useUserId();
@@ -112,7 +144,9 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/comment/blog/${blogId}`, { cache: "no-store" });
+      const res = await fetch(`${API_BASE}/api/comment/blog/${blogId}`, {
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       // backend: { message: "getblog", comment: [...] }
@@ -126,27 +160,81 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     }
   }
 
-  useEffect(() => { load(); }, [blogId]);
+  useEffect(() => {
+    load();
+  }, [blogId]);
 
   async function postComment({ message, parent_comment_id = null }) {
     if (!message?.trim()) return;
+
     const body = {
-      user_id: userId,                     // always send your user_id
+      user_id: userId, // always send your user_id
       message: message.trim(),
       blog_id: Number(blogId),
       parent_comment_id,
     };
+
     const res = await fetch(`${API_BASE}/api/comment`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+      },
       body: JSON.stringify(body),
     });
+
     if (!res.ok) {
-      let msg = "Failed to add comment";
+      let data = null;
       try {
-        const data = await res.json();
-        if (data?.error || data?.message) msg = data.error || data.message;
-      } catch {}
+        data = await res.json();
+      } catch {
+        // ถ้า parse json ไม่ได้ก็ปล่อยให้เป็น null
+      }
+
+      // 🔒 เคสโดน punish (timeout / ban) จาก ensureNotPunished
+      if (res.status === 403 && data?.code === "PUNISHED") {
+        alert(
+          data?.error ||
+            "Your account is currently restricted from commenting. Your comment was not posted."
+        );
+        return;
+      }
+
+      // 🔒 เคส blog comment: ยังไม่ล็อกอิน → ให้ redirect ไปหน้า login
+      if (
+        res.status === 401 &&
+        data?.error_code === "LOGIN_REQUIRED_FOR_BLOG_COMMENT"
+      ) {
+        // alert("Please log in before commenting on blogs.");
+
+        if (typeof window !== "undefined") {
+          const callback = encodeURIComponent(window.location.href);
+          router.push(`/login?callbackUrl=${callback}`);
+        } else {
+          router.push("/login");
+        }
+        return;
+      }
+
+      // 🔒 เคส blog comment: ล็อกอินแล้วแต่ยังไม่ได้ตั้ง login_name
+      if (
+        res.status === 403 &&
+        data?.error_code === "LOGIN_NAME_REQUIRED_FOR_BLOG_COMMENT"
+      ) {
+        alert("Please set your login name before commenting on blogs.");
+
+        if (typeof window !== "undefined") {
+          const callback = encodeURIComponent(window.location.href);
+          router.push(`/login?callbackUrl=${callback}`);
+        } else {
+          router.push("/login");
+        }
+        return;
+      }
+
+      // เคสอื่น ๆ → โยน error ให้ caller จัดการเหมือนเดิม
+      let msg = "Failed to add comment";
+      if (data?.error || data?.message) msg = data.error || data.message;
       throw new Error(msg);
     }
   }
@@ -178,10 +266,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
   }
 
   return (
-    <section
-      className="pt-10 mt-6"
-      aria-labelledby="comments-title"
-    >
+    <section className="pt-10 mt-6" aria-labelledby="comments-title">
       {/* Header */}
       <h2
         id="comments-title"
@@ -189,7 +274,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
       >
         Comments {items?.length ? `(${items.length})` : ""}
       </h2>
-  
+
       {/* --- ROOT COMMENT COMPOSER --- */}
       <form
         onSubmit={submitRoot}
@@ -206,7 +291,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
             Your comment will be posted under your account
           </p>
         </div>
-  
+
         <textarea
           id="comment-input"
           value={rootText}
@@ -214,7 +299,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
           placeholder="Share your thoughts…"
           className="w-full min-h-[120px] rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 placeholder-emerald-700/40 shadow-sm"
         />
-  
+
         <div className="flex items-center justify-end">
           <button
             type="submit"
@@ -225,7 +310,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
           </button>
         </div>
       </form>
-  
+
       {/* --- COMMENT LIST --- */}
       {loading ? (
         <p className="mt-8 text-sm text-emerald-700/70">Loading comments…</p>
@@ -247,5 +332,5 @@ export default function CommentThread({ blogId, currentUserId = null }) {
         </p>
       )}
     </section>
-  );  
+  );
 }

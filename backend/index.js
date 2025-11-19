@@ -13,6 +13,8 @@ const noteRouter = require("./note_api");
 const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
+const reportApi = require("./report_api");
+const punishmentApi = require("./punishment_api");
 
 // 1) create app FIRST
 // const app = express();
@@ -24,7 +26,7 @@ app.use(
     origin:
       (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(",")) ||
       ["http://localhost:3000"],
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT","PATCH", "DELETE"],
     credentials: true,
   })
 );
@@ -46,7 +48,7 @@ const settings = require("./user_setting_api");   // PUT /api/setting  (session 
 
 app.use(cors({
   origin: "http://localhost:3000",
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
@@ -63,6 +65,9 @@ app.use("/api/note", noteRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", requireMember, partyChatApi);
 app.use("/api/settings",requireMember,settings)
+app.use("/api/report", reportApi);
+app.use("/api/punish", punishmentApi);
+
 
 // ⬇️ เพิ่ม: นำเข้า jose แล้วประกาศ secret ให้ตรงกันทั้งไฟล์
 const { jwtDecrypt, jwtVerify } = require('jose');

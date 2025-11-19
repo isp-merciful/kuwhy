@@ -2,6 +2,7 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const { ensureNotPunished } = require("./punish_mw");
 
 const router = express.Router();
 
@@ -81,7 +82,7 @@ router.get("/party/:noteId", async (req, res) => {
  * body: { content }  ← ไม่ต้องส่ง user_id แล้ว (อ่านจาก req.user.id)
  * ต้องเป็น owner หรือ member เท่านั้น
  */
-router.post("/party/:noteId", async (req, res) => {
+router.post("/party/:noteId",ensureNotPunished, async (req, res) => {
   try {
     const noteId = Number(req.params.noteId);
     if (!Number.isFinite(noteId))

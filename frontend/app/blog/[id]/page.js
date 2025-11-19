@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
+import ReportDialog from "../../components/ReportDialog"; // 👈 เพิ่ม
 
 /* ---------------------- API base ---------------------- */
 
@@ -114,6 +115,7 @@ export default function BlogPostPage() {
   const [allPosts, setAllPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showReport, setShowReport] = useState(false); // 👈 state สำหรับ report
 
   useEffect(() => {
     if (!id) return;
@@ -225,20 +227,34 @@ export default function BlogPostPage() {
         {/* ----- MAIN POST CARD ----- */}
         <article className="lg:col-span-2 rounded-3xl border border-emerald-100 bg-white/80  px-8 py-8 shadow-sm">
           {/* Header */}
-          <header>
-            <h1 className="text-2xl sm:text-3xl font-bold text-emerald-900">
-              {post.blog_title}
-            </h1>
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-emerald-900">
+                {post.blog_title}
+              </h1>
 
-            <div className="mt-2 text-sm text-emerald-700/80">
-              by{" "}
-              <span className="font-semibold">
-                {post.user_name ?? "anonymous"}
-              </span>{" "}
-              ·{" "}
-              <time dateTime={post.created_at}>
-                {post.created_at ? formatDate(post.created_at) : ""}
-              </time>
+              <div className="mt-2 text-sm text-emerald-700/80">
+                by{" "}
+                <span className="font-semibold">
+                  {post.user_name ?? "anonymous"}
+                </span>{" "}
+                ·{" "}
+                <time dateTime={post.created_at}>
+                  {post.created_at ? formatDate(post.created_at) : ""}
+                </time>
+              </div>
+            </div>
+
+            {/* ปุ่ม Report blog */}
+            <div className="sm:mt-1">
+              <button
+                type="button"
+                onClick={() => setShowReport(true)}
+                className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100 hover:border-amber-300"
+              >
+                <span className="text-xs">⚠️</span>
+                <span>Report blog</span>
+              </button>
             </div>
           </header>
 
@@ -323,11 +339,20 @@ export default function BlogPostPage() {
           <div className="mt-10">
             <CommentThread blogId={post.blog_id} />
           </div>
+
+          {/* ReportDialog: รายงาน blog นี้ */}
+          {showReport && (
+            <ReportDialog
+              targetType="blog"
+              targetId={post.blog_id}
+              onClose={() => setShowReport(false)}
+            />
+          )}
         </article>
 
         {/* ----- SIDEBAR SEARCH CARD ----- */}
         <aside className="lg:col-span-1">
-          <div className="rounded-3xl border border-emerald-100 bg-white/80 p-6 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg:white/80 bg-white/80 p-6 shadow-sm">
             <OtherPostsSearch posts={otherPosts} />
           </div>
         </aside>

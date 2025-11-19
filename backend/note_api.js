@@ -2,6 +2,8 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const { optionalAuth, requireMember,requireAuth } = require("./auth_mw");
+const { ensureNotPunished } = require("./punish_mw");
+
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -146,7 +148,7 @@ router.get("/:id", async (req, res) => {
  * - party note ต้องล็อกอินเท่านั้น
  * - upsert users กัน P2025
  * ========================================= */
-router.post("/", optionalAuth, async (req, res) => {
+router.post("/", optionalAuth,ensureNotPunished, async (req, res) => {
   try {
     const { message } = req.body;
     let { max_party } = req.body;
@@ -234,7 +236,7 @@ router.delete("/:id", async (req, res) => {
  * - requireMember: ต้องล็อกอิน
  * - 🔧 CHANGED: ทับ user_id ด้วย req.user.id เสมอ
  * ========================================= */
-router.post("/join", requireAuth, async (req, res) => {
+router.post("/join", requireAuth,ensureNotPunished, async (req, res) => {
   try {
     const userId = String(req.user.id);
     const noteId = Number(req.body.note_id);

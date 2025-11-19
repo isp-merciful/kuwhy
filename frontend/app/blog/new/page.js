@@ -125,8 +125,32 @@ export default function NewBlogPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.error("create blog failed:", res.status, text);
+        // พยายามอ่าน body กลับมาก่อน
+        let raw = "";
+        let data = null;
+        try {
+          raw = await res.text();
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            // ถ้า parse json ไม่ได้ ก็ใช้ raw เป็น text ธรรมดา
+          }
+        } catch {
+          // อ่าน body ไม่ได้ก็ปล่อยไป
+        }
+
+        // 🔒 เคสโดน punish จาก ensureNotPunished
+        if (res.status === 403 && data && data.code === "PUNISHED") {
+          alert(
+            data.error ||
+              "Your account is currently restricted from creating blogs. Your blog was not posted."
+          );
+          setLoading(false);
+          return;
+        }
+
+        // เคสอื่น ๆ: log ไว้ช่วย debug ตามปกติ
+        console.error("create blog failed:", res.status, raw);
         alert("Failed to create blog. Please try again.");
         setLoading(false);
         return;
