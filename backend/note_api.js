@@ -197,7 +197,7 @@ router.post("/", optionalAuth, async (req, res) => {
     if (max_party > 0 && actor.mode === "anon") {
       return res.status(401).json({ error: "Party note requires login" });
     }
-
+    
     // ✅ สร้าง/คงอยู่ของผู้ใช้เสมอ
     await ensureUserExists(actor.id, actor.mode === "anon");
 
@@ -269,7 +269,9 @@ router.post("/join", requireAuth, async (req, res) => {
     });
     if (!note) return res.status(404).json({ ok: false, error: "Note not found" });
     if (note.max_party <= 0) {
-      return res.status(400).json({ ok: false, error: "This note is not a party" });
+      return res
+        .status(400)
+        .json({ ok: false, error: "This note is not a party" });
     }
 
     // already the host of THIS party
@@ -326,12 +328,32 @@ router.post("/join", requireAuth, async (req, res) => {
       select: { crr_party: true, max_party: true },
     });
 
+    // 🔔 สร้าง notification ให้เจ้าของปาร์ตี้ (ใช้รูปแบบเดียวกับ comment_api.js)
+    try {
+      if (note.user_id && note.user_id !== userId) {
+        await prisma.notifications.create({
+          data: {
+            recipient_id: note.user_id, // เจ้าของ note / host party
+            sender_id: userId,          // คนที่ join
+            note_id: noteId,
+            // comment_id / blog_id / parent_comment_id ให้ใส่ตาม schema จริงของโปรเจกต์
+            type: "party_join",
+            is_read: false,
+          },
+        });
+      }
+    } catch (errNoti) {
+      console.error("[POST /note/join] create notification failed:", errNoti);
+      // ไม่ต้อง throw ต่อ ปล่อยให้ join สำเร็จไปตามปกติ
+    }
+
     return res.json({ ok: true, data: updated });
   } catch (err) {
     console.error("[POST /note/join] error:", err);
     return res.status(500).json({ ok: false, error: "Join failed" });
   }
 });
+
 /* =========================================
  * POST /api/note/leave
  * - requireMember: ต้องล็อกอิน

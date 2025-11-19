@@ -8,6 +8,12 @@ export default function LandingPage() {
         
         {/* Subtle geometric shapes */}
         <div className="absolute inset-0 overflow-hidden">
+          {/* Enhanced Floating Elements */}
+          <div className="absolute top-20 left-10 w-20 h-20 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full opacity-20 animate-bounce"></div>
+          <div className="absolute top-40 right-20 w-16 h-16 bg-gradient-to-r from-green-400 to-green-600 rounded-full opacity-20 animate-bounce" style={{animationDelay: '1s'}}></div>
+          <div className="absolute bottom-20 left-1/4 w-12 h-12 bg-gradient-to-r from-green-400 to-green-600 rounded-full opacity-20 animate-bounce" style={{animationDelay: '2s'}}></div>
+          <div className="absolute top-1/2 right-1/3 w-8 h-8 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full opacity-20 animate-bounce" style={{animationDelay: '3s'}}></div>
+          
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/5 rounded-full blur-3xl"></div>
           <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-green-400/5 rounded-full blur-3xl"></div>
         </div>
@@ -17,26 +23,28 @@ export default function LandingPage() {
           <div className="space-y-12">
             {/* Apple-style headline */}
             <div className="space-y-6">
-              <h1 className="text-7xl md:text-8xl font-bold text-gray-900 mb-6 leading-tight">
+              <h1 className="text-7xl md:text-8xl font-bold text-gray-900 mb-6 leading-tight">    
               <span className="bg-gradient-to-r from-blue-600 via-green-600 to-teal-600 bg-clip-text text-transparent animate-pulse">KU WHY</span>
               </h1>
-              <p className="text-2xl md:text-3xl font-light text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                Connect, ask, share at Kasetsart University
+              <p className="text-xl md:text-3xl font-medium text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
+              <span className="font-semibold text-blue-600"> Connect</span>, 
+              <span className="font-semibold text-green-600"> ask</span>, and 
+              <span className="font-semibold text-teal-600"> share</span> at Kasetsart University
               </p>
             </div>
             
             {/* Apple-style description */}
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-xl text-gray-500 front-normal max-w-2xl mx-auto leading-relaxed">
               Write notes, post thoughts, and spark meaningful conversations across campus. 
               Built by students, for students.
             </p>
             
             {/* Apple-style buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <a href="#share-ways" className="inline-flex items-center justify-center rounded-full bg-white text-black px-8 py-4 text-lg font-medium hover:bg-gray-100 transition-all duration-300">
-                Get Started
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+              <a href="/note" className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-teal-600 text-white font-semibold rounded-full hover:from-blue-700 hover:to-teal-700 transform hover:scale-105 transition-all duration-300 shadow-lg">
+              Get Started
               </a>
-              <a href="/about" className="inline-flex items-center justify-center rounded-full border border-gray-600 text-black px-8 py-4 text-lg font-medium hover:bg-white/5 transition-all duration-300">
+              <a href="#team" className="inline-flex items-center justify-center px-8 py-4 border-1 border-gray-600 text-gray-700 font-semibold rounded-full hover:border-blue-500 hover:text-blue-600 transition-all duration-300">
                 Learn More
                 <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
@@ -84,9 +92,9 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 ">
             {/* Apple-style Notes Card */}
-            <div className="group bg-gray-50 rounded-3xl p-12 hover:bg-gray-100 transition-all duration-500">
+            <div className="group bg-gray-50 rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 hover:bg-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="space-y-6">
                 <div className="w-16 h-16 bg-blue-300 rounded-2xl flex items-center justify-center">
                   <span className="text-2xl font-bold text-white">N</span>
@@ -108,7 +116,7 @@ export default function LandingPage() {
             </div>
 
             {/* Apple-style Blog Card */}
-            <div className="group bg-gray-50 rounded-3xl p-12 hover:bg-gray-100 transition-all duration-500">
+            <div className="group bg-gray-50 rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 hover:bg-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="space-y-6">
                 <div className="w-16 h-16 bg-blue-300 rounded-2xl flex items-center justify-center">
                   <span className="text-2xl font-bold text-white">B</span>
@@ -120,7 +128,7 @@ export default function LandingPage() {
                     reflections, and community highlights.
                   </p>
                 </div>
-                <a href="/note" className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                <a href="/blog" className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
                   Write a post
                   <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
@@ -134,48 +142,51 @@ export default function LandingPage() {
 
       {/* Apple-Style About Us Section */}
       <section className="py-24 bg-gray-50">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            {/* Left side - Image */}
-            <div className="flex justify-center lg:justify-start">
-              <img 
-                src="/images/feature3d.png" 
-                alt="KU WHY Features" 
-                className="w-full max-w-md h-auto object-contain"
-              />
-            </div>
-
-            {/* Right side - Content */}
-            <div className="space-y-8">
-              <div className="space-y-6">
-                <h2 className="text-5xl font-thin text-gray-900">
-                  Built for KU
-                </h2>
-                <p className="text-xl text-gray-600 font-light leading-relaxed">
-                  KU WHY is a hub for Kasetsart University students to connect and share. 
-                  Post quick notes or polls that vanish in 24h, join study groups, ask lasting questions, 
-                  share files, stay updated, and help keep the community safe.
-                </p>
+        <div className="mx-auto max-w-6xl px-6 transform hover:scale-105 transition-transform duration-300">
+          <div className="bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+              {/* Left side - Content */}
+              <div className="space-y-8">
+                <div className="space-y-6">
+                  <h2 className="text-5xl font-thin text-gray-900">
+                    Built for KU
+                  </h2>
+                  <p className="text-xl text-gray-600 font-light leading-relaxed">
+                    KU WHY is a hub for Kasetsart University students to connect and share. 
+                    Post quick notes or polls that vanish in 24h, join study groups, ask lasting questions, 
+                    share files, stay updated, and help keep the community safe.
+                  </p>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-gray-600">Student-driven platform</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-gray-600">Community-focused features</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-gray-600">Innovation-first approach</span>
+                  </div>
+                </div>
               </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-600">Student-driven platform</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-600">Community-focused features</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-600">Innovation-first approach</span>
-                </div>
+
+              {/* Right side - Image */}
+              <div className="flex justify-center lg:justify-end">
+                <img 
+                  src="/images/feature3d.png" 
+                  alt="KU WHY Features" 
+                  className="w-full max-w-md h-auto object-contain"
+                />
               </div>
             </div>
           </div>
         </div>
       </section>
+
 
       {/* Apple-Style Statistics Section */}
       <section className="py-24 bg-white">
@@ -211,7 +222,7 @@ export default function LandingPage() {
 
       {/* Apple-Style Features Section */}
       <section className="py-24 bg-gray-50">
-        <div className="mx-auto max-w-6xl px-6">
+      <div className="w-full px-6 md:px-12">
           <div className="text-center mb-16">
             <h2 className="text-5xl font-thin text-gray-900 mb-6">
               Everything you need
@@ -220,10 +231,10 @@ export default function LandingPage() {
               Powerful features designed specifically for the KU community
             </p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+  
+          <div className="flex space-x-6 overflow-x-auto pb-10 snap-x snap-mandatory no-scrollbar">          
             {/* Notes & Polls */}
-            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/chat.png" alt="Notes & Polls" className="w-15 h-15" />
               </div>
@@ -240,7 +251,7 @@ export default function LandingPage() {
             </div>
 
             {/* Blogs & Q&A */}
-            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/qa.png" alt="Blogs & Q&A" className="w-15 h-15" />
               </div>
@@ -256,8 +267,22 @@ export default function LandingPage() {
               </a>
             </div>
 
+            {/* Party */}
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/event.png" alt="Notifications" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Create Party</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Available in Notes. Create or join student groups for events, activities, group chat, or study sessions.
+              </p>
+              <span className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Meetup
+              </span>
+            </div>
+
             {/* Notifications */}
-            <div className="bg-white rounded-3xl p-8 hover:bg-gray-50 transition-all duration-500">
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
                 <img src="/images/notification.png" alt="Notifications" className="w-15 h-15" />
               </div>
@@ -267,10 +292,38 @@ export default function LandingPage() {
               </p>
               <span className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
                 Always Connected
-                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5l-5 5-5-5h5" />
-                </svg>
               </span>
+            </div>
+
+            {/* Upload File */}
+            <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/upload.png" alt="Notifications" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Upload File</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Upload files (PDF, PNG, etc.) in Blogs to get help and share resources with KU students.
+              </p>
+              <span className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Collaborate
+              </span>
+            </div>
+
+          {/* Edit Profile*/}
+          <div className="min-w-[300px] bg-white rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-100 transform hover:scale-105 transition-transform duration-300">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <img src="/images/usersetting.png" alt="Notifications" className="w-15 h-15" />
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">Edit Profile</h3>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Signed-in users can update their own profile, update your profile and view others by clicking their names.
+              </p>
+              <a href="/profile" className="inline-flex items-center text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200">
+                Edit & View
+                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
             </div>
           </div>
         </div>
@@ -284,10 +337,9 @@ export default function LandingPage() {
             <p className="text-xl text-gray-700 font-light max-w-3xl mx-auto mb-12 leading-relaxed">
               Join Kasetsart University students who are sharing, learning, and growing together on KU WHY.
             </p>
+            
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/note"
-                className="inline-flex items-center justify-center rounded-full bg-blue-600 text-white px-8 py-4 text-lg font-medium hover:bg-blue-700 transition-all duration-300">
+              <a href="/note" className="inline-flex items-center justify-center rounded-full bg-blue-600 text-white px-8 py-4 text-lg font-medium hover:bg-blue-700 transition-all duration-300">
                 Get Started
               </a>
               <a href="/about"

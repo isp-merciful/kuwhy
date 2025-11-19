@@ -1,118 +1,335 @@
 "use client";
-import { useEffect, useState } from "react";
-import Avatar from "../../components/Note/Avatar";
-import useLocalStorage from "../../components/Note/useLocalStorage";
+
+import { useEffect, useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
+// Resolve API base (works with Docker too)
+const API_BASE = "http://localhost:8000";
+
+// Preset common tags
+const PRESET_TAGS = ["homework", "health", "game", "anime", "food", "other"];
 
 export default function NewBlogPage() {
+  const router = useRouter();
+
+  // --- session / token ---
+  const { data: session, status } = useSession();
+  const authed = status === "authenticated" && !!session?.user?.id;
+  const ready = status !== "loading";
+
+  // apiToken อยู่บน session (เหมือนหน้า debug / note)
+  const apiToken = authed ? session?.apiToken : null;
+
+  const authHeaders = useMemo(
+    () => (apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+    [apiToken]
+  );
+
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useLocalStorage("userId", null);
-  const [userName, setUserName] = useLocalStorage("userName", "anonymous");
+  const [files, setFiles] = useState([]); // File[]
+  const [tagsInput, setTagsInput] = useState(""); // free-typed tags
+  const [presetTags, setPresetTags] = useState([]); // selected preset tags
 
+  // ✅ ชื่อจริงจาก users.user_name (แมปมาเป็น session.user.name ใน callback)
+  const displayName =
+    session?.user?.name ||
+    session?.user?.login_name ||
+    "anonymous";
+
+  // ✅ รูปโปรไฟล์จริงจาก users.img (แมปมาเป็น session.user.image)
+  const avatarImg = session?.user?.image || null;
+
+  // preview สำหรับรูป
+  const imagePreviews = useMemo(
+    () =>
+      files
+        .filter((f) => f.type.startsWith("image/"))
+        .map((f) => ({
+          name: f.name,
+          url: URL.createObjectURL(f),
+        })),
+    [files]
+  );
+
+  // ถ้าโหลดเสร็จแล้วแต่ยังไม่ authed → เด้งไปหน้า login
   useEffect(() => {
-    async function ensureUser() {
-      try {
-        let id = userId;
-        if (!id) {
-          id = crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-          setUserId(id);
-        }
-        await fetch("http://localhost:8000/api/user", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: id, user_name: userName || "anonymous" }),
-        });
-      } catch {}
+    if (ready && !authed) {
+      router.push("/login?callbackUrl=/blog/new");
     }
-    ensureUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ready, authed, router]);
 
-  const canSubmit = title.trim() && detail.trim();
+  const canSubmit =
+    title.trim().length > 0 &&
+    detail.trim().length > 0 &&
+    authed &&
+    ready &&
+    !loading;
 
-  const ensureUserNow = async () => {
-    let id = userId || (typeof window !== "undefined" ? localStorage.getItem("userId") : null);
-    if (!id) {
-      id = crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-      setUserId(id);
-      if (typeof window !== "undefined") localStorage.setItem("userId", JSON.stringify(id));
-    }
-    try {
-      await fetch("http://localhost:8000/api/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: id, user_name: userName || "anonymous" }),
-      });
-    } catch {}
-    return id;
+  const handleFiles = (e) => {
+    const fl = Array.from(e.target.files || []);
+    setFiles(fl);
+  };
+
+  const togglePresetTag = (tag) => {
+    setPresetTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
   };
 
   const handleCreate = async () => {
     if (!canSubmit) return;
+
+    if (!apiToken) {
+      alert(
+        "Session ของคุณหมดอายุหรือไม่มีสิทธิ์ กรุณา log in ใหม่อีกครั้งก่อนโพสต์บล็อก"
+      );
+      router.push("/login?callbackUrl=/blog/new");
+      return;
+    }
+
     setLoading(true);
     try {
-      const id = await ensureUserNow();
-      const res = await fetch("http://localhost:8000/api/blog", {
+      // สามารถส่ง user_id ไปด้วยก็ได้ แต่ backend ตอนนี้ใช้ req.user.id เป็นหลักแล้ว
+      const userId = session?.user?.id || session?.user?.user_id;
+
+      const fd = new FormData();
+      fd.append("blog_title", title.trim());
+      fd.append("message", detail.trim());
+
+      // --- collect tags from free input + preset buttons ---
+      const manualTags = tagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const combinedTags = Array.from(
+        new Set([...manualTags, ...presetTags]) // unique
+      );
+
+      if (combinedTags.length > 0) {
+        // send as comma-separated string, backend splits
+        fd.append("tags", combinedTags.join(","));
+      }
+
+      files.forEach((f) => fd.append("attachments", f));
+
+      const res = await fetch(`${API_BASE}/api/blog`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: id, blog_title: title.trim(), message: detail.trim() }),
+        headers: {
+          ...authHeaders, // Bearer token
+        },
+        body: fd, // multer จะจัดการ multipart
       });
-      if (!res.ok) throw new Error("Create blog failed");
-      window.location.href = "/blog";
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("create blog failed:", res.status, text);
+        alert("Failed to create blog. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      router.push("/blog");
     } catch (e) {
-      console.error(e);
+      console.error("create blog error:", e);
       alert("Failed to create blog. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <section className="relative isolate overflow-hidden py-12 bg-gradient-to-b from-[#DDF3FF] to-[#E8FFF2] min-h-screen">
-        <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-6">Blog Q&A</h2>
-          <div className="mb-4">
-            <button
-              onClick={() => (window.location.href = "/blog")}
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              <span className="text-xl">←</span>
-              <span>Back</span>
-            </button>
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100">
+      <section className="relative isolate overflow-hidden py-10 sm:py-12 min-h-screen">
+        {/* Decorative hero blobs */}
+        <div className="pointer-events-none absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl">
+          <div className="mx-auto h-72 w-[36rem] bg-gradient-to-r from-emerald-300/40 via-green-300/40 to-lime-300/40 opacity-70" />
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4">
+          {/* Back button */}
+          <button
+            onClick={() => router.push("/blog")}
+            className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 transition-colors mt-24 mb-6"
+          >
+            <span className="text-xl leading-none">←</span>
+            <span>Back</span>
+          </button>
+
+          {/* Title */}
+          <div className="mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-emerald-900">
+              Create Q&amp;A Post
+            </h2>
+            <p className="mt-1 text-sm text-emerald-700/80">
+              Share your question with the KUWHY community.
+            </p>
           </div>
 
-          <div className="flex items-start gap-6 mb-8">
-            <Avatar center={false} size={24} />
-            <div className="flex-1 max-w-2xl mx-auto">
-              <div className="text-gray-500 mb-2 text-center">{userName}</div>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Add Your Title..."
-                className="bg-[#54E0C7] placeholder-white/90 text-white rounded-3xl px-6 py-4 w-full shadow outline-none"
-              />
+          {/* User / title input card */}
+          <div className="rounded-3xl border border-emerald-100 bg-white/80 shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col items-center gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              {/* ✅ ใช้ img จริงจาก DB ถ้ามี, ถ้าไม่มี fallback เป็นตัวอักษรแรก */}
+              {avatarImg ? (
+                <img
+                  src={avatarImg}
+                  alt={displayName}
+                  className="w-16 h-16 rounded-full object-cover border border-emerald-200 bg-emerald-50"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-lg font-semibold text-emerald-700">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
+
+              <div>
+                <div className="text-xs uppercase tracking-wide text-emerald-500 font-semibold">
+                  Posting as
+                </div>
+                <div className="text-base font-semibold text-emerald-900 text-center sm:text-left">
+                  {displayName}
+                </div>
+              </div>
             </div>
+
+            {/* Title input */}
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Add your title..."
+              className="bg-emerald-500 text-white placeholder-white/70 rounded-3xl px-6 py-4 w-full 
+                         shadow-inner text-center sm:text-left
+                         focus:ring-4 focus:ring-emerald-300 outline-none transition"
+            />
           </div>
 
-          <div className="bg-white rounded-2xl shadow px-6 py-5 border border-gray-200 max-w-4xl">
+          {/* Main Form Card */}
+          <div className="bg-white/80  rounded-3xl border border-emerald-100 shadow-md px-8 py-7">
+            {/* Detail text area */}
+            <label className="block text-sm font-semibold text-emerald-800 mb-2">
+              Details
+            </label>
             <textarea
               value={detail}
               onChange={(e) => setDetail(e.target.value)}
-              placeholder="Add your detailed..."
+              placeholder="Write more details about your question..."
               rows={8}
-              className="w-full outline-none text-gray-700 placeholder-gray-400"
+              className="w-full bg-white border border-emerald-100 rounded-xl p-4 
+                         outline-none text-gray-800 placeholder-gray-400
+                         focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 transition"
             />
-            <div className="flex justify-end mt-4">
+
+            {/* Tags Section */}
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-emerald-800 mb-2">
+                Tags / Categories
+              </label>
+
+              <input
+                type="text"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder="Type custom tags, e.g. homework, exam"
+                className="w-full rounded-xl border bg-white border-emerald-100 px-3 py-2 text-sm 
+                           outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+              />
+
+              <p className="mt-1 text-xs text-emerald-700/80">
+                Separate multiple tags with commas.
+              </p>
+
+              {/* Preset tags */}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {PRESET_TAGS.map((tag) => {
+                  const active = presetTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => togglePresetTag(tag)}
+                      className={`inline-flex items-center rounded-full border px-3 py-1 transition ${
+                        active
+                          ? "bg-emerald-500 border-emerald-500 text-white shadow"
+                          : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                      }`}
+                    >
+                      #{tag}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* File upload */}
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-emerald-800 mb-2">
+                Attach files
+              </label>
+
+              <input
+                type="file"
+                multiple
+                onChange={handleFiles}
+                className="block w-full text-sm text-gray-700 
+                           file:mr-4 file:rounded-md file:border-0 
+                           file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-medium 
+                           hover:file:bg-emerald-100 transition"
+              />
+
+              {/* List + previews */}
+              {files.length > 0 && (
+                <div className="mt-4 rounded-xl border border-emerald-200 p-4 bg-emerald-50/50">
+                  <div className="text-sm font-medium text-emerald-800 mb-2">
+                    {files.length} file(s) selected
+                  </div>
+
+                  <ul className="space-y-1 text-sm text-emerald-900">
+                    {files.map((f) => (
+                      <li key={f.name}>
+                        {f.name}
+                        <span className="text-emerald-600/70">
+                          {" "}
+                          ({Math.round(f.size / 1024)} KB)
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {imagePreviews.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {imagePreviews.map((p) => (
+                        <div
+                          key={p.name}
+                          className="rounded-xl overflow-hidden border border-emerald-200 shadow-sm"
+                        >
+                          <img
+                            src={p.url}
+                            alt={p.name}
+                            className="w-full h-32 object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Submit */}
+            <div className="flex justify-end mt-8">
               <button
                 onClick={handleCreate}
-                disabled={!canSubmit || loading}
-                className={`rounded-full w-10 h-10 flex items-center justify-center shadow ${
-                  canSubmit ? "bg-[#1a73e8] text-white" : "bg-gray-300 text-white cursor-not-allowed"
-                }`}
+                disabled={!canSubmit}
+                className={`rounded-2xl px-6 py-3 text-sm font-semibold shadow-md transition 
+                  ${
+                    canSubmit
+                      ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                      : "bg-emerald-200 text-white cursor-not-allowed"
+                  }`}
               >
-                +
+                {loading ? "Posting…" : "Post"}
               </button>
             </div>
           </div>
@@ -121,5 +338,3 @@ export default function NewBlogPage() {
     </div>
   );
 }
-
-

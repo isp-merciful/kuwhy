@@ -1,11 +1,14 @@
 "use client";
+
 import { useState, useEffect, useRef } from "react";
 import NotificationPanel from "./NotificationPanel";
 
+const API_BASE = "http://localhost:8000";
+
 /**
- * Props (ทั้งหมดเป็น optional)
- * - isOpen: boolean (controlled)  ถ้าส่งมา จะใช้เป็นแหล่งความจริง
- * - onOpenChange: (open:boolean) => void  ถูกเรียกเมื่อผู้ใช้กดเปิด/ปิด
+ * Props (optional)
+ * - isOpen: boolean
+ * - onOpenChange: (open:boolean) => void
  */
 export default function NotificationBell({ isOpen, onOpenChange }) {
   const [internalOpen, setInternalOpen] = useState(false);
@@ -17,45 +20,89 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
   const [userId, setUserId] = useState("");
   const rootRef = useRef(null);
 
+  // ✅ track ว่าตอนนี้ popup จาก NotificationPanel เปิดอยู่ไหม
+  const [popupOpen, setPopupOpen] = useState(false);
+
   useEffect(() => {
-    const id = localStorage.getItem("userId");
-    if (id) setUserId(id);
+    try {
+      const id = localStorage.getItem("userId");
+      if (id) setUserId(id);
+    } catch (e) {
+      console.warn("read userId from localStorage failed:", e);
+    }
   }, []);
 
   useEffect(() => {
     if (!userId) return;
+
+    let cancelled = false;
+
     const fetchNotifications = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/noti/${userId}`);
+        const res = await fetch(`${API_BASE}/api/noti/${userId}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          console.error("❌ Fetch notifications failed:", res.status, txt);
+          return;
+        }
         const data = await res.json();
-        setNotifications(data.notifications || []);
+        if (!cancelled) {
+          setNotifications(
+            Array.isArray(data.notifications) ? data.notifications : []
+          );
+        }
       } catch (err) {
-        console.error("❌ Fetch notifications failed:", err);
+        if (!cancelled) {
+          console.error("❌ Fetch notifications failed:", err);
+        }
       }
     };
+
     fetchNotifications();
+    const intervalId = setInterval(fetchNotifications, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
   }, [userId]);
 
-  // ปิดเมื่อคลิกนอก
+  // ปิดเมื่อคลิกนอก + Escape
   useEffect(() => {
     if (!open) return;
+
     function onDocClick(e) {
+      // ✅ ถ้า popup เปิดอยู่ ให้ไม่ปิด panel
+      if (popupOpen) return;
+
       if (rootRef.current && !rootRef.current.contains(e.target)) {
         setOpen(false);
       }
     }
     function onEsc(e) {
+      // ✅ กด Esc ตอน popup เปิดอยู่ ก็ไม่ปิด panel เช่นกัน
+      if (popupOpen) return;
       if (e.key === "Escape") setOpen(false);
     }
+
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onEsc);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onEsc);
     };
-  }, [open, setOpen]);
+  }, [open, setOpen, popupOpen]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const handleNotificationRead = (id) => {
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.notification_id === id ? { ...n, is_read: true } : n
+      )
+    );
+  };
 
   return (
     <div ref={rootRef} className="relative">
@@ -66,7 +113,7 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
         aria-haspopup="true"
         title="Notifications"
       >
-        {/* SVG Bell */}
+        {/* bell icon */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-6 w-6 text-gray-700"
@@ -91,7 +138,12 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
 
       {open && (
         <div className="absolute right-0 mt-2 z-50">
-          <NotificationPanel notifications={notifications} />
+          <NotificationPanel
+            notifications={notifications}
+            onNotificationRead={handleNotificationRead}
+            // ✅ ให้ panel แจ้งสถานะ popup กลับมาที่ bell
+            onPopupOpenChange={setPopupOpen}
+          />
         </div>
       )}
     </div>

@@ -13,6 +13,8 @@ async function isPartyMemberOrOwner(noteId, userId) {
   });
   if (!note) return false;
   if (!note.max_party || note.max_party <= 0) return false; // ไม่ใช่ปาร์ตี้
+
+  // user_id ใน note เป็น string อยู่แล้วใน schema ส่วน userId รับมาเป็น string จาก req.user.id
   if (note.user_id === userId) return true;
 
   const member = await prisma.party_members.findFirst({
@@ -29,7 +31,8 @@ async function isPartyMemberOrOwner(noteId, userId) {
 router.get("/party/:noteId", async (req, res) => {
   try {
     const noteId = Number(req.params.noteId);
-    if (!Number.isFinite(noteId)) return res.status(400).json({ error: "invalid note_id" });
+    if (!Number.isFinite(noteId))
+      return res.status(400).json({ error: "invalid note_id" });
 
     const userId = String(req.user?.id || ""); // จาก requireMember
     const allowed = await isPartyMemberOrOwner(noteId, userId);
@@ -39,11 +42,21 @@ router.get("/party/:noteId", async (req, res) => {
     const cursor = Number(req.query.cursor || 0); // ดึง message_id > cursor
 
     const rows = await prisma.party_messages.findMany({
-      where: { note_id: noteId, ...(cursor > 0 ? { message_id: { gt: cursor } } : {}) },
+      where: {
+        note_id: noteId,
+        ...(cursor > 0 ? { message_id: { gt: cursor } } : {}),
+      },
       orderBy: { message_id: "asc" },
       take: limit,
       include: {
-        user: { select: { user_id: true, user_name: true, img: true } }, // relation ไปตาราง users
+        user: {
+          select: {
+            user_id: true,
+            user_name: true,
+            img: true,
+            login_name: true,   // ✅ ดึง login_name มาด้วย
+          },
+        }, // relation ไปตาราง users
       },
     });
 
@@ -54,6 +67,7 @@ router.get("/party/:noteId", async (req, res) => {
       img: m.user?.img ?? null,
       content: m.content,
       created_at: m.created_at,
+      login_name: m.user?.login_name ?? null, // ✅ ส่ง login_name ออกไปให้ frontend
     }));
 
     res.json({ messages });
@@ -70,18 +84,28 @@ router.get("/party/:noteId", async (req, res) => {
 router.post("/party/:noteId", async (req, res) => {
   try {
     const noteId = Number(req.params.noteId);
-    if (!Number.isFinite(noteId)) return res.status(400).json({ error: "invalid note_id" });
+    if (!Number.isFinite(noteId))
+      return res.status(400).json({ error: "invalid note_id" });
 
     const user_id = String(req.user?.id || ""); // จาก requireMember
     const content = String(req.body?.content || "").trim();
-    if (!content) return res.status(400).json({ error: "content is required" });
+    if (!content)
+      return res.status(400).json({ error: "content is required" });
 
     const allowed = await isPartyMemberOrOwner(noteId, user_id);
     if (!allowed) return res.status(403).json({ error: "not a party member" });
 
     const msg = await prisma.party_messages.create({
       data: { note_id: noteId, user_id, content },
-      include: { user: { select: { user_name: true, img: true } } },
+      include: {
+        user: {
+          select: {
+            user_name: true,
+            img: true,
+            login_name: true,    // ✅ ดึง login_name ตอนสร้าง message ใหม่ด้วย
+          },
+        },
+      },
     });
 
     res.status(201).json({
@@ -93,6 +117,7 @@ router.post("/party/:noteId", async (req, res) => {
         img: msg.user?.img ?? null,
         content: msg.content,
         created_at: msg.created_at,
+        login_name: msg.user?.login_name ?? null, // ✅ ส่ง login_name กลับไป
       },
     });
   } catch (err) {
@@ -121,8 +146,12 @@ router.delete("/party/:noteId/:messageId", async (req, res) => {
       select: { user_id: true, note_id: true },
     });
     if (!m) return res.status(404).json({ error: "message not found" });
-    if (m.note_id !== noteId) return res.status(400).json({ error: "note mismatch" });
-    if (m.user_id !== user_id) return res.status(403).json({ error: "can delete own message only" });
+    if (m.note_id !== noteId)
+      return res.status(400).json({ error: "note mismatch" });
+    if (m.user_id !== user_id)
+      return res
+        .status(403)
+        .json({ error: "can delete own message only" });
 
     await prisma.party_messages.delete({ where: { message_id: messageId } });
     res.json({ message: "deleted" });

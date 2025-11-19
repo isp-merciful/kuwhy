@@ -64,18 +64,27 @@ model VerificationToken {
 model blog {
   blog_id       Int             @id @default(autoincrement())
   blog_title    String?         @db.VarChar(60)
-  message       String?         @db.VarChar(120)
+  message       String?         @db.Text
   blog_up       Int?
   blog_down     Int?
-  user_id       String?         @db.Char(36)
+  user_id       String          @db.Char(36)
   created_at    DateTime?       @default(now()) @db.Timestamp(0)
   updated_at    DateTime?       @default(now()) @db.Timestamp(0)
+
+  // store uploaded files as JSON array: [{ url, name, type, size }]
+  attachments   Json?
+
+  // ⭐ NEW: store tags as JSON array: ["homework","cat","question"]
+  tags          Json?
+
   users         users?          @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "blog_ibfk_1")
   comment       comment[]
   notifications notifications[]
 
   @@index([user_id], map: "user_id")
 }
+
+
 
 model comment {
   comment_id                                             Int             @id @default(autoincrement())
@@ -121,19 +130,19 @@ model notifications {
   sender_id                                        String             @db.Char(36)
   note_id                                          Int?
   blog_id                                          Int?
-  comment_id                                       Int
+  comment_id                                       Int?               
   parent_comment_id                                Int?
   type                                             notifications_type
-  is_read                                          Boolean?           @default(false)
-  created_at                                       DateTime?          @default(now()) @db.Timestamp(0)
+  is_read                                          Boolean            @default(false)   
+  created_at                                       DateTime           @default(now()) @db.Timestamp(0)
 
-  // relations to note/blog/comment (เดิม)
+  // relations to note/blog/comment
   note                                             note?              @relation(fields: [note_id], references: [note_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_1")
   blog                                             blog?              @relation(fields: [blog_id], references: [blog_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_2")
-  comment_notifications_comment_idTocomment        comment            @relation("notifications_comment_idTocomment", fields: [comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_3")
+  comment_notifications_comment_idTocomment        comment?           @relation("notifications_comment_idTocomment", fields: [comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_3")
   comment_notifications_parent_comment_idTocomment comment?           @relation("notifications_parent_comment_idTocomment", fields: [parent_comment_id], references: [comment_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_4")
 
-  // NEW: relations to users (sender/recipient)
+  // relations to users (sender/recipient)
   sender                                           users              @relation("notifications_sender", fields: [sender_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_5")
   recipient                                        users              @relation("notifications_recipient", fields: [recipient_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "notifications_ibfk_6")
 
@@ -144,6 +153,7 @@ model notifications {
   @@index([sender_id], map: "sender_id")
   @@index([recipient_id], map: "recipient_id")
 }
+
 
 
 
@@ -212,4 +222,6 @@ enum users_role {
 enum notifications_type {
   comment
   reply
+  party_join
+  party_chat
 }
