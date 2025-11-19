@@ -7,6 +7,18 @@ import { useSearchParams } from "next/navigation";
 const MAX_PREVIEW_CHARS = 120;
 const SOFT_BREAK_EVERY = 80;
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+// turn /uploads/... into http://localhost:8000/uploads/...
+function toAbs(url) {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
+  // frontend static assets like /images/pfp.png
+  return url;
+}
+
 // Insert invisible soft-break every N characters (fix long long word overflow)
 function insertSoftBreaks(text, every = SOFT_BREAK_EVERY) {
   if (!text) return "";
@@ -148,9 +160,10 @@ export default function BlogList({ initialBlogs = [] }) {
 
           previewMessage = insertSoftBreaks(previewMessage);
 
-          // ✅ ใช้ค่า user_name และ img จาก backend (ที่ flatten แล้ว)
+          // ✅ use flattened fields from backend
           const authorName = b.user_name || "anonymous";
-          const authorImg = b.img || null;
+          const rawImg = b.img || "";
+          const authorImg = rawImg ? toAbs(rawImg) : "";
 
           return (
             <div
@@ -175,6 +188,13 @@ export default function BlogList({ initialBlogs = [] }) {
                             src={authorImg}
                             alt={authorName}
                             className="w-24 h-24 rounded-full object-cover"
+                            onError={(e) => {
+                              if (
+                                e.currentTarget.src !== "/images/pfp.png"
+                              ) {
+                                e.currentTarget.src = "/images/pfp.png";
+                              }
+                            }}
                           />
                         ) : (
                           <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-semibold text-emerald-700">

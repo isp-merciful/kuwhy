@@ -4,12 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-
-// ✅ FIXED: Correct route for user setting
 const ROUTES = {
   getUser: (id) => `${API_BASE}/api/user/${id}`,
-  updateUserSetting: (id) => `${API_BASE}/api/user/${id}/setting`,
+  updateUserSetting: (id) => `${API_BASE}/api/settings/${id}`,
 };
+
+// helper: resolve image url to show
+function resolveProfileImage(raw, fallbackSessionImage) {
+  let v = typeof raw === "string" ? raw.trim() : "";
+  if (!v && typeof fallbackSessionImage === "string") {
+    v = fallbackSessionImage.trim();
+  }
+
+  if (!v) return "/images/pfp.png";
+  if (v.startsWith("data:image")) return v;       // local preview
+  if (v.startsWith("http://") || v.startsWith("https://")) return v; // remote url
+  // assume relative path from backend (e.g. "/uploads/xxx.png")
+  return `${API_BASE}${v}`;
+}
 
 export default function ProfileSettingsPage() {
   const { data: session, status } = useSession();
@@ -17,11 +29,9 @@ export default function ProfileSettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
+  // session
   const userId = session?.user?.id || null;
   const apiToken = session?.apiToken || "";
-
-  // 🔥 Added: image state
-  const [profileImage, setProfileImage] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -32,6 +42,7 @@ export default function ProfileSettingsPage() {
     website: "",
     phone: "",
     password: "",
+    img: "", // <=== NEW
   });
 
   const [errors, setErrors] = useState({});
@@ -58,6 +69,7 @@ export default function ProfileSettingsPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // fetch helper (แนบ Bearer อัตโนมัติ)
   const authFetch = async (url, init = {}) => {
     const headers = new Headers(init.headers || {});
     headers.set("Content-Type", "application/json");
@@ -78,16 +90,14 @@ export default function ProfileSettingsPage() {
       }
       if (!res.ok) {
         setErrors({
-          general: res.status === 404 ? "User not found" : "Failed to load profile",
+          general:
+            res.status === 404 ? "User not found" : "Failed to load profile",
         });
         return;
       }
 
       const data = await res.json().catch(() => ({}));
       const u = data?.user || data || {};
-
-      // 🔥 Load profile image from DB
-      setProfileImage(u.img || null);
 
       setFormData({
         name: u.full_name || "",
@@ -98,6 +108,7 @@ export default function ProfileSettingsPage() {
         website: u.web || "",
         phone: u.phone || "",
         password: "",
+        img: u.img || session?.user?.image || "", // <=== NEW
       });
     } catch {
       setErrors({ general: "Unable to reach server" });
@@ -126,8 +137,7 @@ export default function ProfileSettingsPage() {
         location: formData.location,
         phone: formData.phone,
         website: formData.website,
-        // 🔥 include image
-        img: profileImage,
+        img: formData.img, // <=== NEW (send to backend)
       };
 
       const res = await authFetch(ROUTES.updateUserSetting(userId), {
@@ -137,6 +147,13 @@ export default function ProfileSettingsPage() {
 
       const data = await res.json().catch(() => ({}));
 
+      if (res.status === 401 || res.status === 403) {
+        setErrors({
+          general:
+            "Unauthorized. Your session may have expired—please sign in again.",
+        });
+        return;
+      }
       if (!res.ok) {
         setErrors({
           general: data?.error || "Failed to update profile. Please try again.",
@@ -149,7 +166,7 @@ export default function ProfileSettingsPage() {
       setFormData((prev) => ({ ...prev, password: "" }));
       setTimeout(() => setSuccessMessage(""), 3000);
 
-      // refresh UI
+      // reload from DB so we get the new /uploads/ path
       fetchUserProfile(userId);
     } catch {
       setErrors({ general: "An unexpected error occurred. Please try again." });
@@ -164,26 +181,33 @@ export default function ProfileSettingsPage() {
     setIsEditing(false);
   };
 
-  // 🔥 handle uploading file preview and saving base64
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-
     reader.onload = (ev) => {
-      const base64 = ev.target?.result;
-      setProfileImage(base64);
-      console.log("New image saved (base64 length):", base64.length);
+      const val = ev.target?.result;
+      if (typeof val === "string") {
+        console.log("New image saved (base64 length):", val.length);
+        setFormData((prev) => ({ ...prev, img: val }));
+      }
     };
-
     reader.readAsDataURL(file);
   };
 
+  // โหลดโปรไฟล์เมื่อ session พร้อม
   useEffect(() => {
     if (status === "authenticated" && userId) fetchUserProfile(userId);
     if (status === "unauthenticated") setIsLoadingProfile(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, userId, apiToken]);
 
+  const profileImageSrc = resolveProfileImage(
+    formData.img,
+    session?.user?.image
+  );
+
+  /* ================== UI STATES ================== */
   if (status === "loading" || isLoadingProfile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50 flex items-center justify-center">
@@ -202,9 +226,7 @@ export default function ProfileSettingsPage() {
           <h1 className="text-2xl font-bold text-emerald-900 mb-3">
             You're not logged in
           </h1>
-          <p className="text-emerald-800/70">
-            หน้านี้ต้องล็อกอินก่อนถึงเข้าได้
-          </p>
+          <p className="text-emerald-800/70">หน้านี้ต้องล็อกอินก่อนถึงเข้าได้</p>
           <a
             href="/login"
             className="inline-flex items-center mt-6 px-6 py-3 text-white font-medium rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 shadow hover:opacity-90 transition"
@@ -216,10 +238,13 @@ export default function ProfileSettingsPage() {
     );
   }
 
+  /* ================== MAIN ================== */
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50 pb-12">
+      {/* Top banner */}
       <div className="h-40 sm:h-48 w-full bg-gradient-to-r from-emerald-200/60 via-cyan-200/50 to-sky-200/60" />
       <div className="-mt-16 sm:-mt-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header card */}
         <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-emerald-100 shadow-sm p-6 sm:p-8">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -231,7 +256,11 @@ export default function ProfileSettingsPage() {
               </p>
               <p className="text-xs text-emerald-900/60 mt-1">
                 Logged in as{" "}
-                <b>{session?.user?.name || session?.user?.login_name || "—"}</b>
+                <b>
+                  {session?.user?.name ||
+                    session?.user?.login_name ||
+                    "—"}
+                </b>
               </p>
             </div>
             <a
@@ -256,6 +285,7 @@ export default function ProfileSettingsPage() {
           </div>
         </div>
 
+        {/* alerts */}
         {successMessage && (
           <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900/90">
             {successMessage}
@@ -267,8 +297,9 @@ export default function ProfileSettingsPage() {
           </div>
         )}
 
+        {/* content */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column */}
+          {/* Left column */}
           <div className="lg:col-span-1">
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-emerald-100 shadow-sm p-6">
               <h2 className="text-xl font-semibold text-emerald-900 mb-6">
@@ -278,11 +309,7 @@ export default function ProfileSettingsPage() {
                 <div className="relative inline-block">
                   <span className="p-[3px] bg-gradient-to-tr from-emerald-300 to-sky-300 rounded-full inline-block">
                     <img
-                      src={
-                        profileImage ||
-                        formData.img ||
-                        "/images/pfp.png"
-                      }
+                      src={profileImageSrc}
                       alt="Profile"
                       className="w-32 h-32 rounded-full object-cover ring-4 ring-white bg-white"
                     />
@@ -324,7 +351,9 @@ export default function ProfileSettingsPage() {
                     formData.name ||
                     "User"}
                 </h3>
-                <p className="text-emerald-900/70">{formData.email || "-"}</p>
+                <p className="text-emerald-900/70">
+                  {formData.email || "-"}
+                </p>
               </div>
             </div>
 
@@ -376,7 +405,7 @@ export default function ProfileSettingsPage() {
             </div>
           </div>
 
-          {/* Right Column — Form */}
+          {/* Right form */}
           <div className="lg:col-span-2">
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-emerald-100 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
@@ -419,7 +448,9 @@ export default function ProfileSettingsPage() {
                     </p>
                   )}
                   {errors.name && (
-                    <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.name}
+                    </p>
                   )}
                 </div>
 
@@ -476,7 +507,9 @@ export default function ProfileSettingsPage() {
                     </p>
                   )}
                   {errors.email && (
-                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.email}
+                    </p>
                   )}
                 </div>
 
@@ -566,7 +599,9 @@ export default function ProfileSettingsPage() {
                           </span>
                         )
                       ) : (
-                        <span className="text-emerald-950">Not provided</span>
+                        <span className="text-emerald-950">
+                          Not provided
+                        </span>
                       )}
                     </p>
                   )}
@@ -597,7 +632,7 @@ export default function ProfileSettingsPage() {
                   )}
                 </div>
 
-                {/* Password */}
+                {/* Password UI only */}
                 {isEditing && (
                   <div>
                     <label
@@ -621,7 +656,7 @@ export default function ProfileSettingsPage() {
                   </div>
                 )}
 
-                {/* Action Buttons */}
+                {/* Actions */}
                 {isEditing && (
                   <div className="flex flex-col sm:flex-row gap-4 pt-6">
                     <button
@@ -680,7 +715,6 @@ export default function ProfileSettingsPage() {
               </form>
             </div>
           </div>
-          {/* END Right Column */}
         </div>
       </div>
     </div>

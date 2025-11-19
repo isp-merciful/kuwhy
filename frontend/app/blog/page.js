@@ -12,7 +12,7 @@ export default function BlogPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-
+  const avatarImg = session?.user?.image || null;
   // --- read current query params ---
   const currentTag = searchParams.get("tag") || "";
   const currentSort = (searchParams.get("sort") || "newest").toLowerCase();
@@ -150,12 +150,17 @@ export default function BlogPage() {
           <div className="w-full max-w-3xl mx-auto">
             <div className="rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-center sm:items-stretch gap-4">
               <div className="flex items-center gap-4 w-full sm:w-auto">
-                <Avatar
-                  center={false}
-                  size={64}
-                  style="thumbs"
-                  seed={avatarSeed}
-                />
+                {avatarImg ? (
+                  <img
+                    src={avatarImg}
+                    alt={displayName}
+                    className="w-16 h-16 rounded-full object-cover border border-emerald-200 bg-emerald-50"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-lg font-semibold text-emerald-700">
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div>
                   <div className="text-xs uppercase tracking-wide text-emerald-500 font-semibold">
                     Signed in as

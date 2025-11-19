@@ -5,7 +5,19 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 // Resolve API base (works with Docker too)
-const API_BASE = "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.API_BASE ||
+  "http://localhost:8000";
+
+// Helper: turn /uploads/... into http://localhost:8000/uploads/...
+function toAbs(url) {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
+  // frontend static assets like /images/pfp.png
+  return url;
+}
 
 // Preset common tags
 const PRESET_TAGS = ["homework", "health", "game", "anime", "food", "other"];
@@ -40,7 +52,8 @@ export default function NewBlogPage() {
     "anonymous";
 
   // ✅ รูปโปรไฟล์จริงจาก users.img (แมปมาเป็น session.user.image)
-  const avatarImg = session?.user?.image || null;
+  const rawAvatar = session?.user?.image || "";
+  const avatarImg = rawAvatar ? toAbs(rawAvatar) : "";
 
   // preview สำหรับรูป
   const imagePreviews = useMemo(
@@ -177,6 +190,11 @@ export default function NewBlogPage() {
                   src={avatarImg}
                   alt={displayName}
                   className="w-16 h-16 rounded-full object-cover border border-emerald-200 bg-emerald-50"
+                  onError={(e) => {
+                    if (e.currentTarget.src !== "/images/pfp.png") {
+                      e.currentTarget.src = "/images/pfp.png";
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-lg font-semibold text-emerald-700">
