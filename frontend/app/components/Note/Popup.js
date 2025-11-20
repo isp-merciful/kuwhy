@@ -604,56 +604,59 @@ export default function Popup({
           </div>
 
           {/* ===== AVATAR + TITLE + REPORT ===== */}
-          <div className="px-6 pt-5 pb-1 text-center shrink-0">
-            <div className="flex items-center justify-center">
-              <div className="flex items-center -space-x-3">
-                <div className="relative h-16 w-16 rounded-full ring-4 ring-white overflow-hidden shadow-lg">
-                  <img
-                    src={hostPfp || "/images/pfp.png"}
-                    alt="host"
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      if (e.currentTarget.src !== "/images/pfp.png")
-                        e.currentTarget.src = "/images/pfp.png";
-                    }}
-                  />
+          <div className="px-6 pt-5 pb-1 shrink-0">
+            <div className="text-center">
+              <div className="flex items-center justify-center">
+                <div className="flex items-center -space-x-3">
+                  <div className="relative h-16 w-16 rounded-full ring-4 ring-white overflow-hidden shadow-lg">
+                    <img
+                      src={hostPfp || "/images/pfp.png"}
+                      alt="host"
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        if (e.currentTarget.src !== "/images/pfp.png")
+                          e.currentTarget.src = "/images/pfp.png";
+                      }}
+                    />
+                  </div>
+                  {isParty &&
+                    members.slice(0, 2).map((m) => (
+                      <div
+                        key={m.user_id}
+                        className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow-md"
+                      >
+                        <img
+                          src={m.img || "/images/pfp.png"}
+                          alt={m.user_name || "member"}
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            if (e.currentTarget.src !== "/images/pfp.png")
+                              e.currentTarget.src = "/images/pfp.png";
+                          }}
+                        />
+                      </div>
+                    ))}
                 </div>
-                {isParty &&
-                  members.slice(0, 2).map((m) => (
-                    <div
-                      key={m.user_id}
-                      className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow-md"
-                    >
-                      <img
-                        src={m.img || "/images/pfp.png"}
-                        alt={m.user_name || "member"}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          if (e.currentTarget.src !== "/images/pfp.png")
-                            e.currentTarget.src = "/images/pfp.png";
-                        }}
-                      />
-                    </div>
-                  ))}
               </div>
-            </div>
-            <div className="mt-3 text-[15px] font-medium text-gray-900">
-              {isParty ? partyTitle : noteTitle}
+              <div className="mt-3 text-[15px] font-medium text-gray-900">
+                {isParty ? partyTitle : noteTitle}
+              </div>
             </div>
 
             {canReportNote && (
-              <div className="mt-2 flex justify-center">
+              <div className="mt-1 flex justify-end">
                 <button
                   type="button"
                   onClick={() => setShowReportDialog(true)}
-                  className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition"
+                  className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-rose-500 hover:underline hover:underline-offset-2 transition-colors"
                 >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-rose-400" />
+                  <span className="h-1 w-1 rounded-full bg-rose-300" />
                   <span>Report</span>
                 </button>
               </div>
             )}
           </div>
+
 
           {/* ===== CONTENT ===== */}
           <div className="px-6 pb-6 pt-2 flex-1 min-h-0">
