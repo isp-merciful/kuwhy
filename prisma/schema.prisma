@@ -181,6 +181,9 @@ model users {
   // NEW: back-relations for notifications
   notifications_sent     notifications[] @relation("notifications_sender")
   notifications_received notifications[] @relation("notifications_recipient")
+
+  reportsSent     user_report[] @relation("reporter")
+  reportsReceived user_report[] @relation("target")
 }
 
 
@@ -204,6 +207,39 @@ model party_messages {
   user  users @relation("UserPartyMessages", fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@index([note_id, created_at], map: "idx_party_messages_note_time")
+}
+
+model user_report {
+  id               Int       @id @default(autoincrement())
+  reporter_id      String    @db.Char(36)        // ใครเป็นคน report
+  target_user_id   String?   @db.Char(36)        // เจ้าของเนื้อหา
+  target_type      String    @db.VarChar(16)     // 'note' | 'comment' | 'blog'
+  note_id          Int?
+  comment_id       Int?
+  blog_id          Int?
+  reason           String?   @db.VarChar(255)    // เหตุผลสั้นๆ
+  detail           String?   @db.Text           // รายละเอียดเพิ่ม
+  status           String    @default("pending") // 'pending' | 'resolved'
+  resolution_action String?  @db.VarChar(64)    // 'delete', 'timeout', 'ban_user', 'ban_ip'
+  created_at       DateTime  @default(now())
+  resolved_at      DateTime?
+  resolved_by      String?   @db.Char(36)       // admin
+
+  reporter   users   @relation("reporter", fields: [reporter_id], references: [user_id])
+  targetUser users?  @relation("target", fields: [target_user_id], references: [user_id])
+}
+
+model user_punishment {
+  id            Int       @id @default(autoincrement())
+  user_id       String?   @db.Char(36)          // user ที่โดน
+  ip_address    String?   @db.VarChar(64)       // ip ที่โดน
+  type          String    @db.VarChar(32)       // 'TIMEOUT' | 'BAN_USER' | 'BAN_IP'
+  reason        String?   @db.VarChar(255)
+  created_at    DateTime  @default(now())
+  expires_at    DateTime?
+  revoked_at    DateTime?
+  created_by    String?   @db.Char(36)          // admin ที่สั่งลงโทษ
+  revoked_by    String?   @db.Char(36)          // admin ที่ปลดโทษ
 }
 
 

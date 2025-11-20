@@ -12,6 +12,8 @@ const noteRouter = require("./note_api");
 const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
+const reportApi = require("./report_api");
+const punishmentApi = require("./punishment_api");
 const { requireMember, requireAdmin } = require("./auth_mw");
 const settings = require("./user_setting_api");
 
@@ -31,7 +33,7 @@ app.use(
     origin:
       (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(",")) ||
       ["http://localhost:3000"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT","PATCH", "DELETE"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -51,16 +53,36 @@ app.use("/uploads", express.static(uploadDir));
 
 /* ================== API ROUTES ================== */
 
-// main APIs
+
+
+
+// app.options('/:splat*', cors());
+
+app.use(cors({
+  origin: "http://localhost:3000",
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+// === ใช้ session-only สำหรับโปรไฟล์/ตั้งค่า ===
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+// === ส่วนอื่นตามสิทธิ์เดิม ===
 app.use("/api/blog", blogRouter);
 app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/note", noteRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", requireMember, partyChatApi);
+app.use("/api/settings",requireMember,settings)
+app.use("/api/report", reportApi);
+app.use("/api/punish", punishmentApi);
+
 
 // profile/settings API (session required)
-app.use("/api/settings", requireMember, settings);
+//app.use("/api/settings", requireMember, settings);
 
 /* ================== DEBUG ROUTES (unchanged) ================== */
 

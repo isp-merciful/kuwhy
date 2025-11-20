@@ -6,6 +6,8 @@ const fs = require("fs");
 const multer = require("multer");
 const { optionalAuth, requireMember } = require("./auth_mw");
 const { prisma } = require("./lib/prisma.cjs");
+const { ensureNotPunished } = require("./punish_mw");
+
 
 /* ----------------------- Upload folder ----------------------- */
 
@@ -71,6 +73,7 @@ function mapBlog(b) {
 router.post(
   "/",
   requireMember,
+  ensureNotPunished,
   upload.array("attachments", 10),
   async (req, res) => {
     try {
@@ -356,7 +359,7 @@ router.delete("/:id", requireMember, async (req, res) => {
 
 /* ----------------------- VOTE SIMPLE (LIKE/DISLIKE) ----------------------- */
 
-router.post("/:id/vote-simple", optionalAuth, async (req, res) => {
+router.post("/:id/vote-simple", requireMember, async (req, res) => {
   try {
     const blogId = Number(req.params.id);
     let { prev, next } = req.body || {};

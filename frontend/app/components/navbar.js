@@ -126,13 +126,13 @@ export default function Navbar() {
                         href="/note"
                         icon={<PencilSquareIcon className="h-5 w-5" />}
                         label="Note"
-                        desc="Write & collaborate"
+                        desc="Share daily notes and start a party"
                       />
                       <DropdownItem
                         href="/blog"
                         icon={<NewspaperIcon className="h-5 w-5" />}
                         label="Blog"
-                        desc="Share ideas"
+                        desc="Create thoughtful posts and question"
                       />
                     </div>
                   </div>

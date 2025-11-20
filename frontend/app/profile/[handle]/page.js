@@ -3,20 +3,18 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-
 import ActiveNoteViewer from "../../components/Note/ActiveNoteViewer";
 import BlogCard from "../../components/profile/BlogCard";
 
-// --- only new helpers (for avatar) ---
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 function resolveAvatar(url) {
-  if (!url) return "/images/pfp.png";        // final fallback
-  if (url.startsWith("http")) return url;    // full URL already
-  if (url.startsWith("/images/")) return url; // frontend static images
-  return `${API_BASE}${url}`;                // backend relative path (/uploads/...)
+  if (!url) return "/images/pfp.png";
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/images/")) return url;
+  return `${API_BASE}${url}`;
 }
-// --------------------------------------
 
 export default function ProfilePage() {
   const { data: session } = useSession();
@@ -29,53 +27,67 @@ export default function ProfilePage() {
     user: null,
     blogs: [],
   });
+
   const [hasActiveNote, setHasActiveNote] = useState(false);
 
   useEffect(() => {
+    if (!handle) return;
     let alive = true;
+
     (async () => {
       try {
-        // 1) หา user_id จาก handle
+        // 1) หา user จาก handle
         const uRes = await fetch(
-          `http://localhost:8000/api/user/by-handle/${encodeURIComponent(handle)}`,
+          `${API_BASE}/api/user/by-handle/${encodeURIComponent(handle)}`,
           { cache: "no-store" }
         );
         if (!uRes.ok) throw new Error("User not found");
         const { user: baseUser } = await uRes.json();
 
-        // 2) โหลดโปรไฟล์เต็ม (ดึง bio/รายละเอียด)
-        const fullRes = await fetch(`http://localhost:8000/api/user/${baseUser.user_id}`, {
-          cache: "no-store",
-        });
+        // 2) โหลดโปรไฟล์เต็ม
+        const fullRes = await fetch(
+          `${API_BASE}/api/user/${baseUser.user_id}`,
+          { cache: "no-store" }
+        );
         if (!fullRes.ok) throw new Error("Failed to load full profile");
         const fullUser = await fullRes.json();
         const user = { ...baseUser, ...fullUser };
 
-        // 3) ดึง blog ของ user นี้
+        // 3) โหลด blog ของ user
         let blogs = [];
         try {
-          const r = await fetch(`http://localhost:8000/api/blog`, { cache: "no-store" });
+          const r = await fetch(`${API_BASE}/api/blog`, { cache: "no-store" });
           if (r.ok) {
             const all = await r.json();
-            blogs = all.filter((b) => {
-              const byId = b.user_id && String(b.user_id) === String(user.user_id);
-              const byUsersId = b.users?.user_id && String(b.users.user_id) === String(user.user_id);
+            blogs = (Array.isArray(all) ? all : []).filter((b) => {
+              const byId =
+                b.user_id && String(b.user_id) === String(user.user_id);
+              const byUsersId =
+                b.users?.user_id &&
+                String(b.users.user_id) === String(user.user_id);
               const byName = b.user_name && b.user_name === user.user_name;
-              const byUsersName = b.users?.user_name && b.users.user_name === user.user_name;
+              const byUsersName =
+                b.users?.user_name && b.users.user_name === user.user_name;
               return byId || byUsersId || byName || byUsersName;
             });
           }
-        } catch {}
+        } catch (err) {
+          console.warn("load blogs error:", err);
+        }
 
-        // 4) เช็กว่ามีโน้ตล่าสุดไหม
-        const noteRes = await fetch(
-          `http://localhost:8000/api/note/user/${encodeURIComponent(user.user_id)}`,
-          { cache: "no-store" }
-        );
+        // 4) เช็กว่ามี active note หรือเปล่า
         let hasNote = false;
-        if (noteRes.ok) {
-          const data = await noteRes.json();
-          hasNote = data && data.note !== null;
+        try {
+          const noteRes = await fetch(
+            `${API_BASE}/api/note/user/${encodeURIComponent(user.user_id)}`,
+            { cache: "no-store" }
+          );
+          if (noteRes.ok) {
+            const data = await noteRes.json();
+            hasNote = data && data.note !== null;
+          }
+        } catch (err) {
+          console.warn("check note error:", err);
         }
 
         if (!alive) return;
@@ -83,176 +95,193 @@ export default function ProfilePage() {
         setHasActiveNote(hasNote);
       } catch (e) {
         if (!alive) return;
-        setState({ loading: false, error: e?.message || "Load failed", user: null, blogs: [] });
+        setState({
+          loading: false,
+          error: e?.message || "Load failed",
+          user: null,
+          blogs: [],
+        });
         setHasActiveNote(false);
       }
     })();
+
     return () => {
       alive = false;
     };
   }, [handle]);
 
   if (state.loading) return <PageSkeleton />;
+
   if (state.error || !state.user) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <h1 className="text-xl font-semibold">User not found</h1>
-        <p className="text-gray-500">{state.error || `The handle @${handle} doesn’t exist.`}</p>
+      <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-cyan-50 to-emerald-100 pt-24 pb-16">
+        <div className="mx-auto max-w-3xl p-6">
+          <h1 className="text-xl font-semibold">User not found</h1>
+          <p className="mt-2 text-gray-600">
+            {state.error || `The handle @${handle} doesn’t exist.`}
+          </p>
+        </div>
       </div>
     );
   }
 
   const u = state.user;
-  const isOwner = !!(session?.user?.id && String(session.user.id) === String(u.user_id));
+  const isOwner =
+    !!session?.user?.id && String(session.user.id) === String(u.user_id);
 
   const bioText =
-    [u?.user_bio, u?.bio, u?.description, u?.about].find((v) => !!v && String(v).trim()) || "";
-  const website = normalizeUrl(u?.website);
+    [u?.user_bio, u?.bio, u?.description, u?.about].find(
+      (v) => !!v && String(v).trim()
+    ) || "";
 
-  // ⭐ use img from custom users table first, then NextAuth user.image
   const avatarSrc = resolveAvatar(u.img || u.image);
 
   return (
-    <div className="mx-auto max-w-5xl pb-16 relative">
-      {/* cover เขียว-ฟ้าอ่อน */}
-      <div className="relative -mt-2 md:-mt-4 -mx-4 md:-mx-6">
-        <div className="h-44 md:h-56 w-full rounded-b-2xl overflow-hidden bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50" />
-      </div>
-
-      {/* Header */}
-      <div className="px-4 md:px-6 -mt-12 relative">
-        <div className="relative inline-block">
-          <div className="p-[3px] rounded-full bg-gradient-to-tr from-emerald-300 to-sky-300 inline-block shadow-sm">
-            <img
-              src={avatarSrc}
-              alt={u.user_name || u.login_name}
-              className="h-28 w-28 md:h-32 md:w-32 rounded-full object-cover ring-4 ring-white bg-white"
-              onError={(e) => {
-                if (e.currentTarget.src !== "/images/pfp.png") {
-                  e.currentTarget.src = "/images/pfp.png";
-                }
-              }}
-            />
-          </div>
-
-          {/* ActiveNoteViewer: แสดงเฉพาะเมื่อมีโน้ต */}
-          {hasActiveNote && (
-            // ยึดจุดยืนเดิม: เริ่มที่กึ่งกลาง แล้วยืดไปทางขวา
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[85%]">
-              {/* กล่องห่อ: กดไม่ได้ + ขยายตามเนื้อหา + จำกัดความกว้างบน/ล่าง */}
-              <div
-                className="
-                  pointer-events-none inline-block align-top
-                  w-auto min-w-[16rem] max-w-[clamp(22rem,62vw,56rem)]
-                  [&_*]:break-words [&_*]:whitespace-pre-wrap [&_*]:leading-relaxed [&_*]:text-left
-                "
-                style={{
-                  overflowWrap: "anywhere", // ตัดคำไทย/คำยาว
-                  wordBreak: "break-word",
-                  lineBreak: "anywhere",
-                  textWrap: "pretty",
-                }}
-              >
-                <ActiveNoteViewer userId={u.user_id} />
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-cyan-50 to-emerald-100 pt-24 pb-16">
+      <div className="mx-auto max-w-5xl px-4 md:px-6">
+        {/* ===== HERO SECTION (PFP + background) ===== */}
+        <section className="rounded-3xl border border-emerald-100/70 bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50 shadow-sm px-6 py-6 sm:px-8 sm:py-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <div className="relative">
+                <div className="p-[3px] rounded-full bg-gradient-to-tr from-emerald-300 to-sky-300 inline-block shadow-sm">
+                  <img
+                    src={avatarSrc}
+                    alt={u.user_name || u.login_name}
+                    className="h-24 w-24 sm:h-28 sm:w-28 rounded-full object-cover ring-4 ring-white bg-white"
+                    onError={(e) => {
+                      if (e.currentTarget.src !== "/images/pfp.png") {
+                        e.currentTarget.src = "/images/pfp.png";
+                      }
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )}
-        </div>
 
-        <div className="mt-3 md:mt-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold">
-                <span className="bg-gradient-to-r from-emerald-500 to-sky-500 bg-clip-text text-transparent">
+              <div>
+                <h1
+                  className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-emerald-500 to-sky-500 bg-clip-text text-transparent break-words"
+                  style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+                >
                   {u.user_name || u.login_name}
-                </span>
-              </h1>
-              <div className="text-gray-500">@{u.login_name}</div>
+                </h1>
+                <div className="text-gray-500">@{u.login_name}</div>
+                {/* ไม่ต้องโชว์ description ตรงนี้แล้ว */}
+              </div>
             </div>
 
             {isOwner && (
               <a
                 href="/settings"
-                className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-emerald-500 to-sky-500 text-white shadow hover:opacity-90"
+                className="self-start sm:self-center inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 text-white text-sm font-semibold shadow hover:opacity-90 transition"
               >
                 Edit Profile
               </a>
             )}
           </div>
 
-          {/* bio จาก backend */}
-          {bioText && <p className="mt-3 text-gray-700 whitespace-pre-wrap">{bioText}</p>}
-        </div>
-      </div>
+          {hasActiveNote && (
+            <div className="mt-6">
+              <div
+                className="
+                  pointer-events-none inline-block w-full
+                  max-w-[min(56rem,100%)]
+                  [&_*]:break-words [&_*]:whitespace-pre-wrap
+                "
+                style={{
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word",
+                  lineBreak: "anywhere",
+                }}
+              >
+                <ActiveNoteViewer userId={u.user_id} />
+              </div>
+            </div>
+          )}
+        </section>
 
-      {/* Main */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-6">
-        <aside className="md:col-span-1 space-y-4">
-          <Card>
-            <div className="font-semibold text-emerald-900">Description</div>
-            <p className="mt-2 text-sm text-gray-800 whitespace-pre-wrap">{bioText || "—"}</p>
-          </Card>
+        {/* ===== MAIN GRID SECTION ===== */}
+        <section className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 pb-4">
+          {/* LEFT: Description + Details */}
+          <aside className="md:col-span-1 space-y-4">
+            <Card>
+              <div className="font-semibold text-emerald-900">Description</div>
+              <p
+                className="mt-2 text-sm text-gray-800 whitespace-pre-wrap"
+                style={{
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {bioText || "—"}
+              </p>
+            </Card>
 
-          <Card>
-            <div className="font-semibold text-emerald-900">Details</div>
-            <Detail label="Full name" value={u.full_name} />
-            <Detail label="Email" value={isOwner ? u.email : undefined} privateHint={!isOwner} />
-            <Detail label="Phone" value={isOwner ? u.phone : undefined} privateHint={!isOwner} />
-            <Detail label="Location" value={u.location} />
-            {website && (
-              <div className="text-sm mt-2">
-                <span className="text-gray-500">Website </span>
+            <Card>
+              <div className="font-semibold text-emerald-900">Details</div>
+              <Detail label="Full name" value={u.full_name} />
+              <Detail
+                label="Phone"
+                value={isOwner ? u.phone : undefined}
+                privateHint={!isOwner}
+              />
+              <Detail label="Location" value={u.location} />
+              {/* ไม่ต้องแสดง website แล้ว */}
+            </Card>
+          </aside>
+
+          {/* RIGHT: Blogs */}
+          <main className="md:col-span-2">
+            <Card className="space-y-4 p-5 md:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-emerald-900 break-words">
+                  Blogs by {u.user_name || `@${u.login_name}`}
+                </h2>
                 <a
-                  className="underline break-all text-emerald-700 hover:text-emerald-900"
-                  target="_blank"
-                  rel="noreferrer"
-                  href={website}
+                  href="/blog/new"
+                  className="text-sm rounded-lg px-3 py-1.5 ring-1 ring-emerald-200 text-emerald-700 hover:bg-emerald-50"
                 >
-                  {website}
+                  Write a blog
                 </a>
               </div>
-            )}
-          </Card>
-        </aside>
 
-        <main className="md:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-emerald-900">
-              Blogs by {u.user_name || `@${u.login_name}`}
-            </h2>
-            <a
-              href="/blog/new"
-              className="text-sm rounded-lg px-3 py-1.5 ring-1 ring-emerald-200 text-emerald-700 hover:bg-emerald-50"
-            >
-              Write a blog
-            </a>
-          </div>
-
-          {state.blogs?.length ? (
-            <div className="space-y-4">
-              {state.blogs.map((b) => (
-                <BlogCard key={b.blog_id} b={b} />
-              ))}
-            </div>
-          ) : (
-            <Card className="p-8 text-center text-gray-500">No blog posts yet.</Card>
-          )}
-        </main>
+              {state.blogs?.length ? (
+                <div className="space-y-4">
+                  {state.blogs.map((b) => (
+                    <a
+                      key={b.blog_id}
+                      href={`/blog/${b.blog_id}`}
+                      className="group block rounded-2xl border border-emerald-100 bg-emerald-50/60 hover:bg-emerald-50 hover:border-emerald-200 hover:shadow-md hover:shadow-emerald-900/5 transition-all cursor-pointer overflow-hidden"
+                      style={{
+                        wordBreak: "break-word",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      <BlogCard b={b} />
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-sm text-gray-500">
+                  No blog posts yet.
+                </div>
+              )}
+            </Card>
+          </main>
+        </section>
       </div>
     </div>
   );
 }
 
 /* ---------- helpers / small UI ---------- */
-function normalizeUrl(url) {
-  if (!url) return "";
-  if (/^https?:\/\//i.test(url)) return url;
-  return `https://${url}`;
-}
 
 function Card({ children, className = "" }) {
   return (
-    <div className={`rounded-2xl border border-emerald-100/70 bg-white/80 backdrop-blur-sm p-4 ${className}`}>
+    <div
+      className={`rounded-2xl border border-emerald-100/70 bg-white/80 p-4 ${className}`}
+      style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+    >
       {children}
     </div>
   );
@@ -262,22 +291,26 @@ function Detail({ label, value, privateHint = false }) {
   return (
     <div className="text-sm flex items-start gap-2 mt-2">
       <span className="text-gray-500 min-w-24">{label}</span>
-      <span className="font-medium break-all">{value ? value : privateHint ? "Private" : "—"}</span>
+      <span className="font-medium break-words">
+        {value ? value : privateHint ? "Private" : "—"}
+      </span>
     </div>
   );
 }
 
 function PageSkeleton() {
   return (
-    <div className="mx-auto max-w-5xl p-4 animate-pulse">
-      <div className="h-44 md:h-56 w-full rounded-b-2xl bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50 -mt-2 md:-mt-4 -mx-4 md:-mx-6" />
-      <div className="-mt-10 flex items-end gap-4 px-6">
-        <div className="h-28 w-28 rounded-full bg-gray-300 ring-4 ring-white" />
-        <div className="h-6 w-48 bg-gray-200 rounded" />
-      </div>
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 px-4 md:px-6">
-        <div className="h-28 bg-gray-200 rounded-2xl" />
-        <div className="h-28 bg-gray-200 rounded-2xl md:col-span-2" />
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-cyan-50 to-emerald-100">
+      <div className="mx-auto max-w-5xl p-4 pt-24 animate-pulse">
+        <div className="h-40 w-full rounded-3xl bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50" />
+        <div className="mt-6 flex items-end gap-4">
+          <div className="h-20 w-20 rounded-full bg-gray-300 ring-4 ring-white" />
+          <div className="h-6 w-48 bg-gray-200 rounded" />
+        </div>
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="h-28 bg-gray-200 rounded-2xl" />
+          <div className="h-28 bg-gray-200 rounded-2xl md:col-span-2" />
+        </div>
       </div>
     </div>
   );

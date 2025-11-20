@@ -7,16 +7,31 @@ import { useParams, useRouter } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
+import ReportDialog from "../../components/ReportDialog";
+import {
+  EllipsisVerticalIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  FlagIcon,
+} from "@heroicons/react/24/outline";
 
 /* ---------------------- API base ---------------------- */
 
-const API_BASE = "http://localhost:8000";
+// unified with other files
+const API_BASE =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.API_BASE ||
+  "http://localhost:8000";
 
 /* ---------------------- helpers ---------------------- */
 
 function toAbs(url) {
   if (!url) return "";
-  return url.startsWith("http") ? url : `${API_BASE}${url}`;
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
+  // frontend static asset like /images/foo.png
+  return url;
 }
 
 function formatDate(iso) {
@@ -113,7 +128,6 @@ export default function BlogPostPage() {
 
   const { data: session } = useSession();
 
-  // ⭐ use the SAME token as /blog/new page
   const apiToken = session?.apiToken || null;
 
   const authHeaders = useMemo(
@@ -128,6 +142,7 @@ export default function BlogPostPage() {
   const [allPosts, setAllPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showReport, setShowReport] = useState(false);
 
   // edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -136,9 +151,12 @@ export default function BlogPostPage() {
 
   const [draftTitle, setDraftTitle] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
-  const [draftTags, setDraftTags] = useState(""); // "tag1, tag2"
-  const [draftAtts, setDraftAtts] = useState([]); // kept attachments
-  const [newFiles, setNewFiles] = useState([]); // File[]
+  const [draftTags, setDraftTags] = useState("");
+  const [draftAtts, setDraftAtts] = useState([]);
+  const [newFiles, setNewFiles] = useState([]);
+
+  // 🔹 state สำหรับเมนูสามจุด
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -169,7 +187,6 @@ export default function BlogPostPage() {
     };
   }, [id]);
 
-  // sync drafts when we enter edit mode
   useEffect(() => {
     if (!post || !isEditing) return;
     setDraftTitle(post.blog_title || "");
@@ -204,7 +221,12 @@ export default function BlogPostPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Something went wrong</h1>
-        <p className="mt-2 text-gray-600">{error}</p>
+        <p
+          className="mt-2 text-gray-600 break-words"
+          style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+        >
+          {error}
+        </p>
         <button
           onClick={() => router.push("/blog")}
           className="mt-4 inline-block text-sm text-blue-600 underline"
@@ -219,7 +241,10 @@ export default function BlogPostPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Post not found</h1>
-        <p className="mt-2 text-gray-600">
+        <p
+          className="mt-2 text-gray-600 break-words"
+          style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+        >
           We couldn&apos;t find a blog post with ID <code>{id}</code>.
         </p>
         <button
@@ -271,6 +296,7 @@ export default function BlogPostPage() {
     setDraftAtts(Array.isArray(post.attachments) ? post.attachments : []);
     setNewFiles([]);
     setIsEditing(true);
+    setActionsOpen(false);
   }
 
   function cancelEdit() {
@@ -318,7 +344,7 @@ export default function BlogPostPage() {
         body: formData,
         credentials: "include",
         headers: {
-          ...authHeaders, // Bearer apiToken
+          ...authHeaders,
         },
       });
 
@@ -366,7 +392,7 @@ export default function BlogPostPage() {
         method: "DELETE",
         credentials: "include",
         headers: {
-          ...authHeaders, // Bearer apiToken
+          ...authHeaders,
         },
       });
       if (!res.ok) {
@@ -412,7 +438,13 @@ export default function BlogPostPage() {
                   placeholder="Post title"
                 />
               ) : (
-                <h1 className="text-2xl sm:text-3xl font-bold text-emerald-900">
+                <h1
+                  className="text-2xl sm:text-3xl font-bold text-emerald-900 break-words"
+                  style={{
+                    wordBreak: "break-word",
+                    overflowWrap: "anywhere",
+                  }}
+                >
                   {post.blog_title}
                 </h1>
               )}
@@ -437,7 +469,7 @@ export default function BlogPostPage() {
                 </time>
               </div>
 
-              {/* Tags */}
+              {/* Tags อยู่ใต้ชื่อเสมอ เพื่อให้สแกนง่าย */}
               {isEditing ? (
                 <div className="mt-3">
                   <label className="block text-xs font-semibold text-emerald-700 mb-1">
@@ -468,49 +500,97 @@ export default function BlogPostPage() {
               ) : null}
             </div>
 
-            {/* Owner controls */}
-            {isOwner && (
-              <div className="flex flex-wrap gap-2">
-                {isEditing ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="rounded-xl bg-emerald-500 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:opacity-60"
-                    >
-                      {saving ? "Saving…" : "Save changes"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      disabled={saving}
-                      className="rounded-xl border border-emerald-200 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={startEdit}
-                      className="rounded-xl border border-emerald-200 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                    >
-                      Edit post
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="rounded-xl border border-red-200 px-4 py-2 text-xs sm:text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
-                    >
-                      {deleting ? "Deleting…" : "Delete"}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            {/* ขวาสุด: ถ้า editing แสดง Save/Cancel, ถ้าไม่ แสดงเมนูสามจุด */}
+            <div className="relative flex-shrink-0">
+              {isEditing && isOwner ? (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="rounded-xl bg-emerald-500 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:opacity-60"
+                  >
+                    {saving ? "Saving…" : "Save changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    disabled={saving}
+                    className="rounded-xl border border-emerald-200 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Post actions"
+                    onClick={() => setActionsOpen((v) => !v)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-100 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50 hover:border-emerald-200"
+                  >
+                    <EllipsisVerticalIcon className="h-5 w-5" />
+                  </button>
+
+                  {actionsOpen && (
+                    <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-emerald-100 bg-white/95 shadow-xl shadow-emerald-900/10 text-sm z-50">
+                      <div className="py-1">
+                        {isOwner && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={startEdit}
+                              className="flex w-full items-center gap-3 px-3 py-2.5 text-emerald-900 hover:bg-emerald-50 transition-colors"
+                            >
+                              <PencilSquareIcon className="h-4 w-4 text-emerald-600" />
+                              <span className="font-medium">Edit post</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleDelete}
+                              disabled={deleting}
+                              className="flex w-full items-center gap-3 px-3 py-2.5 hover:bg-red-50 transition-colors disabled:opacity-60"
+                            >
+                              <TrashIcon className="h-4 w-4 text-red-500" />
+                              <div className="flex flex-col items-start">
+                                <span className="text-sm font-semibold text-red-600">
+                                  {deleting ? "Deleting…" : "Delete post"}
+                                </span>
+                                <span className="text-[11px] text-red-500/80">
+                                  Permanent action
+                                </span>
+                              </div>
+                            </button>
+
+                            <div className="my-1 h-px bg-emerald-100" />
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowReport(true);
+                            setActionsOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-3 py-2.5 hover:bg-amber-50 transition-colors"
+                        >
+                          <FlagIcon className="h-4 w-4 text-amber-500" />
+                          <div className="flex flex-col items-start">
+                            <span className="text-sm font-semibold text-amber-800">
+                              Report post
+                            </span>
+                            <span className="text-[11px] text-amber-700/80">
+                              Tell admins about this content
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </header>
 
           {/* Message */}
@@ -523,7 +603,15 @@ export default function BlogPostPage() {
                 placeholder="Write your post…"
               />
             ) : (
-              <p className="whitespace-pre-wrap">{post.message}</p>
+              <p
+                className="whitespace-pre-wrap break-words"
+                style={{
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {post.message}
+              </p>
             )}
           </section>
 
@@ -596,7 +684,6 @@ export default function BlogPostPage() {
               {/* Edit mode attachments */}
               {isEditing && (
                 <div className="space-y-4">
-                  {/* existing attachments with remove */}
                   {draftAtts.length > 0 && (
                     <ul className="space-y-3">
                       {draftAtts.map((att, idx) => {
@@ -644,7 +731,6 @@ export default function BlogPostPage() {
                     </ul>
                   )}
 
-                  {/* new files list */}
                   {newFiles.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-xs font-semibold text-emerald-700">
@@ -672,7 +758,6 @@ export default function BlogPostPage() {
                     </div>
                   )}
 
-                  {/* file input */}
                   <div className="text-xs text-emerald-700/80">
                     <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">
                       <span>+ Add files</span>
@@ -709,11 +794,20 @@ export default function BlogPostPage() {
               currentUserId={currentUserId}
             />
           </div>
+
+          {/* ReportDialog */}
+          {showReport && (
+            <ReportDialog
+              targetType="blog"
+              targetId={post.blog_id}
+              onClose={() => setShowReport(false)}
+            />
+          )}
         </article>
 
         {/* ----- SIDEBAR SEARCH CARD ----- */}
         <aside className="lg:col-span-1">
-          <div className="rounded-3xl border border-emerald-100 bg-white/80 p-6 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg:white/80 bg-white/80 p-6 shadow-sm">
             <OtherPostsSearch posts={otherPosts} />
           </div>
         </aside>

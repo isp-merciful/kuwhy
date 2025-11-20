@@ -129,19 +129,43 @@ export default function NewBlogPage() {
 
       files.forEach((f) => fd.append("attachments", f));
 
+      // ✅ จุดที่หายไป: ต้องประกาศ res ก่อนใช้
       const res = await fetch(`${API_BASE}/api/blog`, {
         method: "POST",
+        credentials: "include",
         headers: {
-          ...authHeaders, // Bearer token
+          // อย่าใส่ Content-Type เอง เพราะใช้ FormData
+          ...(authHeaders || {}),
         },
-        body: fd, // multer จะจัดการ multipart
+        body: fd,
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.error("create blog failed:", res.status, text);
+        // พยายามอ่าน body กลับมาก่อน
+        let raw = "";
+        let data = null;
+        try {
+          raw = await res.text();
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            // ถ้า parse json ไม่ได้ ก็ใช้ raw เป็น text ธรรมดา
+          }
+        } catch {
+          // อ่าน body ไม่ได้ก็ปล่อยไป
+        }
+
+        // 🔒 เคสโดน punish จาก ensureNotPunished
+        if (res.status === 403 && data && data.code === "PUNISHED") {
+          alert(
+            data.error ||
+              "Your account is currently restricted from creating blogs. Your blog was not posted."
+          );
+          return;
+        }
+
+        console.error("create blog failed:", res.status, raw);
         alert("Failed to create blog. Please try again.");
-        setLoading(false);
         return;
       }
 
@@ -149,6 +173,7 @@ export default function NewBlogPage() {
     } catch (e) {
       console.error("create blog error:", e);
       alert("Failed to create blog. Please try again.");
+    } finally {
       setLoading(false);
     }
   };

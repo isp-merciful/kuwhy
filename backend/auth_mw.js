@@ -49,7 +49,10 @@ async function requireAuth(req, res, next) {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[requireAuth] verify failed:", e?.message || e);
     }
-    return res.status(401).json({ error: "Unauthorized" });
+    return res.status(401).json({
+      error: "Please log in to continue.",
+      error_code: "LOGIN_REQUIRED",
+    });
   }
 }
 
@@ -60,7 +63,10 @@ async function requireMember(req, res, next) {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[requireMember] verify failed:", e?.message || e);
     }
-    return res.status(401).json({ error: "Unauthorized" }); // verify ไม่ผ่าน
+        return res.status(401).json({
+      error: "Please log in to continue.",
+      error_code: "LOGIN_REQUIRED",
+    }); // verify ไม่ผ่าน
   }
   const role = String(req.user?.role || "");
   if (!["member", "admin"].includes(role)) {
@@ -76,7 +82,10 @@ async function requireAdmin(req, res, next) {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[requireAdmin] verify failed:", e?.message || e);
     }
-    return res.status(401).json({ error: "Unauthorized" });
+    return res.status(401).json({
+      error: "Please log in to admin account continue.",
+      error_code: "LOGIN_REQUIRED",
+    });
   }
   const role = String(req.user?.role || "");
   if (role !== "admin") {

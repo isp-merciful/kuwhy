@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import useUserId from "../Note/useUserId";
+import { useEffect, useState, useRef } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import useUserId from "../Note/useUserId"; // adjust path if needed
 
 // ✅ unify API_BASE like other files
 const API_BASE =
@@ -304,14 +306,47 @@ function CommentItem({
   );
 }
 
+/**
+ * Props:
+ *  - blogId: string | number   ← use this (from page)
+ *  - currentUserId?: string | null (optional; if not provided we read from useUserId())
+ */
 export default function CommentThread({ blogId, currentUserId = null }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rootText, setRootText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
 
+  // 🔔 toast state
+  const [toastMsg, setToastMsg] = useState("");
+  const toastTimerRef = useRef(null);
+
+  const router = useRouter();
+  const { data: session } = useSession();
+  const apiToken = session?.apiToken || null;
+
+  // prefer provided id; otherwise take the hook
   const hookUserId = useUserId();
   const userId = currentUserId || hookUserId;
+
+  function showErrorToast(message) {
+    if (!message) return;
+    setToastMsg(message);
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = setTimeout(() => {
+      setToastMsg("");
+    }, 3000); // 3 วินาทีหายเอง
+  }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   async function load() {
     if (!blogId) {
@@ -344,7 +379,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     if (!message?.trim()) return;
 
     const body = {
-      user_id: userId,
+      user_id: userId, // always send your user_id
       message: message.trim(),
       blog_id: Number(blogId),
       parent_comment_id,
@@ -352,17 +387,88 @@ export default function CommentThread({ blogId, currentUserId = null }) {
 
     const res = await fetch(`${API_BASE}/api/comment`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+      },
       body: JSON.stringify(body),
     });
 
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      // backend อาจไม่ส่ง JSON กลับ (แต่ปกติควรมี)
+    }
+
     if (!res.ok) {
+      // 🔒 เคสโดน punish (timeout / ban) จาก ensureNotPunished
+      if (res.status === 403 && data?.code === "PUNISHED") {
+        alert(
+          data?.error ||
+            "Your account is currently restricted from commenting. Your comment was not posted."
+        );
+        return;
+      }
+
+      // 🔒 เคส blog comment: ยังไม่ล็อกอิน → ให้ redirect ไปหน้า login
+      if (
+        res.status === 401 &&
+        data?.error_code === "LOGIN_REQUIRED_FOR_BLOG_COMMENT"
+      ) {
+        if (typeof window !== "undefined") {
+          const callback = encodeURIComponent(window.location.href);
+          router.push(`/login?callbackUrl=${callback}`);
+        } else {
+          router.push("/login");
+        }
+        return;
+      }
+
+      // 🔒 เคส blog comment: ล็อกอินแล้วแต่ยังไม่ได้ตั้ง login_name
+      if (
+        res.status === 403 &&
+        data?.error_code === "LOGIN_NAME_REQUIRED_FOR_BLOG_COMMENT"
+      ) {
+        alert("Please set your login name before commenting on blogs.");
+
+        if (typeof window !== "undefined") {
+          const callback = encodeURIComponent(window.location.href);
+          router.push(`/login?callbackUrl=${callback}`);
+        } else {
+          router.push("/login");
+        }
+        return;
+      }
+
+      // เคสอื่น ๆ → โยน error ให้ caller จัดการเหมือนเดิม
       let msg = "Failed to add comment";
-      try {
-        const data = await res.json();
-        if (data?.error || data?.message) msg = data.error || data.message;
-      } catch {}
+      if (data?.error || data?.message) msg = data.error || data.message;
       throw new Error(msg);
+    }
+
+    // ✅ มาถึงตรงนี้ = สร้างคอมเมนต์สำเร็จ → ยิง noti สำหรับ blog
+    const newCommentId =
+      data?.id ?? data?.comment?.comment_id ?? data?.comment_id ?? null;
+
+    if (newCommentId && userId && blogId != null) {
+      try {
+        await fetch(`${API_BASE}/api/noti`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender_id: userId,
+            comment_id: Number(newCommentId),
+            blog_id: Number(blogId),
+            parent_comment_id: parent_comment_id
+              ? Number(parent_comment_id)
+              : null,
+          }),
+        });
+      } catch (e) {
+        console.error("create blog comment notification failed:", e);
+        // ไม่ต้อง throw: ไม่อยากให้ noti พังแล้ว comment พังไปด้วย
+      }
     }
   }
 
@@ -376,8 +482,8 @@ export default function CommentThread({ blogId, currentUserId = null }) {
       setRootText("");
       await load();
     } catch (err) {
-      alert(err.message);
       console.error(err);
+      showErrorToast(err.message || "Failed to post comment.");
     }
   }
 
@@ -391,8 +497,8 @@ export default function CommentThread({ blogId, currentUserId = null }) {
       setReplyingTo(null);
       await load();
     } catch (err) {
-      alert(err.message);
       console.error(err);
+      showErrorToast(err.message || "Failed to post reply.");
     }
   }
 
@@ -401,79 +507,98 @@ export default function CommentThread({ blogId, currentUserId = null }) {
   };
 
   return (
-    <section className="pt-10 mt-6" aria-labelledby="comments-title">
-      {/* Header */}
-      <h2
-        id="comments-title"
-        className="text-xl font-semibold text-emerald-900"
-      >
-        Comments {items?.length ? `(${items.length})` : ""}
-      </h2>
+    <>
+      <section className="pt-10 mt-6" aria-labelledby="comments-title">
+        {/* Header */}
+        <h2
+          id="comments-title"
+          className="text-xl font-semibold text-emerald-900"
+        >
+          Comments {items?.length ? `(${items.length})` : ""}
+        </h2>
 
-      {/* No comments message ABOVE form */}
-      {!loading && items.length === 0 && (
-        <p className="mt-4 mb-2 text-sm text-emerald-700/70">
-          No comments yet. Be the first to comment!
-        </p>
-      )}
-
-      {/* ROOT COMMENT BOX */}
-      <form
-        onSubmit={submitRoot}
-        className="mt-3 rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur px-5 py-5 shadow-sm space-y-4"
-      >
-        <div>
-          <label
-            htmlFor="comment-input"
-            className="block text-sm font-semibold text-emerald-700/80 mb-1"
-          >
-            Add a comment
-          </label>
-          <p className="text-xs text-emerald-700/60 mb-2">
-            Your comment will be posted under your account
+        {/* No comments message ABOVE form */}
+        {!loading && items.length === 0 && (
+          <p className="mt-4 mb-2 text-sm text-emerald-700/70">
+            No comments yet. Be the first to comment!
           </p>
+        )}
+
+        {/* ROOT COMMENT BOX */}
+        <form
+          onSubmit={submitRoot}
+          className="mt-3 rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur px-5 py-5 shadow-sm space-y-4"
+        >
+          <div>
+            <label
+              htmlFor="comment-input"
+              className="block text-sm font-semibold text-emerald-700/80 mb-1"
+            >
+              Add a comment
+            </label>
+            <p className="text-xs text-emerald-700/60 mb-2">
+              Your comment will be posted under your account
+            </p>
+          </div>
+
+          <textarea
+            id="comment-input"
+            value={rootText}
+            onChange={(e) => setRootText(e.target.value)}
+            placeholder="Share your thoughts…"
+            className="w-full min-h-[120px] rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 placeholder-emerald-700/40 shadow-sm"
+          />
+
+          <div className="flex items-center justify-end">
+            <button
+              type="submit"
+              disabled={!rootText.trim()}
+              className="inline-flex items-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Post Comment
+            </button>
+          </div>
+        </form>
+
+        {/* COMMENT LIST */}
+        {loading ? (
+          <p className="mt-8 text-sm text-emerald-700/70">
+            Loading comments…
+          </p>
+        ) : items.length > 0 ? (
+          <ul className="mt-8 space-y-5">
+            {items.map((n) => (
+              <CommentItem
+                key={n.comment_id}
+                node={n}
+                replyingTo={replyingTo}
+                onReply={setReplyingTo}
+                onSubmitReply={submitReply}
+                currentUserId={userId}
+                onEdited={handleReload}
+                onDeleted={handleReload}
+              />
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      {/* 🔔 Toast message (error) */}
+      {toastMsg && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-xs rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg">
+          <div className="flex items-start gap-2">
+            <span className="mt-[2px] text-lg">⚠️</span>
+            <div className="flex-1">{toastMsg}</div>
+            <button
+              type="button"
+              onClick={() => setToastMsg("")}
+              className="ml-2 text-xs text-red-500 hover:text-red-700"
+            >
+              ✕
+            </button>
+          </div>
         </div>
-
-        <textarea
-          id="comment-input"
-          value={rootText}
-          onChange={(e) => setRootText(e.target.value)}
-          placeholder="Share your thoughts…"
-          className="w-full min-h-[120px] rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 placeholder-emerald-700/40 shadow-sm"
-        />
-
-        <div className="flex items-center justify-end">
-          <button
-            type="submit"
-            disabled={!rootText.trim()}
-            className="inline-flex items-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Post Comment
-          </button>
-        </div>
-      </form>
-
-      {/* COMMENT LIST */}
-      {loading ? (
-        <p className="mt-8 text-sm text-emerald-700/70">
-          Loading comments…
-        </p>
-      ) : items.length > 0 ? (
-        <ul className="mt-8 space-y-5">
-          {items.map((n) => (
-            <CommentItem
-              key={n.comment_id}
-              node={n}
-              replyingTo={replyingTo}
-              onReply={setReplyingTo}
-              onSubmitReply={submitReply}
-              currentUserId={userId}
-              onEdited={handleReload}
-              onDeleted={handleReload}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </section>
+      )}
+    </>
   );
 }

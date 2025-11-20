@@ -13,6 +13,12 @@ import { SignJWT } from 'jose';
 export const runtime = 'nodejs';
 const SECRET_BYTES = new TextEncoder().encode((process.env.NEXTAUTH_SECRET || '').trim());
 
+// 🟢 base URL ของ backend สำหรับต่อกับ /uploads/...
+const BACKEND_BASE =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.BACKEND_URL ||
+  'http://localhost:8000';
+
 async function ensureUsersRowFromNextAuthUser(user) {
   if (!user?.id) return;
   // สร้าง login_name fallback จากอีเมล (ถ้ามี)
@@ -56,9 +62,6 @@ function dicebearUrl(seed, size = 256, style = "thumbs") {
   return `https://api.dicebear.com/9.x/${style}/png?${params.toString()}`;
 }
 
-
-
-
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -83,7 +86,7 @@ export const authOptions = {
 
           const user_id = randomUUID();
           const hash = await bcrypt.hash(password, 10);
-          const emailFallback = `${login_name}@local.invalid`;
+          const emailFallback = null;
 
           const avatar = dicebearUrl(`u:${user_id}`, 256, "thumbs");
 
@@ -126,7 +129,7 @@ export const authOptions = {
         const ok = await bcrypt.compare(password, user.password);
         if (!ok) return null;
 
-        const emailSafe = user.email || `${user.login_name}@local.invalid`;
+        const emailSafe = user.email || null;
         await prisma.user.upsert({
           where: { id: user.user_id },
           update: { name: user.user_name, image: user.img ?? undefined, email: emailSafe },
@@ -152,25 +155,55 @@ export const authOptions = {
   session: { strategy: 'jwt', maxAge: 60 * 60 * 24 * 7 },
   secret: process.env.NEXTAUTH_SECRET,
 
-  // ❌ ไม่ต้อง ensure ใน signIn อีกต่อไป
   callbacks: {
-    async jwt({ token, user }) {
+    // 🟢 รองรับทั้ง login ปกติ และ useSession().update(...)
+    async jwt({ token, user, trigger, session }) {
+      // ตอน login ครั้งแรก
       if (user?.id) token.id = user.id;
+
+      // ตอน call useSession().update() จาก frontend (เช่น settings)
+      if (trigger === 'update' && session) {
+        if (session.image || session.img) {
+          token.picture = session.image || session.img || token.picture;
+        }
+        if (session.name) {
+          token.name = session.name;
+        }
+        if (session.login_name) {
+          token.login_name = session.login_name;
+        }
+      }
+
       if (token?.id) {
         const u = await prisma.users.findUnique({
           where: { user_id: token.id },
           select: { role: true, login_name: true, user_name: true, img: true, email: true },
         });
+
         if (u) {
-          token.role = u.role || 'anonymous';
-          token.login_name = u.login_name || null;
+          token.role = u.role || token.role || 'anonymous';
+          token.login_name = u.login_name ?? token.login_name ?? null;
           token.name = u.user_name || token.name;
-          token.picture = u.img || token.picture;
           token.email = u.email || token.email;
+
+          // แปลงรูปจาก DB ให้เป็น URL เต็ม
+          if (u.img) {
+            if (
+              u.img.startsWith('http://') ||
+              u.img.startsWith('https://') ||
+              u.img.startsWith('data:image')
+            ) {
+              token.picture = u.img;
+            } else {
+              token.picture = `${BACKEND_BASE}${u.img}`;
+            }
+          }
         }
       }
+
       return token;
     },
+
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
@@ -178,33 +211,28 @@ export const authOptions = {
         session.user.login_name = token.login_name || null;
         session.user.name = token.name || session.user.name;
         session.user.image = token.picture || session.user.image;
+        // เผื่อส่วนอื่นเรียก session.user.img
+        session.user.img = token.picture || session.user.img;
         session.user.email = token.email || session.user.email;
       }
-      // if (process.env.NEXTAUTH_SECRET && token?.id) {
-      //   session.apiToken = await encodeJwt({
-      //     token: { id: token.id, role: token.role || 'anonymous', login_name: token.login_name || null },
-      //     secret: process.env.NEXTAUTH_SECRET,
-      //     maxAge: 60 * 60 * 24 * 7,
-      //   });
-      // } else {
-      //   session.apiToken = null;
-      // }
-          if (token?.id) {
-      // 👉 ออกเป็น JWS 3 จุด (HS256) เสมอ — backend verify ได้ทันที
-      const payload = {
-        id: String(token.id),
-        role: token.role || 'anonymous',
-        login_name: token.login_name || null,
-        // ใส่พวก name/image เฉพาะจำเป็นเท่านั้นก็พอ
-      };
-      session.apiToken = await new SignJWT(payload)
-        .setProtectedHeader({ alg: 'HS256' })
-        .setIssuedAt()
-        .setExpirationTime('7d')
-        .sign(SECRET_BYTES);
-    } else {
-      session.apiToken = null;
-    }
+
+      if (token?.id) {
+        // 👉 ออกเป็น JWS 3 จุด (HS256) เสมอ — backend verify ได้ทันที
+        const payload = {
+          id: String(token.id),
+          role: token.role || 'anonymous',
+          login_name: token.login_name || null,
+          // ใส่พวก name/image เฉพาะจำเป็นเท่านั้นก็พอ
+        };
+        session.apiToken = await new SignJWT(payload)
+          .setProtectedHeader({ alg: 'HS256' })
+          .setIssuedAt()
+          .setExpirationTime('7d')
+          .sign(SECRET_BYTES);
+      } else {
+        session.apiToken = null;
+      }
+
       return session;
     },
   },
