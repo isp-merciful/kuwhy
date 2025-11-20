@@ -1,14 +1,16 @@
 const express = require("express");
 const { prisma } = require("./lib/prisma.cjs");
+const { ensureNotPunished } = require("./punish_mw");
+
 const router = express.Router();
 
 /* ------------------------- simple in-memory rate limiter ------------------------- */
 
 const commentRateStore = new Map();
 
-const COMMENT_MIN_INTERVAL_MS = 5000;   
-const COMMENT_BURST_WINDOW_MS = 60000;  
-const COMMENT_BURST_LIMIT = 10;         
+const COMMENT_MIN_INTERVAL_MS = 5000;   // 5 วินาที
+const COMMENT_BURST_WINDOW_MS = 60000;  // 60 วินาที
+const COMMENT_BURST_LIMIT = 10;         // สูงสุด 10 คอมเมนต์ / นาที ต่อ user/ip
 
 function getRateKey(req, userId) {
   const u = userId && String(userId).trim();
@@ -198,42 +200,61 @@ router.get("/blog/:blog_id", async (req, res) => {
     const tree = CommentTree(flat);
     res.json({ message: "getblog", comment: tree });
   } catch (error) {
-    console.error("❌ Fetch error:", error);
+    console.error("❌ Fetch blog comments error:", error);
     res
       .status(500)
-      .json({ error: error.message, message: "can't fetch blog comment" });
+      .json({ error: error.message || "can't fetch blog comment" });
   }
 });
 
-/* BLOG comments */
-router.get('/blog/:blog_id', async (req, res) => {
-  try {
-    const [rows] = await wire.query(
-      `SELECT c.*, u.user_name, u.img
-         FROM comment c
-         LEFT JOIN users u ON c.user_id = u.user_id
-        WHERE c.blog_id = ?
-        ORDER BY c.created_at ASC`,
-      [req.params.blog_id]
-    );
-    res.json({ message: "getblog", comment: CommentTree(rows) });
-  } catch (error) {
-    console.error("❌ Fetch blog comments error:", error);
-    res.status(500).json({ error: error.message || "can't fetch blog comment" });
-  }
-});
 /* --------------------------------------------
    POST /api/comment
    body: { user_id, message, note_id?, blog_id?, parent_comment_id? }
+
+   - anonymous / member ใช้เส้นนี้เหมือนกัน
+   - blog comment:
+       * ต้อง login (มี Authorization header)
+       * user นั้นต้องมี login_name (ตั้งชื่อแล้ว)
+   - punish_mw จะใช้ user_id ใน body เพื่อเช็ค timeout/ban
 --------------------------------------------- */
-router.post("/", async (req, res) => {
+router.post("/", ensureNotPunished, async (req, res) => {
   try {
-    const { user_id, message, blog_id, note_id, parent_comment_id } = req.body || {};
+    const { user_id, message, blog_id, note_id, parent_comment_id } =
+      req.body || {};
 
     if (!user_id || !message) {
       return res
         .status(400)
         .json({ error: "user_id และ message จำเป็น", error_code: "MISSING_FIELDS" });
+    }
+
+    const hasBlogId =
+      blog_id !== undefined && blog_id !== null && blog_id !== "";
+
+    // 🔒 blog comment ต้อง login + มี login_name
+    if (hasBlogId) {
+      // 1) ต้องมี Authorization header (login เท่านั้น)
+      if (!req.headers.authorization) {
+        return res.status(401).json({
+          error: "Login is required to comment on blogs.",
+          error_code: "LOGIN_REQUIRED_FOR_BLOG_COMMENT",
+        });
+      }
+
+      // 2) เช็คว่า user นี้มี login_name จริงไหม
+      const user = await prisma.users.findUnique({
+        where: { user_id: String(user_id) },
+        select: { login_name: true },
+      });
+
+      const loginName = user && user.login_name && String(user.login_name).trim();
+
+      if (!loginName) {
+        return res.status(403).json({
+          error: "You must set your login name before commenting on blogs.",
+          error_code: "LOGIN_NAME_REQUIRED_FOR_BLOG_COMMENT",
+        });
+      }
     }
 
     // ✅ กันบอทยิง / กันสแปม: เช็ค rate limit ก่อนสร้าง comment
@@ -254,10 +275,7 @@ router.post("/", async (req, res) => {
           note_id !== undefined && note_id !== null && note_id !== ""
             ? Number(note_id)
             : null,
-        blog_id:
-          blog_id !== undefined && blog_id !== null && blog_id !== ""
-            ? Number(blog_id)
-            : null,
+        blog_id: hasBlogId ? Number(blog_id) : null,
         parent_comment_id:
           parent_comment_id !== undefined &&
           parent_comment_id !== null &&
@@ -311,23 +329,6 @@ router.put("/:id", async (req, res) => {
   } catch (err) {
     console.error("❌ update error:", err);
     res.status(500).json({ error: "Failed to update comment" });
-  }
-});
-
-router.get('/blog/:blog_id', async (req, res) => {
-  try {
-    const [rows] = await wire.query(
-      `SELECT c.*, u.user_name, u.img
-         FROM comment c
-         LEFT JOIN users u ON c.user_id = u.user_id
-        WHERE c.blog_id = ?
-        ORDER BY c.created_at ASC`,
-      [req.params.blog_id]
-    );
-    res.json({ message: "getblog", comment: CommentTree(rows) });
-  } catch (error) {
-    console.error("❌ Fetch blog comments error:", error);
-    res.status(500).json({ error: error.message || "can't fetch blog comment" });
   }
 });
 

@@ -21,7 +21,7 @@ import PartyChat from "./PartyChat";
 import useUserId from "./useUserId";
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
 import ConfirmReplaceDialog from "./ConfirmReplaceDialog";
-
+import ConfirmLeaveDialog from "./ConfirmLeaveDialog"; //
 const MAX_NOTE_CHARS = 60;
 const WARNING_THRESHOLD = 55;
 
@@ -67,7 +67,8 @@ export default function NoteBubble() {
   const [showReplace, setShowReplace] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [replacing, setReplacing] = useState(false);
-
+  const [showLeave, setShowLeave] = useState(false);   
+  const [leaving, setLeaving] = useState(false);      
   // --- party states ---
   const [isParty, setIsParty] = useState(false);
   const [maxParty, setMaxParty] = useState(0);
@@ -833,7 +834,7 @@ export default function NoteBubble() {
                     </div>
                     {joinedMemberOnly && (
                       <button
-                        onClick={handleLeaveParty}
+                         onClick={() => setShowLeave(true)} 
                         className="text-sm px-3 py-1 rounded-full border border-red-300 text-red-600 hover:bg-red-50"
                       >
                         Leave
@@ -921,6 +922,21 @@ export default function NoteBubble() {
           } finally {
             setDeleting(false);
             setShowDelete(false);
+          }
+        }}
+      />
+      
+        <ConfirmLeaveDialog
+        open={showLeave}
+        onClose={() => setShowLeave(false)}
+        busy={leaving}
+        onConfirm={async () => {
+          try {
+            setLeaving(true);
+            await handleLeaveParty();   // ใช้ฟังก์ชันเดิม ทั้ง reset state/API
+          } finally {
+            setLeaving(false);
+            setShowLeave(false);
           }
         }}
       />

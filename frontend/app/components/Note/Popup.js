@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { XMarkIcon, UsersIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/solid";
 import CommentSection from "./CommentSection";
+import ReportDialog from "../ReportDialog";
 
 export default function Popup({
   showPopup,
@@ -47,9 +48,13 @@ export default function Popup({
   // toast
   const [toast, setToast] = useState(null); // { type, text, showLogin? }
 
+  // report dialog
+  const [showReportDialog, setShowReportDialog] = useState(false);
+
   const isParty = max > 0;
   const isFull = isParty && max > 0 && curr >= max;
   const memberWord = curr === 1 ? "member" : "members";
+  const canReportNote = !!noteId;
 
   const crazyLabel = useMemo(() => {
     const labels = [
@@ -150,14 +155,21 @@ export default function Popup({
     })();
   }, [showPopup, viewerUserId, authHeaders, noteId, joined]);
 
-  // reset เมื่อเปิดใหม่ กันค่า avatar/members จากโน้ตก่อนหน้าค้างมา
+  // reset เมื่อเปิดใหม่ กัน avatar/members โน้ตก่อนหน้าค้างมา
   useEffect(() => {
     if (!showPopup) return;
     setHostPfp(null);
     setMembers([]);
   }, [showPopup]);
 
-  // โหลด host + (ถ้าเป็นปาร์ตี้) members
+  // ปิด dialog ทิ้งตอน popup ถูกปิด
+  useEffect(() => {
+    if (!showPopup) {
+      setShowReportDialog(false);
+    }
+  }, [showPopup]);
+
+  // โหลด host + members
   useEffect(() => {
     if (!showPopup || !noteId) return;
     let aborted = false;
@@ -239,7 +251,7 @@ export default function Popup({
     };
   }, [showPopup, noteId, authHeaders, viewerUserId, hostPfp]);
 
-  // auto-join via ?autoJoin=1 (เฉพาะปาร์ตี้)
+  // auto-join via ?autoJoin=1
   useEffect(() => {
     const autoJoin = search.get("autoJoin") === "1";
     if (!autoJoin || !isParty || joined || !noteId) return;
@@ -252,75 +264,73 @@ export default function Popup({
       return;
     }
 
-(async () => {
-  try {
-    const res = await fetch("http://localhost:8000/api/note/join", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ note_id: Number(noteId) }),
-    });
-    const data = await res.json().catch(() => ({}));
-
-    if (res.ok || data?.error === "already joined") {
-      // อัปเดต state เดิมเหมือนเคย
-      setJoined(true);
-      if (typeof data?.data?.crr_party === "number")
-        setCurr(Number(data.data.crr_party));
-      if (typeof data?.data?.max_party === "number")
-        setMax(Number(data.data.max_party));
-
-      // ✅ ยิง noti เฉพาะตอน "เพิ่ง join สำเร็จจริง ๆ" (res.ok)
-      //    ไม่ยิงตอน backend ตอบ already joined (ไม่ใช่การ join ใหม่)
+    (async () => {
       try {
-        if (res.ok && userId) {
-          await fetch("http://localhost:8000/api/noti", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sender_id: userId,          // คนที่เพิ่ง join
-              note_id: Number(noteId),    // party ของ note ไหน
-              event_type: "party_join",   // ให้ backend ส่ง noti แบบ join
-            }),
-          });
+        const res = await fetch("http://localhost:8000/api/note/join", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ note_id: Number(noteId) }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok || data?.error === "already joined") {
+          setJoined(true);
+          if (typeof data?.data?.crr_party === "number")
+            setCurr(Number(data.data.crr_party));
+          if (typeof data?.data?.max_party === "number")
+            setMax(Number(data.data.max_party));
+
+          // noti join ใช้ viewerUserId
+          try {
+            if (res.ok && viewerUserId) {
+              await fetch("http://localhost:8000/api/noti", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  sender_id: viewerUserId,
+                  note_id: Number(noteId),
+                  event_type: "party_join",
+                }),
+              });
+            }
+          } catch (e) {
+            console.error("send party_join notification failed:", e);
+          }
+
+          try {
+            router.refresh();
+          } catch (e) {
+            console.warn("router.refresh failed (autoJoin):", e);
+          }
+        } else {
+          if (data?.error_code === "ALREADY_IN_PARTY") {
+            setAlreadyInAnotherParty(true);
+            setCurrentPartyId(data?.current_note_id ?? null);
+            showToast(
+              "You are already in another party. Leave it first.",
+              "info"
+            );
+          } else if (data?.error_code === "PARTY_FULL") {
+            showToast("Party is full", "error");
+          } else {
+            showToast((data?.error || "Join failed").toString(), "error");
+          }
         }
-      } catch (e) {
-        console.error("send party_join notification failed:", e);
+      } catch {
+        showToast("Cannot join party right now", "error");
+      } finally {
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("autoJoin");
+          router.replace(
+            url.pathname +
+              (url.search ? "?" + url.searchParams.toString() : "")
+          );
+        } catch {}
       }
-
-      try {
-        router.refresh();
-      } catch (e) {
-        console.warn("router.refresh failed (autoJoin):", e);
-      }
-    } else {
-      if (data?.error_code === "ALREADY_IN_PARTY") {
-        setAlreadyInAnotherParty(true);
-        setCurrentPartyId(data?.current_note_id ?? null);
-        showToast(
-          "You are already in another party. Leave it first.",
-          "info"
-        );
-      } else if (data?.error_code === "PARTY_FULL") {
-        showToast("Party is full", "error");
-      } else {
-        showToast((data?.error || "Join failed").toString(), "error");
-      }
-    }
-  } catch {
-    showToast("Cannot join party right now", "error");
-  } finally {
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("autoJoin");
-      router.replace(
-        url.pathname +
-          (url.search ? "?" + url.searchParams.toString() : "")
-      );
-    } catch {}
-  }
-})();
-
-  }, [search, isParty, joined, noteId, authed, authHeaders, router]);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, isParty, joined, noteId, authed, authHeaders, router, viewerUserId]);
 
   async function softFetchActiveNote() {
     if (!viewerUserId) return null;
@@ -350,14 +360,12 @@ export default function Popup({
     }
   }
 
-
-
   async function handleJoin() {
     if (!noteId || !isParty || joined || joining) return;
 
     if (hasOwnNote && Number(ownNoteId) !== Number(noteId)) {
       showToast(
-        "You already have your own note.\nDelete it first, then you can join this party.",
+        "You уже have your own note.\nDelete it first, then you can join this party.",
         "info"
       );
       return;
@@ -548,7 +556,7 @@ export default function Popup({
                     </p>
                   </div>
 
-                  {/* bubble tail (unchanged) */}
+                  {/* bubble tail */}
                   <span
                     aria-hidden
                     className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-5 w-3 h-3 rounded-full bg-neutral-900"
@@ -595,44 +603,60 @@ export default function Popup({
             </div>
           </div>
 
-          {/* ===== AVATAR ===== */}
-          <div className="px-6 pt-5 pb-1 text-center shrink-0">
-            <div className="flex items-center justify-center">
-              <div className="flex items-center -space-x-3">
-                <div className="relative h-16 w-16 rounded-full ring-4 ring-white overflow-hidden shadow-lg">
-                  <img
-                    src={hostPfp || "/images/pfp.png"}
-                    alt="host"
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      if (e.currentTarget.src !== "/images/pfp.png")
-                        e.currentTarget.src = "/images/pfp.png";
-                    }}
-                  />
+          {/* ===== AVATAR + TITLE + REPORT ===== */}
+          <div className="px-6 pt-5 pb-1 shrink-0">
+            <div className="text-center">
+              <div className="flex items-center justify-center">
+                <div className="flex items-center -space-x-3">
+                  <div className="relative h-16 w-16 rounded-full ring-4 ring-white overflow-hidden shadow-lg">
+                    <img
+                      src={hostPfp || "/images/pfp.png"}
+                      alt="host"
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        if (e.currentTarget.src !== "/images/pfp.png")
+                          e.currentTarget.src = "/images/pfp.png";
+                      }}
+                    />
+                  </div>
+                  {isParty &&
+                    members.slice(0, 2).map((m) => (
+                      <div
+                        key={m.user_id}
+                        className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow-md"
+                      >
+                        <img
+                          src={m.img || "/images/pfp.png"}
+                          alt={m.user_name || "member"}
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            if (e.currentTarget.src !== "/images/pfp.png")
+                              e.currentTarget.src = "/images/pfp.png";
+                          }}
+                        />
+                      </div>
+                    ))}
                 </div>
-                {isParty &&
-                  members.slice(0, 2).map((m) => (
-                    <div
-                      key={m.user_id}
-                      className="relative h-10 w-10 rounded-full ring-2 ring-white overflow-hidden shadow-md"
-                    >
-                      <img
-                        src={m.img || "/images/pfp.png"}
-                        alt={m.user_name || "member"}
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          if (e.currentTarget.src !== "/images/pfp.png")
-                            e.currentTarget.src = "/images/pfp.png";
-                        }}
-                      />
-                    </div>
-                  ))}
+              </div>
+              <div className="mt-3 text-[15px] font-medium text-gray-900">
+                {isParty ? partyTitle : noteTitle}
               </div>
             </div>
-            <div className="mt-3 text-[15px] font-medium text-gray-900">
-              {isParty ? partyTitle : noteTitle}
-            </div>
+
+            {canReportNote && (
+              <div className="mt-1 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowReportDialog(true)}
+                  className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-rose-500 hover:underline hover:underline-offset-2 transition-colors"
+                >
+                  <span className="h-1 w-1 rounded-full bg-rose-300" />
+                  <span>Report</span>
+                </button>
+              </div>
+            )}
           </div>
+
 
           {/* ===== CONTENT ===== */}
           <div className="px-6 pb-6 pt-2 flex-1 min-h-0">
@@ -649,58 +673,76 @@ export default function Popup({
                   </span>
                 </div>
 
-              {joined ? (
-                <InfoCard tone="success">
-                  <p>You have already joined this party.</p>
-                  <p>Open your note to chat with members.</p>
-                </InfoCard>
-              ) : hasOwnNote && Number(ownNoteId) !== Number(noteId) ? (
-                <InfoCard tone="warn">
-                  <p>You already have your own note.</p>
-                  <p>Delete it first, then you can join this party.</p>
-                </InfoCard>
-              ) : alreadyInAnotherParty && Number(currentPartyId) !== Number(noteId) ? (
-                <InfoCard tone="warn">
-                  <p>You are already in another party.</p>
-                  <p>Leave it first, then you can join this one.</p>
-                </InfoCard>
-              ) : isFull ? (
-                <InfoCard tone="warn">
-                  <p>Party is full. Please check back later.</p>
-                </InfoCard>
-              ) : canShowCTA ? (
-                <div className="rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
-                  <div className="text-lg font-semibold text-gray-900">
-                    Joining {partyTitle}?
+                {joined ? (
+                  <InfoCard tone="success">
+                    <p>You have already joined this party.</p>
+                    <p>Open your note to chat with members.</p>
+                  </InfoCard>
+                ) : hasOwnNote &&
+                  Number(ownNoteId) !== Number(noteId) ? (
+                  <InfoCard tone="warn">
+                    <p>You already have your own note.</p>
+                    <p>Delete it first, then you can join this party.</p>
+                  </InfoCard>
+                ) : alreadyInAnotherParty &&
+                  Number(currentPartyId) !== Number(noteId) ? (
+                  <InfoCard tone="warn">
+                    <p>You are already in another party.</p>
+                    <p>Leave it first, then you can join this one.</p>
+                  </InfoCard>
+                ) : isFull ? (
+                  <InfoCard tone="warn">
+                    <p>Party is full. Please check back later.</p>
+                  </InfoCard>
+                ) : canShowCTA ? (
+                  <div className="rounded-2xl border border-gray-200 p-6 text-center shadow-sm">
+                    <div className="text-lg font-semibold text-gray-900">
+                      Joining {partyTitle}?
+                    </div>
+                    <div className="mt-1 text-sm text-gray-500">
+                      Join this party to chat with other members!
+                    </div>
+                    <div className="mt-5 flex justify-center gap-3">
+                      <button
+                        onClick={() => setShowPopup(false)}
+                        className="rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleJoin}
+                        disabled={joining}
+                        className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        {joining ? "Joining…" : "Join Party"}
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-1 text-sm text-gray-500">
-                    Join this party to chat with other members!
-                  </div>
-                  <div className="mt-5 flex justify-center gap-3">
-                    <button
-                      onClick={() => setShowPopup(false)}
-                      className="rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleJoin}
-                      disabled={joining}
-                      className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
-                    >
-                      {joining ? "Joining…" : "Join Party"}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
+                ) : null}
               </>
             ) : (
               <div className="mt-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-inner">
-                {/* CommentSection จะจัด scroll เองด้านใน */}
                 <CommentSection noteId={noteId} userId={viewerUserId} />
               </div>
             )}
           </div>
+
+          {/* ใช้ ReportDialog กลาง — แสดงเฉพาะตอนกดปุ่ม Report */}
+          {showReportDialog && (
+              <ReportDialog
+                open={showReportDialog}
+                onClose={() => setShowReportDialog(false)}
+                targetType="note"
+                targetId={noteId}
+                noteId={noteId}
+                targetUserId={ownerId}
+                reporterId={viewerUserId}
+                onSubmitted={() => {
+                  setShowReportDialog(false);
+                  showToast("Report submitted. Thank you.", "success");
+                }}
+              />
+          )}
 
           <Toast toast={toast} onClose={() => setToast(null)} />
         </motion.div>
@@ -717,7 +759,9 @@ function InfoCard({ tone = "info", children }) {
       ? "border-emerald-200 bg-emerald-50 text-emerald-800"
       : "border-amber-200 bg-amber-50 text-amber-800";
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneMap}`}>{children}</div>
+    <div className={`rounded-2xl border px-4 py-3 text-sm ${toneMap}`}>
+      {children}
+    </div>
   );
 }
 
@@ -753,6 +797,7 @@ function Toast({ toast, onClose }) {
             )}
 
             <button
+              type="button"
               onClick={onClose}
               className="rounded-md px-2 py-0.5 text-xs/4 hover:bg-white/20"
             >
