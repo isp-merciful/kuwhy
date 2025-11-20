@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";                
 import useUserId from "../Note/useUserId";
 
 // ✅ unify API_BASE like other files
@@ -43,27 +44,125 @@ function formatDate(iso) {
   }
 }
 
-function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
+function CommentItem({
+  node,
+  onReply,
+  replyingTo,
+  onSubmitReply,
+  currentUserId,
+  onEdited,
+  onDeleted,
+}) {
   const [text, setText] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const isReplying = replyingTo === node.comment_id;
+  const isOwner =
+    currentUserId && String(node.user_id) === String(currentUserId);
 
   // ✅ avatar: use img from backend, convert to absolute, fallback to default
   const avatarSrc = node.img ? toAbs(node.img) : "/images/pfp.png";
 
+  // ✅ profile link (by login_name)
+  const profileHref = node.login_name
+    ? `/profile/${encodeURIComponent(node.login_name)}`
+    : null;
+
+  async function handleSaveEdit() {
+    const newText = text.trim();
+    if (!newText || saving) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/comment/${node.comment_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: newText }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to update comment");
+      } else {
+        setIsEditing(false);
+        onEdited?.(); // reload from parent
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update comment");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (deleting) return;
+    if (!window.confirm("Delete this comment?")) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/comment/${node.comment_id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to delete comment");
+      } else {
+        onDeleted?.(); // reload from parent
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to delete comment");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <li className="rounded-lg border border-gray-200 p-4">
+      {/* header line */}
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-        <img
-          src={avatarSrc}
-          alt={node.user_name ?? "User avatar"}
-          className="h-8 w-8 rounded-full object-cover"
-          onError={(e) => {
-            if (e.currentTarget.src !== "/images/pfp.png") {
-              e.currentTarget.src = "/images/pfp.png";
-            }
-          }}
-        />
-        <span className="font-medium">{node.user_name ?? "Anonymous"}</span>
+        {profileHref ? (
+          // ✅ Click avatar/name → profile/login_name
+          <Link
+            href={profileHref}
+            className="flex items-center gap-2 group"
+          >
+            <img
+              src={avatarSrc}
+              alt={node.user_name ?? "User avatar"}
+              className="h-8 w-8 rounded-full object-cover"
+              onError={(e) => {
+                if (e.currentTarget.src !== "/images/pfp.png") {
+                  e.currentTarget.src = "/images/pfp.png";
+                }
+              }}
+            />
+            <span className="font-medium group-hover:underline">
+              {node.user_name ?? "Anonymous"}
+            </span>
+          </Link>
+        ) : (
+          <>
+            <img
+              src={avatarSrc}
+              alt={node.user_name ?? "User avatar"}
+              className="h-8 w-8 rounded-full object-cover"
+              onError={(e) => {
+                if (e.currentTarget.src !== "/images/pfp.png") {
+                  e.currentTarget.src = "/images/pfp.png";
+                }
+              }}
+            />
+            <span className="font-medium">
+              {node.user_name ?? "Anonymous"}
+            </span>
+          </>
+        )}
+
         <span className="text-gray-400">·</span>
         <time title={`Created: ${formatDate(node.created_at)}`}>
           {node.created_at ? formatDate(node.created_at) : ""}
@@ -76,18 +175,75 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
           )}
 
         <button
-          onClick={() => onReply(node.comment_id)}
+          onClick={() => {
+            // if currently editing, ignore reply click
+            if (isEditing) return;
+            onReply(node.comment_id);
+          }}
           className="ml-auto text-xs text-blue-600 hover:underline"
         >
           Reply
         </button>
+
+        {/* owner-only actions */}
+        {isOwner && !isEditing && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setText(node.message || "");
+                setIsEditing(true);
+              }}
+              className="ml-2 text-xs text-emerald-600 hover:underline"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="ml-1 text-xs text-red-500 hover:underline disabled:opacity-50"
+            >
+              Delete
+            </button>
+          </>
+        )}
       </div>
 
-      <p className="mt-2 whitespace-pre-wrap text-gray-800">
-        {node.message}
-      </p>
+      {/* message or edit box */}
+      {!isEditing ? (
+        <p className="mt-2 whitespace-pre-wrap text-gray-800">
+          {node.message}
+        </p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            className="w-full min-h-[80px] rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              disabled={saving || !text.trim()}
+              className="rounded-md border border-emerald-500 bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
-      {isReplying && (
+      {/* reply box – disabled while editing */}
+      {isReplying && !isEditing && (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -111,7 +267,10 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
             </button>
             <button
               type="button"
-              onClick={() => onReply(null)}
+              onClick={() => {
+                setText("");
+                onReply(null);
+              }}
               className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
             >
               Cancel
@@ -120,6 +279,7 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
         </form>
       )}
 
+      {/* children */}
       {node.children?.length ? (
         <div className="mt-3 border-l pl-6">
           <ul className="space-y-4">
@@ -130,6 +290,9 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
                 onReply={onReply}
                 replyingTo={replyingTo}
                 onSubmitReply={onSubmitReply}
+                currentUserId={currentUserId}
+                onEdited={onEdited}
+                onDeleted={onDeleted}
               />
             ))}
           </ul>
@@ -231,11 +394,12 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     }
   }
 
+  const handleReload = () => {
+    load();
+  };
+
   return (
-    <section
-      className="pt-10 mt-6"
-      aria-labelledby="comments-title"
-    >
+    <section className="pt-10 mt-6" aria-labelledby="comments-title">
       {/* Header */}
       <h2
         id="comments-title"
@@ -301,6 +465,9 @@ export default function CommentThread({ blogId, currentUserId = null }) {
               replyingTo={replyingTo}
               onReply={setReplyingTo}
               onSubmitReply={submitReply}
+              currentUserId={userId}
+              onEdited={handleReload}
+              onDeleted={handleReload}
             />
           ))}
         </ul>

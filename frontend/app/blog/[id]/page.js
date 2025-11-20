@@ -693,9 +693,13 @@ export default function BlogPostPage() {
           </footer>
 
           {/* Comments */}
-          <div className="mt-10">
-            <CommentThread blogId={post.blog_id} />
-          </div>
+<div className="mt-10">
+  <CommentThread
+    blogId={post.blog_id}
+    currentUserId={currentUserId}
+  />
+</div>
+
         </article>
 
         {/* ----- SIDEBAR SEARCH CARD ----- */}
