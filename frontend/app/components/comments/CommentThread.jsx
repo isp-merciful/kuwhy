@@ -5,7 +5,21 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import useUserId from "../Note/useUserId"; // adjust path if needed
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+// ✅ unify API_BASE like other files
+const API_BASE =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.API_BASE ||
+  "http://localhost:8000";
+
+// ✅ helper: convert /uploads/... to full URL
+function toAbs(url) {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
+  // frontend static asset, e.g. /images/pfp.png
+  return url;
+}
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -35,19 +49,28 @@ function CommentItem({ node, onReply, replyingTo, onSubmitReply }) {
   const [text, setText] = useState("");
   const isReplying = replyingTo === node.comment_id;
 
+  // ✅ avatar: use img from backend, convert to absolute, fallback to default
+  const avatarSrc = node.img ? toAbs(node.img) : "/images/pfp.png";
+
   return (
     <li className="rounded-lg border border-gray-200 p-4">
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
         <img
-          src={node.img || "/images/pfp.png"}
-          alt=""
+          src={avatarSrc}
+          alt={node.user_name ?? "User avatar"}
           className="h-8 w-8 rounded-full object-cover"
+          onError={(e) => {
+            if (e.currentTarget.src !== "/images/pfp.png") {
+              e.currentTarget.src = "/images/pfp.png";
+            }
+          }}
         />
         <span className="font-medium">{node.user_name ?? "Anonymous"}</span>
         <span className="text-gray-400">·</span>
         <time title={`Created: ${formatDate(node.created_at)}`}>
           {node.created_at ? formatDate(node.created_at) : ""}
         </time>
+
         {node.updated_at &&
           new Date(node.updated_at).getTime() !==
             new Date(node.created_at).getTime() && (
@@ -149,7 +172,6 @@ export default function CommentThread({ blogId, currentUserId = null }) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      // backend: { message: "getblog", comment: [...] }
       const list = Array.isArray(json?.comment) ? json.comment : [];
       setItems(list);
     } catch (e) {
@@ -243,6 +265,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     e.preventDefault();
     const text = rootText.trim();
     if (!text) return;
+
     try {
       await postComment({ message: text });
       setRootText("");
@@ -255,7 +278,10 @@ export default function CommentThread({ blogId, currentUserId = null }) {
 
   async function submitReply(parentId, text, clear) {
     try {
-      await postComment({ message: text, parent_comment_id: parentId });
+      await postComment({
+        message: text,
+        parent_comment_id: parentId,
+      });
       clear?.();
       setReplyingTo(null);
       await load();
@@ -275,10 +301,17 @@ export default function CommentThread({ blogId, currentUserId = null }) {
         Comments {items?.length ? `(${items.length})` : ""}
       </h2>
 
-      {/* --- ROOT COMMENT COMPOSER --- */}
+      {/* No comments message ABOVE form */}
+      {!loading && items.length === 0 && (
+        <p className="mt-4 mb-2 text-sm text-emerald-700/70">
+          No comments yet. Be the first to comment!
+        </p>
+      )}
+
+      {/* ROOT COMMENT BOX */}
       <form
         onSubmit={submitRoot}
-        className="mt-5 rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur px-5 py-5 shadow-sm space-y-4"
+        className="mt-3 rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur px-5 py-5 shadow-sm space-y-4"
       >
         <div>
           <label
@@ -311,10 +344,12 @@ export default function CommentThread({ blogId, currentUserId = null }) {
         </div>
       </form>
 
-      {/* --- COMMENT LIST --- */}
+      {/* COMMENT LIST */}
       {loading ? (
-        <p className="mt-8 text-sm text-emerald-700/70">Loading comments…</p>
-      ) : items?.length ? (
+        <p className="mt-8 text-sm text-emerald-700/70">
+          Loading comments…
+        </p>
+      ) : items.length > 0 ? (
         <ul className="mt-8 space-y-5">
           {items.map((n) => (
             <CommentItem
@@ -326,11 +361,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
             />
           ))}
         </ul>
-      ) : (
-        <p className="mt-8 text-sm text-emerald-700/70">
-          No comments yet. Be the first to comment!
-        </p>
-      )}
+      ) : null}
     </section>
   );
 }

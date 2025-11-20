@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Avatar from "../components/Note/Avatar";
 import BlogList from "../components/blog/BlogList";
+
+const PRESET_TAGS = ["homework", "health", "game", "anime", "food", "other"];
 
 export default function BlogPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-
+  const avatarImg = session?.user?.image || null;
   // --- read current query params ---
   const currentTag = searchParams.get("tag") || "";
   const currentSort = (searchParams.get("sort") || "newest").toLowerCase();
@@ -32,14 +35,13 @@ export default function BlogPage() {
     setTitleInput(currentTitle);
   }, [currentTitle]);
 
-  // ✅ ใช้ session.user.name เป็นหลัก (มาจาก users.user_name ใน DB)
   const displayName =
-    session?.user?.name ||
+    session?.user?.user_name ||
     session?.user?.login_name ||
-    "anonymous";
+    session?.user?.name ||
+    "username";
 
-  // ✅ ดึงรูปจาก session.user.image (มาจาก users.img)
-  const avatarImg = session?.user?.image || null;
+  const avatarSeed = session?.user?.id || "blog-header-default";
 
   const handleBack = () => {
     router.push("/");
@@ -84,6 +86,36 @@ export default function BlogPage() {
     updateUrl(effectiveTag, newSort, effectiveTitle);
   };
 
+  // toggle preset tag in the comma-separated list, AND-style
+  const togglePresetTag = (tag) => {
+    setTagInput((prev) => {
+      const parts = prev
+        .split(",")
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean);
+
+      const lowerTag = tag.toLowerCase();
+      let next;
+
+      if (parts.includes(lowerTag)) {
+        // remove it
+        next = parts.filter((t) => t !== lowerTag);
+      } else {
+        // add it
+        next = [...parts, lowerTag];
+      }
+
+      return next.join(next.length > 0 ? ", " : "");
+    });
+  };
+
+  // set for highlighting active preset chips
+  const activePresetSet = new Set(
+    tagInput
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean)
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-green-50 to-emerald-100">
@@ -116,14 +148,7 @@ export default function BlogPage() {
 
           {/* Main header card */}
           <div className="w-full max-w-3xl mx-auto">
-            <div
-              className="
-                rounded-3xl border border-emerald-100 bg-white/80 shadow-sm
-                px-6 py-5 sm:px-8 sm:py-6
-                flex flex-col gap-4
-                sm:flex-row sm:items-center sm:justify-between
-              "
-            >
+            <div className="rounded-3xl border border-emerald-100 bg-white/80 backdrop-blur shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-center sm:items-stretch gap-4">
               <div className="flex items-center gap-4 w-full sm:w-auto">
                 {avatarImg ? (
                   <img
@@ -136,7 +161,6 @@ export default function BlogPage() {
                     {displayName.charAt(0).toUpperCase()}
                   </div>
                 )}
-
                 <div>
                   <div className="text-xs uppercase tracking-wide text-emerald-500 font-semibold">
                     Signed in as
@@ -150,10 +174,9 @@ export default function BlogPage() {
                 </div>
               </div>
 
-              {/* ขวา: ปุ่ม */}
-              <div className="w-full sm:w-auto flex justify-end sm:items-center">
+              <div className="w-full sm:w-auto flex sm:items-center">
                 <button
-                  className="inline-flex items-center rounded-3xl px-6 py-3 text-sm font-semibold shadow-md bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+                  className="w-full sm:w-auto inline-flex justify-center items-center rounded-3xl px-6 py-3 text-sm font-semibold shadow-md bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
                   onClick={handleNewPost}
                 >
                   Type your question here...
@@ -181,6 +204,27 @@ export default function BlogPage() {
                     placeholder="e.g. cat, homework, question"
                     className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
                   />
+
+                  {/* Preset tag chips */}
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    {PRESET_TAGS.map((tag) => {
+                      const isActive = activePresetSet.has(tag.toLowerCase());
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => togglePresetTag(tag)}
+                          className={`inline-flex items-center rounded-full px-3 py-1 border text-xs transition-colors ${
+                            isActive
+                              ? "border-emerald-500 bg-emerald-100 text-emerald-800"
+                              : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                          }`}
+                        >
+                          #{tag}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div>

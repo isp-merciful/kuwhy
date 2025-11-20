@@ -14,6 +14,17 @@ import {
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
 
+// --- only new helpers for avatar ---
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+
+function resolveAvatar(url) {
+  if (!url) return '/images/pfp.png';
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/images/')) return url;
+  return `${API_BASE}${url}`; // e.g. /uploads/user-xxx.jpg
+}
+// -----------------------------------
+
 export default function Navbar() {
   const { data: session, status } = useSession();
 
@@ -52,7 +63,10 @@ export default function Navbar() {
 
   const isAuthed = status === 'authenticated';
   const isAdmin = session?.user?.role === 'admin';
-  const avatarSrc = (session?.user?.image && String(session.user.image)) || '/images/pfp.png';
+
+  // ⭐ use custom img or NextAuth image, and run through resolver
+  const avatarSrc = resolveAvatar(session?.user?.img || session?.user?.image);
+
   const displayName = session?.user?.name || 'User';
 
   // ✅ ใช้ session ทำ handle สำหรับลิงก์ /profile/[handle]
@@ -178,8 +192,6 @@ export default function Navbar() {
           </div>
         </nav>
       </div>
-
-
     </header>
   );
 }

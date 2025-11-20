@@ -7,6 +7,17 @@ import { useSession } from "next-auth/react";
 import ActiveNoteViewer from "../../components/Note/ActiveNoteViewer";
 import BlogCard from "../../components/profile/BlogCard";
 
+// --- only new helpers (for avatar) ---
+const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+function resolveAvatar(url) {
+  if (!url) return "/images/pfp.png";        // final fallback
+  if (url.startsWith("http")) return url;    // full URL already
+  if (url.startsWith("/images/")) return url; // frontend static images
+  return `${API_BASE}${url}`;                // backend relative path (/uploads/...)
+}
+// --------------------------------------
+
 export default function ProfilePage() {
   const { data: session } = useSession();
   const params = useParams();
@@ -98,6 +109,9 @@ export default function ProfilePage() {
     [u?.user_bio, u?.bio, u?.description, u?.about].find((v) => !!v && String(v).trim()) || "";
   const website = normalizeUrl(u?.website);
 
+  // ⭐ use img from custom users table first, then NextAuth user.image
+  const avatarSrc = resolveAvatar(u.img || u.image);
+
   return (
     <div className="mx-auto max-w-5xl pb-16 relative">
       {/* cover เขียว-ฟ้าอ่อน */}
@@ -110,9 +124,14 @@ export default function ProfilePage() {
         <div className="relative inline-block">
           <div className="p-[3px] rounded-full bg-gradient-to-tr from-emerald-300 to-sky-300 inline-block shadow-sm">
             <img
-              src={u.img || "/avatar-placeholder.png"}
+              src={avatarSrc}
               alt={u.user_name || u.login_name}
               className="h-28 w-28 md:h-32 md:w-32 rounded-full object-cover ring-4 ring-white bg-white"
+              onError={(e) => {
+                if (e.currentTarget.src !== "/images/pfp.png") {
+                  e.currentTarget.src = "/images/pfp.png";
+                }
+              }}
             />
           </div>
 
@@ -128,15 +147,13 @@ export default function ProfilePage() {
                   [&_*]:break-words [&_*]:whitespace-pre-wrap [&_*]:leading-relaxed [&_*]:text-left
                 "
                 style={{
-                  overflowWrap: "anywhere",   // ตัดคำไทย/คำยาว
+                  overflowWrap: "anywhere", // ตัดคำไทย/คำยาว
                   wordBreak: "break-word",
                   lineBreak: "anywhere",
                   textWrap: "pretty",
                 }}
               >
-                <ActiveNoteViewer
-                  userId={u.user_id}
-                />
+                <ActiveNoteViewer userId={u.user_id} />
               </div>
             </div>
           )}
