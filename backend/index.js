@@ -87,9 +87,6 @@ console.log("[env] SMTP_USER =", process.env.SMTP_USER);
 console.log("[env] SMTP_PASS length =", process.env.SMTP_PASS?.length);
 console.log("[env] JWT_RESET_SECRET set =", !!process.env.JWT_RESET_SECRET);
 // ⬇️ เพิ่ม: นำเข้า jose แล้วประกาศ secret ให้ตรงกันทั้งไฟล์
-const { jwtDecrypt, jwtVerify } = require('jose');
-const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'unset-secret');
-const s = (process.env.NEXTAUTH_SECRET || '').trim();
 console.log('[BOOT] SECRET head/tail:', s.slice(0, 4), '...', s.slice(-4), 'len=', s.length);
 // profile/settings API (session required)
 //app.use("/api/settings", requireMember, settings);
