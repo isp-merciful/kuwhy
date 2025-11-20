@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import ReportDialog from "../ReportDialog"; // 👈 เพิ่ม import
 
 /* ---------------- utils ---------------- */
 const API = "http://localhost:8000/api";
@@ -94,6 +95,7 @@ function CommentItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.message || "");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showReport, setShowReport] = useState(false); // 👈 state สำหรับ report dialog
 
   const hasChildren = (comment.children || []).length > 0;
   const expanded = collapsedMap[comment.comment_id] ?? false;
@@ -162,58 +164,74 @@ function CommentItem({
         {/* bubble (group for hover) */}
         <div className="flex-1 min-w-0">
           <div className="group relative inline-block max-w-full">
-            {/* three-dots (owner only) */}
-            {isMine && (
-              <div
-                data-menu-anchor={comment.comment_id}
-                className={cx(
-                  "absolute top-2 right-3 md:right-3",
-                  "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition"
-                )}
+            {/* three-dots (ทุกคอมเมนต์, แต่เมนูต่างกัน) */}
+            <div
+              data-menu-anchor={comment.comment_id}
+              className={cx(
+                "absolute top-2 right-3 md:right-3",
+                "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition"
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="rounded-full p-1.5 bg-white shadow-sm ring-1 ring-gray-300 hover:bg-gray-50"
+                aria-label="More"
               >
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen((v) => !v)}
-                  className="rounded-full p-1.5 bg-white shadow-sm ring-1 ring-gray-300 hover:bg-gray-50"
-                  aria-label="More"
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-gray-600"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-gray-600"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </button>
+                  <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </button>
 
-                {menuOpen && (
-                  <div className="mt-1 w-32 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden text-sm">
-                    <button
-                      type="button"
-                      className="w-full px-3 py-2 text-left hover:bg-gray-50"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setEditing(true);
-                        setDraft(comment.message || "");
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50"
-                      onClick={async () => {
-                        setMenuOpen(false);
-                        await onDeleteSubmit(comment.comment_id);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+              {menuOpen && (
+                <div className="mt-1 w-32 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden text-sm">
+                  {/* ถ้าเป็นของตัวเอง → Edit / Delete */}
+                  {isMine && (
+                    <>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-gray-50"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setEditing(true);
+                          setDraft(comment.message || "");
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50"
+                        onClick={async () => {
+                          setMenuOpen(false);
+                          await onDeleteSubmit(comment.comment_id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                      <div className="h-px bg-gray-100" />
+                    </>
+                  )}
+
+                  {/* Report (มีทุกเคส) */}
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-amber-600 hover:bg-amber-50"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowReport(true);
+                    }}
+                  >
+                    Report
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* bubble */}
             <div className="rounded-2xl bg-white ring-1 ring-gray-200 shadow-sm px-4 py-3 pr-9">
@@ -387,6 +405,15 @@ function CommentItem({
           )}
         </div>
       </div>
+
+      {/* Report dialog (เฉพาะคอมเมนต์นี้) */}
+      {showReport && (
+        <ReportDialog
+          targetType="comment"
+          targetId={comment.comment_id}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </div>
   );
 }
@@ -592,7 +619,16 @@ export default function CommentSection({ noteId, userId }) {
       }
 
       if (!res.ok) {
-        // ✅ เคส rate limit
+        // 🔒 เคสโดน punish (timeout / ban)
+        if (res.status === 403 && data?.code === "PUNISHED") {
+          alert(
+            data?.error ||
+              "Your account is currently restricted from commenting. Your comment was not posted."
+          );
+          return;
+        }
+
+        // ⏱ เคส rate limit
         if (res.status === 429) {
           let retryAfterSec = Number(data?.retry_after);
           if (!Number.isFinite(retryAfterSec) || retryAfterSec <= 0) {
@@ -646,6 +682,7 @@ export default function CommentSection({ noteId, userId }) {
       setSubmitting(false);
     }
   }
+
 
   // reply
   async function handleReply(message, parentId) {

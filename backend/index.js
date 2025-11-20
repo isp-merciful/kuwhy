@@ -1,6 +1,5 @@
-// server.js
+// index.js (or server.js)
 const express = require('express');
-const bodyParser = require('body-parser');
 require('dotenv').config();
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
@@ -13,31 +12,46 @@ const noteRouter = require("./note_api");
 const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
+const reportApi = require("./report_api");
+const punishmentApi = require("./punishment_api");
+const { requireMember, requireAdmin } = require("./auth_mw");
+const settings = require("./user_setting_api");
 
-// 1) create app FIRST
-// const app = express();
+// jose debug
+const { jwtDecrypt, jwtVerify } = require('jose');
+const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'unset-secret');
+const s = (process.env.NEXTAUTH_SECRET || '').trim();
+console.log('[BOOT] SECRET head/tail:', s.slice(0, 4), '...', s.slice(-4), 'len=', s.length);
+
 const app = express();
-// 2) core middlewares
-app.use(express.json()); // replaces bodyParser.json()
+
+/* ================== CORE MIDDLEWARE ================== */
+
+// ✅ CORS – ONE config, not duplicated
 app.use(
   cors({
     origin:
       (process.env.CORS_ORIGIN && process.env.CORS_ORIGIN.split(",")) ||
       ["http://localhost:3000"],
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT","PATCH", "DELETE"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// 3) static uploads (ensure folder exists)
-const uploadDir = path.join(process.cwd(), "uploads"); // in container: /app/backend/uploads if cwd=/app/backend
+app.use(cookieParser());
+
+// ✅ Body parsers – higher limit for base64 avatars
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true, limit: "5mb" }));
+
+/* ================== STATIC UPLOADS ================== */
+
+const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 app.use("/uploads", express.static(uploadDir));
 
-// 4) routes
-app.use("/api/blog", blogRouter);
-const { requireMember, requireAdmin } = require("./auth_mw");
-const settings = require("./user_setting_api");   // PUT /api/setting  (session only) 
+/* ================== API ROUTES ================== */
 
 
 
@@ -46,7 +60,7 @@ const settings = require("./user_setting_api");   // PUT /api/setting  (session 
 
 app.use(cors({
   origin: "http://localhost:3000",
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
@@ -63,12 +77,14 @@ app.use("/api/note", noteRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", requireMember, partyChatApi);
 app.use("/api/settings",requireMember,settings)
+app.use("/api/report", reportApi);
+app.use("/api/punish", punishmentApi);
 
-// ⬇️ เพิ่ม: นำเข้า jose แล้วประกาศ secret ให้ตรงกันทั้งไฟล์
-const { jwtDecrypt, jwtVerify } = require('jose');
-const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'unset-secret');
-const s = (process.env.NEXTAUTH_SECRET || '').trim();
-console.log('[BOOT] SECRET head/tail:', s.slice(0, 4), '...', s.slice(-4), 'len=', s.length);
+
+// profile/settings API (session required)
+//app.use("/api/settings", requireMember, settings);
+
+/* ================== DEBUG ROUTES (unchanged) ================== */
 
 // คืน Authorization header ที่ BE ได้รับ
 app.get('/api/_debug/headers', (req, res) =>
@@ -137,7 +153,7 @@ app.get('/api/_debug/token-info', (req, res) => {
   }
 });
 
-// ✅ verify/decrypt token จริง ๆ (รองรับทั้ง JWE dir/A256GCM และ JWS HS256/HS512)
+// verify/decrypt token จริง ๆ
 app.get('/api/_debug/me', async (req, res) => {
   try {
     const auth = req.headers.authorization || '';
@@ -171,14 +187,9 @@ app.get('/api/_debug/me', async (req, res) => {
     });
   }
 });
-// ================================================
 
+/* ================== START SERVER ================== */
 
-
-
-
-
-// 5) start server (bind 0.0.0.0 for Docker)
 const port = process.env.PORT || 8000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

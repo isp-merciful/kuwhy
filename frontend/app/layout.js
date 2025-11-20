@@ -2,6 +2,7 @@ import { Roboto } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/navbar";
 import SessionProvider from "./components/SessionProvider";
+import PunishStatusModal from "./components/PunishStatusModal";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -24,6 +25,7 @@ export default function RootLayout({ children }) {
         <SessionProvider>
           <Navbar />
           <main className="flex-1 ">{children}</main>
+          <PunishStatusModal />
         </SessionProvider>
       </body>
     </html>
