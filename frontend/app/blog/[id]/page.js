@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
-import ReportDialog from "../../components/ReportDialog"; // 👈 เพิ่ม
+import ReportDialog from "../../components/ReportDialog";
 
 /* ---------------------- API base ---------------------- */
 
@@ -113,7 +113,6 @@ export default function BlogPostPage() {
 
   const { data: session } = useSession();
 
-  // ⭐ use the SAME token as /blog/new page
   const apiToken = session?.apiToken || null;
 
   const authHeaders = useMemo(
@@ -128,7 +127,7 @@ export default function BlogPostPage() {
   const [allPosts, setAllPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showReport, setShowReport] = useState(false); // 👈 state สำหรับ report
+  const [showReport, setShowReport] = useState(false);
 
   // edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -137,9 +136,12 @@ export default function BlogPostPage() {
 
   const [draftTitle, setDraftTitle] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
-  const [draftTags, setDraftTags] = useState(""); // "tag1, tag2"
-  const [draftAtts, setDraftAtts] = useState([]); // kept attachments
-  const [newFiles, setNewFiles] = useState([]); // File[]
+  const [draftTags, setDraftTags] = useState("");
+  const [draftAtts, setDraftAtts] = useState([]);
+  const [newFiles, setNewFiles] = useState([]);
+
+  // 🔹 state สำหรับเมนูสามจุด
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -170,7 +172,6 @@ export default function BlogPostPage() {
     };
   }, [id]);
 
-  // sync drafts when we enter edit mode
   useEffect(() => {
     if (!post || !isEditing) return;
     setDraftTitle(post.blog_title || "");
@@ -272,6 +273,7 @@ export default function BlogPostPage() {
     setDraftAtts(Array.isArray(post.attachments) ? post.attachments : []);
     setNewFiles([]);
     setIsEditing(true);
+    setActionsOpen(false);
   }
 
   function cancelEdit() {
@@ -319,7 +321,7 @@ export default function BlogPostPage() {
         body: formData,
         credentials: "include",
         headers: {
-          ...authHeaders, // Bearer apiToken
+          ...authHeaders,
         },
       });
 
@@ -367,7 +369,7 @@ export default function BlogPostPage() {
         method: "DELETE",
         credentials: "include",
         headers: {
-          ...authHeaders, // Bearer apiToken
+          ...authHeaders,
         },
       });
       if (!res.ok) {
@@ -428,20 +430,8 @@ export default function BlogPostPage() {
                   {post.created_at ? formatDate(post.created_at) : ""}
                 </time>
               </div>
-            </div>
 
-            {/* ปุ่ม Report blog */}
-            <div className="sm:mt-1">
-              <button
-                type="button"
-                onClick={() => setShowReport(true)}
-                className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100 hover:border-amber-300"
-              >
-                <span className="text-xs">⚠️</span>
-                <span>Report blog</span>
-              </button>
-
-              {/* Tags */}
+              {/* Tags อยู่ใต้ชื่อเสมอ เพื่อให้สแกนง่าย */}
               {isEditing ? (
                 <div className="mt-3">
                   <label className="block text-xs font-semibold text-emerald-700 mb-1">
@@ -472,49 +462,83 @@ export default function BlogPostPage() {
               ) : null}
             </div>
 
-            {/* Owner controls */}
-            {isOwner && (
-              <div className="flex flex-wrap gap-2">
-                {isEditing ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="rounded-xl bg-emerald-500 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:opacity-60"
-                    >
-                      {saving ? "Saving…" : "Save changes"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      disabled={saving}
-                      className="rounded-xl border border-emerald-200 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={startEdit}
-                      className="rounded-xl border border-emerald-200 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                    >
-                      Edit post
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="rounded-xl border border-red-200 px-4 py-2 text-xs sm:text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
-                    >
-                      {deleting ? "Deleting…" : "Delete"}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            {/* ขวาสุด: ถ้า editing แสดง Save/Cancel, ถ้าไม่ แสดงเมนูสามจุด */}
+            <div className="relative flex-shrink-0">
+              {isEditing && isOwner ? (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="rounded-xl bg-emerald-500 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow hover:bg-emerald-600 disabled:opacity-60"
+                  >
+                    {saving ? "Saving…" : "Save changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    disabled={saving}
+                    className="rounded-xl border border-emerald-200 px-4 py-2 text-xs sm:text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Post actions"
+                    onClick={() => setActionsOpen((v) => !v)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-100 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50 hover:border-emerald-200"
+                  >
+                    {/* icon สามจุดแนวตั้ง */}
+                    <span className="inline-block leading-none text-lg">
+                      ⋮
+                    </span>
+                  </button>
+
+                  {actionsOpen && (
+                    <div className="absolute right-0 mt-2 w-44 rounded-2xl border border-emerald-100 bg-white shadow-lg shadow-emerald-900/5 text-sm z-50">
+                      {isOwner && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={startEdit}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-emerald-800 hover:bg-emerald-50"
+                          >
+                            <span className="text-xs">✏️</span>
+                            <span>Edit post</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 disabled:opacity-60"
+                          >
+                            <span className="text-xs">🗑</span>
+                            <span>{deleting ? "Deleting…" : "Delete"}</span>
+                          </button>
+
+                          <div className="my-1 border-t border-emerald-100" />
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowReport(true);
+                          setActionsOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-amber-700 hover:bg-amber-50"
+                      >
+                        <span className="text-xs">⚠️</span>
+                        <span>Report blog</span>
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </header>
 
           {/* Message */}
@@ -600,7 +624,6 @@ export default function BlogPostPage() {
               {/* Edit mode attachments */}
               {isEditing && (
                 <div className="space-y-4">
-                  {/* existing attachments with remove */}
                   {draftAtts.length > 0 && (
                     <ul className="space-y-3">
                       {draftAtts.map((att, idx) => {
@@ -648,7 +671,6 @@ export default function BlogPostPage() {
                     </ul>
                   )}
 
-                  {/* new files list */}
                   {newFiles.length > 0 && (
                     <div className="space-y-2">
                       <div className="text-xs font-semibold text-emerald-700">
@@ -676,7 +698,6 @@ export default function BlogPostPage() {
                     </div>
                   )}
 
-                  {/* file input */}
                   <div className="text-xs text-emerald-700/80">
                     <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">
                       <span>+ Add files</span>
@@ -711,7 +732,7 @@ export default function BlogPostPage() {
             <CommentThread blogId={post.blog_id} />
           </div>
 
-          {/* ReportDialog: รายงาน blog นี้ */}
+          {/* ReportDialog */}
           {showReport && (
             <ReportDialog
               targetType="blog"

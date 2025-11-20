@@ -17,14 +17,16 @@ function resolveProfileImage(raw, fallbackSessionImage) {
   }
 
   if (!v) return "/images/pfp.png";
-  if (v.startsWith("data:image")) return v;       // local preview
+  if (v.startsWith("data:image")) return v; // local preview
   if (v.startsWith("http://") || v.startsWith("https://")) return v; // remote url
   // assume relative path from backend (e.g. "/uploads/xxx.png")
   return `${API_BASE}${v}`;
 }
 
 export default function ProfileSettingsPage() {
-  const { data: session, status } = useSession();
+  // 🟢 ดึง update มาด้วย
+  const { data: session, status, update } = useSession();
+
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -156,9 +158,38 @@ export default function ProfileSettingsPage() {
       }
       if (!res.ok) {
         setErrors({
-          general: data?.error || "Failed to update profile. Please try again.",
+          general:
+            data?.error || "Failed to update profile. Please try again.",
         });
         return;
+      }
+
+      // 🟢 อัปเดต session.image / session.img ให้เป็น URL รูปใหม่
+      try {
+        const u = data?.user || {};
+        let rawImg = u.img || formData.img || session?.user?.image || "";
+
+        if (typeof rawImg === "string" && rawImg.trim() !== "") {
+          rawImg = rawImg.trim();
+
+          // ถ้าเป็น path จาก backend เช่น "/uploads/xxx.png" ให้เติม BASE
+          let finalUrl = rawImg;
+          if (
+            !finalUrl.startsWith("http://") &&
+            !finalUrl.startsWith("https://") &&
+            !finalUrl.startsWith("data:image")
+          ) {
+            finalUrl = `${API_BASE}${finalUrl}`;
+          }
+
+          // เรียก next-auth update
+          await update({
+            image: finalUrl,
+            img: finalUrl,
+          });
+        }
+      } catch (err) {
+        console.warn("[settings] failed to update session image", err);
       }
 
       setSuccessMessage("Profile updated successfully!");

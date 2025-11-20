@@ -129,13 +129,6 @@ export default function NewBlogPage() {
 
       files.forEach((f) => fd.append("attachments", f));
 
-      const res = await fetch(`${API_BASE}/api/blog`, {
-        method: "POST",
-        headers: {
-          ...authHeaders, // Bearer token
-        },
-        body: fd, // multer จะจัดการ multipart
-      });
 
       if (!res.ok) {
         // พยายามอ่าน body กลับมาก่อน

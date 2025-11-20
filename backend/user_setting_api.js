@@ -24,7 +24,7 @@ async function saveBase64Image(userId, dataUrl) {
 
   const buffer = Buffer.from(base64, "base64");
 
-  const uploadsDir = path.join(process.cwd(), "uploads");
+   const uploadsDir = path.join(process.cwd(), "uploads");
   await fs.promises.mkdir(uploadsDir, { recursive: true });
 
   const fileName = `pfp_${userId}_${Date.now()}.${ext}`;
@@ -32,10 +32,22 @@ async function saveBase64Image(userId, dataUrl) {
 
   await fs.promises.writeFile(filePath, buffer);
 
-  // this is what the frontend will use, served by express.static("/uploads", ...)
   const publicPath = `/uploads/${fileName}`;
-  return publicPath;
+
+  // 🟢 แปลงเป็น URL เต็มก่อนเก็บลง DB
+  const BASE =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.BACKEND_URL ||
+    "http://localhost:8000";
+
+  const fullUrl =
+    publicPath.startsWith("http://") || publicPath.startsWith("https://")
+      ? publicPath
+      : `${BASE}${publicPath}`;
+
+  return fullUrl;
 }
+
 
 router.put("/:id", async (req, res) => {
   try {
