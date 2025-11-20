@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";                
 import useUserId from "../Note/useUserId";
 
 // ✅ unify API_BASE like other files
@@ -57,6 +56,7 @@ function CommentItem({
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const isReplying = replyingTo === node.comment_id;
   const isOwner =
@@ -64,11 +64,6 @@ function CommentItem({
 
   // ✅ avatar: use img from backend, convert to absolute, fallback to default
   const avatarSrc = node.img ? toAbs(node.img) : "/images/pfp.png";
-
-  // ✅ profile link (by login_name)
-  const profileHref = node.login_name
-    ? `/profile/${encodeURIComponent(node.login_name)}`
-    : null;
 
   async function handleSaveEdit() {
     const newText = text.trim();
@@ -87,6 +82,7 @@ function CommentItem({
         alert(data.error || "Failed to update comment");
       } else {
         setIsEditing(false);
+        setShowMenu(false);
         onEdited?.(); // reload from parent
       }
     } catch (e) {
@@ -111,6 +107,7 @@ function CommentItem({
         const data = await res.json().catch(() => ({}));
         alert(data.error || "Failed to delete comment");
       } else {
+        setShowMenu(false);
         onDeleted?.(); // reload from parent
       }
     } catch (e) {
@@ -125,45 +122,31 @@ function CommentItem({
     <li className="rounded-lg border border-gray-200 p-4">
       {/* header line */}
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-        {profileHref ? (
-          // ✅ Click avatar/name → profile/login_name
-          <Link
-            href={profileHref}
-            className="flex items-center gap-2 group"
+        <img
+          src={avatarSrc}
+          alt={node.user_name ?? "User avatar"}
+          className="h-8 w-8 rounded-full object-cover"
+          onError={(e) => {
+            if (e.currentTarget.src !== "/images/pfp.png") {
+              e.currentTarget.src = "/images/pfp.png";
+            }
+          }}
+        />
+
+        {/* name (clickable to profile if login_name exists) */}
+        {node.login_name ? (
+          <a
+            href={`/profile/${encodeURIComponent(node.login_name)}`}
+            className="font-medium hover:underline hover:underline-offset-2"
           >
-            <img
-              src={avatarSrc}
-              alt={node.user_name ?? "User avatar"}
-              className="h-8 w-8 rounded-full object-cover"
-              onError={(e) => {
-                if (e.currentTarget.src !== "/images/pfp.png") {
-                  e.currentTarget.src = "/images/pfp.png";
-                }
-              }}
-            />
-            <span className="font-medium group-hover:underline">
-              {node.user_name ?? "Anonymous"}
-            </span>
-          </Link>
+            {node.user_name ?? "Anonymous"}
+          </a>
         ) : (
-          <>
-            <img
-              src={avatarSrc}
-              alt={node.user_name ?? "User avatar"}
-              className="h-8 w-8 rounded-full object-cover"
-              onError={(e) => {
-                if (e.currentTarget.src !== "/images/pfp.png") {
-                  e.currentTarget.src = "/images/pfp.png";
-                }
-              }}
-            />
-            <span className="font-medium">
-              {node.user_name ?? "Anonymous"}
-            </span>
-          </>
+          <span className="font-medium">{node.user_name ?? "Anonymous"}</span>
         )}
 
         <span className="text-gray-400">·</span>
+
         <time title={`Created: ${formatDate(node.created_at)}`}>
           {node.created_at ? formatDate(node.created_at) : ""}
         </time>
@@ -174,40 +157,56 @@ function CommentItem({
             <span className="text-gray-400">(edited)</span>
           )}
 
-        <button
-          onClick={() => {
-            // if currently editing, ignore reply click
-            if (isEditing) return;
-            onReply(node.comment_id);
-          }}
-          className="ml-auto text-xs text-blue-600 hover:underline"
-        >
-          Reply
-        </button>
+        {/* right controls: Reply + owner menu */}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (isEditing) return;
+              onReply(node.comment_id);
+              setShowMenu(false);
+            }}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            Reply
+          </button>
 
-        {/* owner-only actions */}
-        {isOwner && !isEditing && (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setText(node.message || "");
-                setIsEditing(true);
-              }}
-              className="ml-2 text-xs text-emerald-600 hover:underline"
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="ml-1 text-xs text-red-500 hover:underline disabled:opacity-50"
-            >
-              Delete
-            </button>
-          </>
-        )}
+          {isOwner && !isEditing && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowMenu((v) => !v)}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="More actions"
+              >
+                ⋯
+              </button>
+
+              {showMenu && (
+                <div className="absolute right-0 z-20 mt-1 w-28 rounded-md border border-gray-200 bg-white shadow-md">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setText(node.message || "");
+                      setIsEditing(true);
+                      setShowMenu(false);
+                    }}
+                    className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* message or edit box */}
@@ -233,7 +232,10 @@ function CommentItem({
             </button>
             <button
               type="button"
-              onClick={() => setIsEditing(false)}
+              onClick={() => {
+                setIsEditing(false);
+                setShowMenu(false);
+              }}
               className="rounded-md border px-3 py-1 text-sm hover:bg-gray-50"
             >
               Cancel
