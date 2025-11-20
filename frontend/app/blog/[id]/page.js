@@ -7,6 +7,12 @@ import LikeButtons from "../../components/blog/LikeButtons";
 import CommentThread from "../../components/comments/CommentThread";
 import OtherPostsSearch from "../../components/blog/OtherPostsSearch";
 import ReportDialog from "../../components/ReportDialog";
+import {
+  EllipsisVerticalIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  FlagIcon,
+} from "@heroicons/react/24/outline";
 
 /* ---------------------- API base ---------------------- */
 
@@ -206,7 +212,12 @@ export default function BlogPostPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Something went wrong</h1>
-        <p className="mt-2 text-gray-600">{error}</p>
+        <p
+          className="mt-2 text-gray-600 break-words"
+          style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+        >
+          {error}
+        </p>
         <button
           onClick={() => router.push("/blog")}
           className="mt-4 inline-block text-sm text-blue-600 underline"
@@ -221,7 +232,10 @@ export default function BlogPostPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 pt-24 pb-10">
         <h1 className="text-xl font-semibold">Post not found</h1>
-        <p className="mt-2 text-gray-600">
+        <p
+          className="mt-2 text-gray-600 break-words"
+          style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+        >
           We couldn&apos;t find a blog post with ID <code>{id}</code>.
         </p>
         <button
@@ -415,14 +429,26 @@ export default function BlogPostPage() {
                   placeholder="Post title"
                 />
               ) : (
-                <h1 className="text-2xl sm:text-3xl font-bold text-emerald-900">
+                <h1
+                  className="text-2xl sm:text-3xl font-bold text-emerald-900 break-words"
+                  style={{
+                    wordBreak: "break-word",
+                    overflowWrap: "anywhere",
+                  }}
+                >
                   {post.blog_title}
                 </h1>
               )}
 
               <div className="mt-2 text-sm text-emerald-700/80">
                 by{" "}
-                <span className="font-semibold">
+                <span
+                  className="font-semibold break-words"
+                  style={{
+                    wordBreak: "break-word",
+                    overflowWrap: "anywhere",
+                  }}
+                >
                   {post.user_name ?? "anonymous"}
                 </span>{" "}
                 ·{" "}
@@ -491,49 +517,63 @@ export default function BlogPostPage() {
                     onClick={() => setActionsOpen((v) => !v)}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-100 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50 hover:border-emerald-200"
                   >
-                    {/* icon สามจุดแนวตั้ง */}
-                    <span className="inline-block leading-none text-lg">
-                      ⋮
-                    </span>
+                    <EllipsisVerticalIcon className="h-5 w-5" />
                   </button>
 
                   {actionsOpen && (
-                    <div className="absolute right-0 mt-2 w-44 rounded-2xl border border-emerald-100 bg-white shadow-lg shadow-emerald-900/5 text-sm z-50">
-                      {isOwner && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={startEdit}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-emerald-800 hover:bg-emerald-50"
-                          >
-                            <span className="text-xs">✏️</span>
-                            <span>Edit post</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleDelete}
-                            disabled={deleting}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 disabled:opacity-60"
-                          >
-                            <span className="text-xs">🗑</span>
-                            <span>{deleting ? "Deleting…" : "Delete"}</span>
-                          </button>
+                    <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-emerald-100 bg-white/95 shadow-xl shadow-emerald-900/10 text-sm z-50">
+                      <div className="py-1">
+                        {isOwner && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={startEdit}
+                              className="flex w-full items-center gap-3 px-3 py-2.5 text-emerald-900 hover:bg-emerald-50 transition-colors"
+                            >
+                              <PencilSquareIcon className="h-4 w-4 text-emerald-600" />
+                              <span className="font-medium">Edit post</span>
+                            </button>
 
-                          <div className="my-1 border-t border-emerald-100" />
-                        </>
-                      )}
+                            <button
+                              type="button"
+                              onClick={handleDelete}
+                              disabled={deleting}
+                              className="flex w-full items-center gap-3 px-3 py-2.5 hover:bg-red-50 transition-colors disabled:opacity-60"
+                            >
+                              <TrashIcon className="h-4 w-4 text-red-500" />
+                              <div className="flex flex-col items-start">
+                                <span className="text-sm font-semibold text-red-600">
+                                  {deleting ? "Deleting…" : "Delete post"}
+                                </span>
+                                <span className="text-[11px] text-red-500/80">
+                                  Permanent action
+                                </span>
+                              </div>
+                            </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowReport(true);
-                          setActionsOpen(false);
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-amber-700 hover:bg-amber-50"
-                      >
-                        <span className="text-xs">⚠️</span>
-                        <span>Report blog</span>
-                      </button>
+                            <div className="my-1 h-px bg-emerald-100" />
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowReport(true);
+                            setActionsOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-3 py-2.5 hover:bg-amber-50 transition-colors"
+                        >
+                          <FlagIcon className="h-4 w-4 text-amber-500" />
+                          <div className="flex flex-col items-start">
+                            <span className="text-sm font-semibold text-amber-800">
+                              Report post
+                            </span>
+                            <span className="text-[11px] text-amber-700/80">
+                              Tell admins about this content
+                            </span>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </>
@@ -551,7 +591,15 @@ export default function BlogPostPage() {
                 placeholder="Write your post…"
               />
             ) : (
-              <p className="whitespace-pre-wrap">{post.message}</p>
+              <p
+                className="whitespace-pre-wrap break-words"
+                style={{
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {post.message}
+              </p>
             )}
           </section>
 
