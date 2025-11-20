@@ -1,63 +1,120 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import useUserId from "../components/Note/useUserId";
+import useUserId from "./Note/useUserId"; // ปรับ path ให้ตรงกับโปรเจกต์จริง
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 export default function PunishStatusModal() {
   const { data: session, status } = useSession();
-  const anonUserId = useUserId(); // anonymous user_id ที่ใช้โพสต์ note/comment
+  const anonUserId = useUserId(); // anonymous user_id (ตัวเดียวกับที่ใช้โพสต์ note/comment)
+
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState(null);
-  const checkedRef = useRef(false);
 
+  // flag กันยิงซ้ำ
+  const [checkedLogin, setCheckedLogin] = useState(false);
+  const [checkedAnon, setCheckedAnon] = useState(false);
+
+  /* ---------- เคส login (ใช้ /api/punish/me) ---------- */
   useEffect(() => {
-    if (checkedRef.current) return;
+    // ยังโหลด session อยู่ → รอก่อน
+    if (status === "loading") return;
 
-    async function check() {
+    // ถ้าไม่ได้ login → ไม่เช็กฝั่งนี้
+    if (status !== "authenticated") return;
+
+    // ไม่มี apiToken → เช็กอะไรไม่ได้
+    if (!session?.apiToken) return;
+
+    // เช็กไปแล้ว → ไม่ต้องเช็กอีกรอบ
+    if (checkedLogin) return;
+
+    let cancelled = false;
+
+    async function run() {
       try {
-        let res = null;
+        const res = await fetch(`${API_BASE}/api/punish/me`, {
+          headers: {
+            Authorization: `Bearer ${session.apiToken}`,
+          },
+          cache: "no-store",
+        });
 
-        // 🔑 เคส login → เช็กด้วย /api/punish/me + Bearer token
-        if (status === "authenticated" && session?.apiToken) {
-          res = await fetch(`${API_BASE}/api/punish/me`, {
-            headers: {
-              Authorization: `Bearer ${session.apiToken}`,
-            },
-            cache: "no-store",
-          });
-        }
-        // 👤 เคส anonymous → ใช้ user_id จาก useUserId() เรียก /api/punish/public
-        else if (anonUserId) {
-          const qs = new URLSearchParams({ user_id: anonUserId });
-          res = await fetch(
-            `${API_BASE}/api/punish/public?${qs.toString()}`,
-            {
-              cache: "no-store",
-            }
-          );
-        } else {
+        if (!res.ok) {
+          console.warn("punish/me not ok:", res.status);
           return;
         }
 
-        if (!res || !res.ok) return;
-
         const data = await res.json().catch(() => null);
-        if (data?.active) {
+        if (!cancelled && data?.active) {
           setInfo(data);
           setOpen(true);
         }
       } catch (e) {
-        console.error("check punish failed:", e);
+        console.error("check punish/me failed:", e);
       } finally {
-        checkedRef.current = true;
+        if (!cancelled) {
+          setCheckedLogin(true);
+        }
       }
     }
 
-    check();
-  }, [status, session, anonUserId]);
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, session, checkedLogin]);
+
+  /* ---------- เคส anonymous (ใช้ /api/punish/public) ---------- */
+  useEffect(() => {
+    // ถ้า login แล้ว → ใช้ฝั่ง /me แทน ไม่ต้องยิง /public
+    if (status === "authenticated") return;
+
+    // ยังไม่มี anonUserId → ยังเช็กไม่ได้
+    if (!anonUserId) return;
+
+    if (checkedAnon) return;
+
+    let cancelled = false;
+
+    async function run() {
+      try {
+        const qs = new URLSearchParams({ user_id: anonUserId });
+        const res = await fetch(
+          `${API_BASE}/api/punish/public?${qs.toString()}`,
+          {
+            cache: "no-store",
+          }
+        );
+
+        if (!res.ok) {
+          console.warn("punish/public not ok:", res.status);
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+        if (!cancelled && data?.active) {
+          setInfo(data);
+          setOpen(true);
+        }
+      } catch (e) {
+        console.error("check punish/public failed:", e);
+      } finally {
+        if (!cancelled) {
+          setCheckedAnon(true);
+        }
+      }
+    }
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, anonUserId, checkedAnon]);
 
   if (!open) return null;
 

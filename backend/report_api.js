@@ -33,9 +33,12 @@ router.post("/", requireMember, ensureNotPunished, async (req, res) => {
     const { targetType, targetId, reason, detail } = req.body || {};
     const reporterId = req.user && req.user.id;
 
-    if (!reporterId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+  if (!reporterId) {
+    return res.status(401).json({
+      error: "Please log in before reporting content.",
+      error_code: "LOGIN_REQUIRED_FOR_REPORT",
+    });
+  }
 
     const tType = normalizeTargetType(targetType);
     if (!tType) {
