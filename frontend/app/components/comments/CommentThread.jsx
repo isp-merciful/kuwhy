@@ -228,14 +228,14 @@ export default function CommentThread({ blogId, currentUserId = null }) {
       body: JSON.stringify(body),
     });
 
-    if (!res.ok) {
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        // ถ้า parse json ไม่ได้ก็ปล่อยให้เป็น null
-      }
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      // backend อาจไม่ส่ง JSON กลับ (แต่ปกติควรมี)
+    }
 
+    if (!res.ok) {
       // 🔒 เคสโดน punish (timeout / ban) จาก ensureNotPunished
       if (res.status === 403 && data?.code === "PUNISHED") {
         alert(
@@ -279,6 +279,30 @@ export default function CommentThread({ blogId, currentUserId = null }) {
       let msg = "Failed to add comment";
       if (data?.error || data?.message) msg = data.error || data.message;
       throw new Error(msg);
+    }
+
+    // ✅ มาถึงตรงนี้ = สร้างคอมเมนต์สำเร็จ → ยิง noti สำหรับ blog
+    const newCommentId =
+      data?.id ?? data?.comment?.comment_id ?? data?.comment_id ?? null;
+
+    if (newCommentId && userId && blogId != null) {
+      try {
+        await fetch(`${API_BASE}/api/noti`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender_id: userId,
+            comment_id: Number(newCommentId),
+            blog_id: Number(blogId),
+            parent_comment_id: parent_comment_id
+              ? Number(parent_comment_id)
+              : null,
+          }),
+        });
+      } catch (e) {
+        console.error("create blog comment notification failed:", e);
+        // ไม่ต้อง throw: ไม่อยากให้ noti พังแล้ว comment พังไปด้วย
+      }
     }
   }
 
