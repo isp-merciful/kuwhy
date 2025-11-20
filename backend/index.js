@@ -12,6 +12,7 @@ const noteRouter = require("./note_api");
 const userRouter = require("./user_api");
 const notificationRouter = require("./notification_api");
 const partyChatApi = require("./party_chat_api");
+const Forgotpassword = require("./forgot-password");
 const reportApi = require("./report_api");
 const punishmentApi = require("./punishment_api");
 const { requireMember, requireAdmin } = require("./auth_mw");
@@ -70,7 +71,8 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // === ส่วนอื่นตามสิทธิ์เดิม ===
-app.use("/api/blog", blogRouter);
+app.use("/auth",Forgotpassword );
+app.use("/api/blog", requireMember, blogRouter);
 app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/note", noteRouter);
@@ -81,6 +83,14 @@ app.use("/api/report", reportApi);
 app.use("/api/punish", punishmentApi);
 
 
+console.log("[env] SMTP_USER =", process.env.SMTP_USER);
+console.log("[env] SMTP_PASS length =", process.env.SMTP_PASS?.length);
+console.log("[env] JWT_RESET_SECRET set =", !!process.env.JWT_RESET_SECRET);
+// ⬇️ เพิ่ม: นำเข้า jose แล้วประกาศ secret ให้ตรงกันทั้งไฟล์
+const { jwtDecrypt, jwtVerify } = require('jose');
+const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'unset-secret');
+const s = (process.env.NEXTAUTH_SECRET || '').trim();
+console.log('[BOOT] SECRET head/tail:', s.slice(0, 4), '...', s.slice(-4), 'len=', s.length);
 // profile/settings API (session required)
 //app.use("/api/settings", requireMember, settings);
 
