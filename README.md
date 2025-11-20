@@ -118,60 +118,26 @@ kuwhy/
 
 ## 💻 Getting Started
 
-1. **Clone the repository**
-
-```bash
-git clone https://github.com/isp-merciful/kuwhy.git
-```
-
-2. **Install dependencies**
-
-* Frontend:
-
-```bash
-cd kuwhy/frontend && npm install
-```
-
-* Backend:
-
-## Getstarted
+**Install dependencies**
 ### 🧩 Prerequisites
 - [Docker](https://www.docker.com/)
-- [Docker Compose](https://docs.docker.com/compose/)
-- [Node.js v18+](https://nodejs.org/)
 - [Git](https://git-scm.com/)
-
-### ⚙️ Get Started in 3 Steps
 ```bash
 # 1. Clone the repository
 git clone https://github.com/isp-merciful/kuwhy.git
 cd kuwhy
+# setup all .env in kuwhy(root),frontend,backend
 
 # 2. Start all services with Docker
 docker-compose up --build -d
 
 # 3. Access the application
-# Frontend: http://localhost:[FRONTEND_PORT] -- to be add
-# Backend: http://localhost:[API_PORT] -- to be add
+Frontend: http://localhost:[FRONTEND_PORT] -- to be add
+Backend: http://localhost:[API_PORT] -- to be add
+
+# 4.Turn off
+docker-compose down -v
 ```
-
-## Environment Configuration
-Before running the app, create a .env file in the project root
-# Backend server port
-PORT=3000
-
-# Database connection
-DATABASE_URL="mysql://root:yourpassword@localhost:yourport/yourdatabase"
-
-# Frontend settings (optional)
-FRONTEND_PORT=5173
-
-# JWT or API secrets (if needed)
-JWT_SECRET="your-secret-key"
-
-## Docker Compose Example
-- db container port and .env database_url must same
-- backend container port must same as .envport
 
 **📖 Documentation**
 -  [Project Document (Google Docs)](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)  
