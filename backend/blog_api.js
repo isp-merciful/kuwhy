@@ -55,6 +55,8 @@ function mapBlog(b) {
     message: b.message,
     img: b.users?.img || null,
     user_name: b.users?.user_name || "anonymous",
+    // ⭐ add login_name so frontend can link to /profile/login_name
+    login_name: b.users?.login_name || null,
     user_id: b.user_id,
     created_at: b.created_at,
     attachments: Array.isArray(b.attachments) ? b.attachments : [],
@@ -139,7 +141,14 @@ router.get("/", optionalAuth, async (_req, res) => {
         updated_at: true,
         attachments: true,
         tags: true,
-        users: { select: { img: true, user_name: true } },
+        users: {
+          select: {
+            img: true,
+            user_name: true,
+            // ⭐ include login_name from users table
+            login_name: true,
+          },
+        },
       },
     });
 
@@ -172,7 +181,14 @@ router.get("/:id", optionalAuth, async (req, res) => {
         updated_at: true,
         attachments: true,
         tags: true,
-        users: { select: { img: true, user_name: true } },
+        users: {
+          select: {
+            img: true,
+            user_name: true,
+            // ⭐ include login_name here too
+            login_name: true,
+          },
+        },
       },
     });
     if (!b) return res.status(404).json({ error: "Not found" });
@@ -233,9 +249,6 @@ router.put(
       }
 
       // ------------ attachments ------------
-      // Frontend always sends attachments_json (string), e.g. "[]"
-      // so we treat it as "the exact list we want to keep",
-      // and then append any new uploads.
       let kept = [];
       const hasAttachmentsJson =
         typeof attachments_json !== "undefined" && attachments_json !== null;
@@ -259,10 +272,9 @@ router.put(
       const newUploaded = filesToAttachments(req.files || []);
 
       if (hasAttachmentsJson) {
-        // ⭐ even if kept & newUploaded are both empty → set attachments = []
+        // even if kept & newUploaded are both empty → set attachments = []
         data.attachments = [...kept, ...newUploaded];
       } else if (newUploaded.length > 0) {
-        // fallback: no attachments_json, just append to existing ones
         const existingAtts = Array.isArray(existing.attachments)
           ? existing.attachments
           : [];
@@ -288,7 +300,14 @@ router.put(
           updated_at: true,
           attachments: true,
           tags: true,
-          users: { select: { img: true, user_name: true } },
+          users: {
+            select: {
+              img: true,
+              user_name: true,
+              // ⭐ include login_name in update response as well
+              login_name: true,
+            },
+          },
         },
       });
 
@@ -334,7 +353,6 @@ router.delete("/:id", requireMember, async (req, res) => {
     res.status(500).json({ error: "can't deleted blog" });
   }
 });
-
 
 /* ----------------------- VOTE SIMPLE (LIKE/DISLIKE) ----------------------- */
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import LikeButtons from "../../components/blog/LikeButtons";
@@ -418,9 +419,18 @@ export default function BlogPostPage() {
 
               <div className="mt-2 text-sm text-emerald-700/80">
                 by{" "}
-                <span className="font-semibold">
-                  {post.user_name ?? "anonymous"}
-                </span>{" "}
+                {post.login_name ? (
+                  <Link
+                    href={`/profile/${encodeURIComponent(post.login_name)}`}
+                    className="font-semibold text-emerald-800 hover:underline"
+                  >
+                    {post.user_name ?? post.login_name ?? "anonymous"}
+                  </Link>
+                ) : (
+                  <span className="font-semibold">
+                    {post.user_name ?? "anonymous"}
+                  </span>
+                )}{" "}
                 ·{" "}
                 <time dateTime={post.created_at}>
                   {post.created_at ? formatDate(post.created_at) : ""}
@@ -693,13 +703,12 @@ export default function BlogPostPage() {
           </footer>
 
           {/* Comments */}
-<div className="mt-10">
-  <CommentThread
-    blogId={post.blog_id}
-    currentUserId={currentUserId}
-  />
-</div>
-
+          <div className="mt-10">
+            <CommentThread
+              blogId={post.blog_id}
+              currentUserId={currentUserId}
+            />
+          </div>
         </article>
 
         {/* ----- SIDEBAR SEARCH CARD ----- */}
