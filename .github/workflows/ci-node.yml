@@ -1,0 +1,68 @@
+name: CI (Node Lint & Test)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (backend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Lint backend
+        working-directory: backend
+        run: npm run lint --if-present
+
+      - name: Test backend
+        working-directory: backend
+        run: npm test --if-present
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build --if-present
+
+  frontend:
+    runs-on: ubuntu-latest
+    needs: backend    # อยากให้รอ backend ผ่านก่อนค่อยรันก็ใส่ ถ้าไม่ต้องก็เอาออกได้
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (frontend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint --if-present
+
+      - name: Test frontend
+        working-directory: frontend
+        run: npm test --if-present
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build --if-present
