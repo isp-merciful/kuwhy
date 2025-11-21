@@ -1,8 +1,6 @@
-// backend/__test__/party_chat.test.js
 const request = require("supertest");
 const express = require("express");
 
-// ---------- mock PrismaClient ----------
 
 const mockPrisma = {
   note: {
@@ -25,7 +23,6 @@ jest.mock("@prisma/client", () => {
   };
 });
 
-// ---------- mock punish_mw ----------
 
 jest.mock("../punish_mw", () => {
   const ensureNotPunished = jest.fn((_req, _res, next) => next());
@@ -35,7 +32,6 @@ jest.mock("../punish_mw", () => {
 const { ensureNotPunished } = require("../punish_mw");
 const partyChatRouter = require("../party_chat_api");
 
-// helper ให้ทุก request มี req.user.id แบบ fake
 function createApp(userId = "user-1") {
   const app = express();
   app.use(express.json());
@@ -52,7 +48,6 @@ beforeEach(() => {
 });
 
 describe("Party chat API", () => {
-  /* ----------------------- GET /api/chat/party/:noteId ----------------------- */
 
   it("GET /party/:noteId - 400 invalid note_id", async () => {
     const app = createApp();
@@ -85,13 +80,12 @@ describe("Party chat API", () => {
   it("GET /party/:noteId - 200 for owner/member and map messages with login_name", async () => {
     const now = new Date();
 
-    // user-1 เป็น owner ของ note 1
     mockPrisma.note.findUnique.mockResolvedValue({
       user_id: "user-1",
       max_party: 5,
     });
 
-    mockPrisma.party_members.findFirst.mockResolvedValue(null); // ไม่ถูกใช้จริง ๆ
+    mockPrisma.party_members.findFirst.mockResolvedValue(null); 
 
     mockPrisma.party_messages.findMany.mockResolvedValue([
       {
@@ -155,7 +149,7 @@ describe("Party chat API", () => {
 
     const m2 = res.body.messages[1];
     expect(m2.user_id).toBe("user-2");
-    expect(m2.user_name).toBe("anonymous"); // fallback
+    expect(m2.user_name).toBe("anonymous"); 
     expect(m2.img).toBeNull();
     expect(m2.login_name).toBeNull();
   });
@@ -177,7 +171,6 @@ describe("Party chat API", () => {
     expect(res.body.error).toBe("fetch party messages failed");
   });
 
-  /* ----------------------- POST /api/chat/party/:noteId ----------------------- */
 
   it("POST /party/:noteId - 400 invalid note_id", async () => {
     const app = createApp("user-1");
@@ -306,7 +299,6 @@ describe("Party chat API", () => {
     expect(res.body.error).toBe("send message failed");
   });
 
-  /* ----------------------- DELETE /api/chat/party/:noteId/:messageId ----------------------- */
 
   it("DELETE /party/:noteId/:messageId - 400 invalid params", async () => {
     const app = createApp("user-1");
@@ -355,7 +347,7 @@ describe("Party chat API", () => {
     mockPrisma.party_members.findFirst.mockResolvedValue(null);
     mockPrisma.party_messages.findUnique.mockResolvedValue({
       user_id: "user-1",
-      note_id: 999, // ไม่ตรงกับ noteId ที่ path ส่งมา
+      note_id: 999, 
     });
 
     const app = createApp("user-1");

@@ -9,7 +9,7 @@ export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [mode, setMode] = useState("request"); // 'request' | 'reset'
+  const [mode, setMode] = useState("request"); 
 
   // step 1: request reset link
   const [email, setEmail] = useState("");
@@ -60,7 +60,6 @@ export default function ResetPasswordPage() {
   /* ---------- helpers ---------- */
 
   async function safeJson(res) {
-    // พยายามอ่าน JSON ถ้าไม่ได้ให้ log HTML ไว้แล้วคืน {} แทน
     const ct = res.headers.get("content-type") || "";
     try {
       if (ct.includes("application/json")) {
@@ -109,7 +108,6 @@ export default function ResetPasswordPage() {
       if (!res.ok) {
         setGlobalError(data.error || "Failed to send reset link.");
       } else {
-        // backend จะตอบ generic message อยู่แล้ว
         setEmailStatus(
           "If this email is registered, we’ve sent a reset link to your inbox."
         );
@@ -157,7 +155,7 @@ export default function ResetPasswordPage() {
           "Password reset successful. You can now sign in with your new password."
         );
         setTimeout(() => {
-          router.push("/login"); // ปรับ path ตรงนี้ถ้า login อยู่ที่อื่น
+          router.push("/login"); 
         }, 2000);
       }
     } catch (err) {

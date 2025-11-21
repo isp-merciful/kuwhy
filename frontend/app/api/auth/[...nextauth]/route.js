@@ -1,4 +1,3 @@
-// app/api/auth/[...nextauth]/route.js
 import NextAuth from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -6,14 +5,12 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from '../../../../lib/prisma';
 import { encode as encodeJwt } from 'next-auth/jwt';
 import bcrypt from 'bcrypt';
-// import { dicebearUrl } from "../../../../lib/avatarUrl";
 import { randomUUID } from 'crypto';
 import { SignJWT } from 'jose';
 
 export const runtime = 'nodejs';
 const SECRET_BYTES = new TextEncoder().encode((process.env.NEXTAUTH_SECRET || '').trim());
 
-// 🟢 base URL ของ backend สำหรับต่อกับ /uploads/...
 const BACKEND_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.BACKEND_URL ||
@@ -21,7 +18,6 @@ const BACKEND_BASE =
 
 async function ensureUsersRowFromNextAuthUser(user) {
   if (!user?.id) return;
-  // สร้าง login_name fallback จากอีเมล (ถ้ามี)
   const emailLocal = user.email?.split('@')?.[0];
   const fallbackLoginName = (emailLocal || `user_${String(user.id).slice(0, 8)}`)?.toLowerCase();
 
@@ -29,7 +25,7 @@ async function ensureUsersRowFromNextAuthUser(user) {
   if (!exists) {
     await prisma.users.create({
       data: {
-        user_id: user.id,                         // ใช้ id ที่ adapter สร้างแล้ว (ตัวจริง)
+        user_id: user.id,                        
         user_name: user.name ?? 'anonymous',
         login_name: fallbackLoginName,
         password: '',
@@ -103,7 +99,6 @@ export const authOptions = {
                 email: emailFallback,
               },
             });
-            // sync ไปตาราง next-auth.User ให้ใช้ id เดียวกัน
             await tx.user.upsert({
               where: { id: u.user_id },
               update: { name: u.user_name, image: u.img, email: u.email },
@@ -122,7 +117,6 @@ export const authOptions = {
           };
         }
 
-        // LOGIN
         const user = await prisma.users.findUnique({ where: { login_name } });
         if (!user || !user.password) return null;
 
@@ -156,12 +150,9 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 
   callbacks: {
-    // 🟢 รองรับทั้ง login ปกติ และ useSession().update(...)
     async jwt({ token, user, trigger, session }) {
-      // ตอน login ครั้งแรก
       if (user?.id) token.id = user.id;
 
-      // ตอน call useSession().update() จาก frontend (เช่น settings)
       if (trigger === 'update' && session) {
         if (session.image || session.img) {
           token.picture = session.image || session.img || token.picture;
@@ -186,7 +177,6 @@ export const authOptions = {
           token.name = u.user_name || token.name;
           token.email = u.email || token.email;
 
-          // แปลงรูปจาก DB ให้เป็น URL เต็ม
           if (u.img) {
             if (
               u.img.startsWith('http://') ||
@@ -211,18 +201,15 @@ export const authOptions = {
         session.user.login_name = token.login_name || null;
         session.user.name = token.name || session.user.name;
         session.user.image = token.picture || session.user.image;
-        // เผื่อส่วนอื่นเรียก session.user.img
         session.user.img = token.picture || session.user.img;
         session.user.email = token.email || session.user.email;
       }
 
       if (token?.id) {
-        // 👉 ออกเป็น JWS 3 จุด (HS256) เสมอ — backend verify ได้ทันที
         const payload = {
           id: String(token.id),
           role: token.role || 'anonymous',
           login_name: token.login_name || null,
-          // ใส่พวก name/image เฉพาะจำเป็นเท่านั้นก็พอ
         };
         session.apiToken = await new SignJWT(payload)
           .setProtectedHeader({ alg: 'HS256' })
@@ -237,7 +224,6 @@ export const authOptions = {
     },
   },
 
-  // ✅ ทำให้แน่ใจว่าเรา sync หลัง adapter สร้างผู้ใช้แล้ว
   events: {
     async createUser({ user }) {
       await ensureUsersRowFromNextAuthUser(user);

@@ -1,4 +1,3 @@
-// frontend/app/components/Note/MessageInput.js
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -59,7 +58,6 @@ export default function MessageInput({
 
   return (
     <div className="relative flex justify-center">
-      {/* ตัว bubble */}
       <div
         onClick={handleClickBubble}
         className={`
@@ -98,7 +96,6 @@ export default function MessageInput({
           />
         )}
 
-        {/* หาง bubble (ใช้ตำแหน่งเดียวกันทั้งโพสต์/ไม่โพสต์) */}
         <span
           aria-hidden
           className={`

@@ -84,9 +84,8 @@ app.post('/api/note_api', async(req,res) => {
       ['annonymous', 'ไม่ระบุ', '/images/pfp.png']
     );
 
-    const authorId = userResult.insertId; // ได้ user_id ที่ auto increment
+    const authorId = userResult.insertId; 
 
-    // 2. เพิ่ม note โดยใช้ authorId
     const [noteResult] = await wire.query(
       'INSERT INTO note (message, author) VALUES (?, ?)',
       [message, authorId]

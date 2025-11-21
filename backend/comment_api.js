@@ -4,14 +4,11 @@ const { ensureNotPunished } = require("./punish_mw");
 
 const router = express.Router();
 
-/* ------------------------- simple in-memory rate limiter ------------------------- */
-
 const commentRateStore = new Map();
 
-const COMMENT_MIN_INTERVAL_MS = 5000;   // 5 วินาที
-const COMMENT_BURST_WINDOW_MS = 60000;  // 60 วินาที
-const COMMENT_BURST_LIMIT = 10;         // สูงสุด 10 คอมเมนต์ / นาที ต่อ user/ip
-
+const COMMENT_MIN_INTERVAL_MS = 5000;   
+const COMMENT_BURST_WINDOW_MS = 60000;  
+const COMMENT_BURST_LIMIT = 10;         
 function getRateKey(req, userId) {
   const u = userId && String(userId).trim();
   if (u) return `u:${u}`;
@@ -34,12 +31,10 @@ function checkCommentRateLimit(req, userId) {
     rec = { history: [] };
   }
 
-  // ล้าง timestamps เก่าเกิน 60 วินาที
   rec.history = rec.history.filter((ts) => now - ts < COMMENT_BURST_WINDOW_MS);
 
   const lastTs = rec.history.length ? rec.history[rec.history.length - 1] : null;
 
-  // 1) กันยิงติดกันเร็วเกินไป
   if (lastTs && now - lastTs < COMMENT_MIN_INTERVAL_MS) {
     const remainMs = COMMENT_MIN_INTERVAL_MS - (now - lastTs);
     const remainSec = Math.max(1, Math.ceil(remainMs / 1000));
@@ -52,7 +47,6 @@ function checkCommentRateLimit(req, userId) {
     };
   }
 
-  // 2) กัน burst 10 คอมเมนต์ใน 60 วินาที
   if (rec.history.length >= COMMENT_BURST_LIMIT) {
     const oldest = rec.history[0];
     const remainMs = COMMENT_BURST_WINDOW_MS - (now - oldest);
@@ -68,24 +62,20 @@ function checkCommentRateLimit(req, userId) {
     };
   }
 
-  // ✅ ผ่าน → บันทึก timestamp แล้วอนุญาตให้คอมเมนต์
   rec.history.push(now);
   commentRateStore.set(key, rec);
 
   return { ok: true };
 }
 
-/* ------------------------- build a nested comment tree ------------------------- */
 function CommentTree(comments) {
   const map = {};
   const roots = [];
 
-  // เตรียมโหนด
   comments.forEach((c) => {
     map[c.comment_id] = { ...c, children: [] };
   });
 
-  // จัด parent → children
   comments.forEach((c) => {
     if (c.parent_comment_id) {
       if (map[c.parent_comment_id]) {
@@ -96,7 +86,6 @@ function CommentTree(comments) {
     }
   });
 
-  // sort ตามเวลา (เก่า→ใหม่)
   roots.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   function sortChildren(node) {
     if (!node.children || node.children.length === 0) return;
@@ -108,9 +97,6 @@ function CommentTree(comments) {
   return roots;
 }
 
-/* --------------------------------------------
-   GET /api/comment     (โหลดทั้งหมด)
---------------------------------------------- */
 router.get("/", async (_req, res) => {
   try {
     const rows = await prisma.comment.findMany({
@@ -139,9 +125,6 @@ router.get("/", async (_req, res) => {
   }
 });
 
-/* --------------------------------------------
-   GET /api/comment/note/:note_id
---------------------------------------------- */
 router.get("/note/:note_id", async (req, res) => {
   try {
     const noteId = Number(req.params.note_id);
@@ -173,9 +156,6 @@ router.get("/note/:note_id", async (req, res) => {
   }
 });
 
-/* --------------------------------------------
-   GET /api/comment/blog/:blog_id
---------------------------------------------- */
 router.get("/blog/:blog_id", async (req, res) => {
   try {
     const blogId = Number(req.params.blog_id);
@@ -207,16 +187,6 @@ router.get("/blog/:blog_id", async (req, res) => {
   }
 });
 
-/* --------------------------------------------
-   POST /api/comment
-   body: { user_id, message, note_id?, blog_id?, parent_comment_id? }
-
-   - anonymous / member ใช้เส้นนี้เหมือนกัน
-   - blog comment:
-       * ต้อง login (มี Authorization header)
-       * user นั้นต้องมี login_name (ตั้งชื่อแล้ว)
-   - punish_mw จะใช้ user_id ใน body เพื่อเช็ค timeout/ban
---------------------------------------------- */
 router.post("/", ensureNotPunished, async (req, res) => {
   try {
     const { user_id, message, blog_id, note_id, parent_comment_id } =
@@ -231,9 +201,7 @@ router.post("/", ensureNotPunished, async (req, res) => {
     const hasBlogId =
       blog_id !== undefined && blog_id !== null && blog_id !== "";
 
-    // 🔒 blog comment ต้อง login + มี login_name
     if (hasBlogId) {
-      // 1) ต้องมี Authorization header (login เท่านั้น)
       if (!req.headers.authorization) {
         return res.status(401).json({
           error: "Login is required to comment on blogs.",
@@ -241,7 +209,6 @@ router.post("/", ensureNotPunished, async (req, res) => {
         });
       }
 
-      // 2) เช็คว่า user นี้มี login_name จริงไหม
       const user = await prisma.users.findUnique({
         where: { user_id: String(user_id) },
         select: { login_name: true },
@@ -257,7 +224,6 @@ router.post("/", ensureNotPunished, async (req, res) => {
       }
     }
 
-    // ✅ กันบอทยิง / กันสแปม: เช็ค rate limit ก่อนสร้าง comment
     const rate = checkCommentRateLimit(req, String(user_id));
     if (!rate.ok) {
       return res.status(429).json({
@@ -300,9 +266,6 @@ router.post("/", ensureNotPunished, async (req, res) => {
   }
 });
 
-/* --------------------------------------------
-   PUT /api/comment/:id
---------------------------------------------- */
 router.put("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -332,9 +295,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-/* --------------------------------------------
-   DELETE /api/comment/:id
---------------------------------------------- */
 router.delete("/:id", async (req, res) => {
   try {
     const commentId = Number(req.params.id);

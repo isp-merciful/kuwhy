@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 
 const API = "http://localhost:8000/api";
 
-// Helper: flatten tree of comments
 const flattenComments = (comments, level = 0) => {
   let arr = [];
   comments.forEach((c) => {
@@ -46,12 +45,12 @@ export default function AdminPage() {
     : {};
 
   // --- top-level tab ---
-  const [tab, setTab] = useState("reports"); // "reports" | "punishments" | "data"
+  const [tab, setTab] = useState("reports"); 
 
   // --- reports state ---
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
-  const [reportStatus, setReportStatus] = useState("pending"); // "pending" | "all"
+  const [reportStatus, setReportStatus] = useState("pending"); 
 
   // --- punishments state ---
   const [punishList, setPunishList] = useState([]);
@@ -122,7 +121,6 @@ export default function AdminPage() {
     const ipAddress = report.ip_address || report.ip || null;
 
     try {
-      // ----- ลบเนื้อหา -----
       if (action === "delete_target") {
         if (!type || !targetId) {
           alert("Cannot detect target to delete.");
@@ -159,7 +157,6 @@ export default function AdminPage() {
           return;
         }
 
-        // mark resolved หลังลบสำเร็จ
         if (reportId) {
           await fetch(`${API}/report/${reportId}/resolve`, {
             method: "PATCH",
@@ -175,7 +172,6 @@ export default function AdminPage() {
         return;
       }
 
-      // ----- ลงโทษ: timeout / ban_user / ban_ip -----
       if (action === "timeout_24h" || action === "ban_user" || action === "ban_ip") {
         if (!targetUserId && action !== "ban_ip") {
           alert("No target_user_id on this report.");
@@ -234,7 +230,6 @@ export default function AdminPage() {
           return;
         }
 
-        // mark resolved หลังลงโทษสำเร็จ
         if (reportId) {
           await fetch(`${API}/report/${reportId}/resolve`, {
             method: "PATCH",
@@ -253,7 +248,6 @@ export default function AdminPage() {
         return;
       }
 
-      // ----- mark resolved เฉย ๆ -----
       if (action === "mark_resolved") {
         if (!reportId) return;
         const res = await fetch(`${API}/report/${reportId}/resolve`, {
@@ -278,7 +272,6 @@ export default function AdminPage() {
     }
   }
 
-  /* ===================== Punishments ===================== */
 
   async function fetchPunish() {
     setPunishLoading(true);
@@ -352,7 +345,6 @@ export default function AdminPage() {
     }
   }
 
-  /* ===================== Raw Data ===================== */
 
   async function fetchRawData() {
     setDataLoading(true);
@@ -446,7 +438,6 @@ export default function AdminPage() {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  /* ===================== Effects ===================== */
 
   useEffect(() => {
     if (tab === "reports") {

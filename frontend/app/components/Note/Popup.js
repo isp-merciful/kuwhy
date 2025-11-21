@@ -1,4 +1,3 @@
-// frontend/app/components/Popup.js
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -155,21 +154,18 @@ export default function Popup({
     })();
   }, [showPopup, viewerUserId, authHeaders, noteId, joined]);
 
-  // reset เมื่อเปิดใหม่ กัน avatar/members โน้ตก่อนหน้าค้างมา
   useEffect(() => {
     if (!showPopup) return;
     setHostPfp(null);
     setMembers([]);
   }, [showPopup]);
 
-  // ปิด dialog ทิ้งตอน popup ถูกปิด
   useEffect(() => {
     if (!showPopup) {
       setShowReportDialog(false);
     }
   }, [showPopup]);
 
-  // โหลด host + members
   useEffect(() => {
     if (!showPopup || !noteId) return;
     let aborted = false;
@@ -251,7 +247,6 @@ export default function Popup({
     };
   }, [showPopup, noteId, authHeaders, viewerUserId, hostPfp]);
 
-  // auto-join via ?autoJoin=1
   useEffect(() => {
     const autoJoin = search.get("autoJoin") === "1";
     if (!autoJoin || !isParty || joined || !noteId) return;
@@ -280,7 +275,6 @@ export default function Popup({
           if (typeof data?.data?.max_party === "number")
             setMax(Number(data.data.max_party));
 
-          // noti join ใช้ viewerUserId
           try {
             if (res.ok && viewerUserId) {
               await fetch("http://localhost:8000/api/noti", {
@@ -329,7 +323,6 @@ export default function Popup({
         } catch {}
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, isParty, joined, noteId, authed, authHeaders, router, viewerUserId]);
 
   async function softFetchActiveNote() {
@@ -727,7 +720,6 @@ export default function Popup({
             )}
           </div>
 
-          {/* ใช้ ReportDialog กลาง — แสดงเฉพาะตอนกดปุ่ม Report */}
           {showReportDialog && (
               <ReportDialog
                 open={showReportDialog}

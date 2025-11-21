@@ -1,4 +1,3 @@
-// backend/party_chat_api.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
@@ -6,16 +5,14 @@ const { ensureNotPunished } = require("./punish_mw");
 
 const router = express.Router();
 
-/** เช็กสิทธิ์: ต้องเป็นเจ้าของ note หรือสมาชิกปาร์ตี้ของ note */
 async function isPartyMemberOrOwner(noteId, userId) {
   const note = await prisma.note.findUnique({
     where: { note_id: Number(noteId) },
     select: { user_id: true, max_party: true },
   });
   if (!note) return false;
-  if (!note.max_party || note.max_party <= 0) return false; // ไม่ใช่ปาร์ตี้
+  if (!note.max_party || note.max_party <= 0) return false; 
 
-  // user_id ใน note เป็น string อยู่แล้วใน schema ส่วน userId รับมาเป็น string จาก req.user.id
   if (note.user_id === userId) return true;
 
   const member = await prisma.party_members.findFirst({
@@ -25,22 +22,18 @@ async function isPartyMemberOrOwner(noteId, userId) {
   return !!member;
 }
 
-/** GET /api/chat/party/:noteId?cursor=0&limit=50
- * ดึงข้อความต่อจาก cursor (message_id) เรียงเก่า→ใหม่
- * ต้องเป็น owner หรือ member เท่านั้น
- */
 router.get("/party/:noteId", async (req, res) => {
   try {
     const noteId = Number(req.params.noteId);
     if (!Number.isFinite(noteId))
       return res.status(400).json({ error: "invalid note_id" });
 
-    const userId = String(req.user?.id || ""); // จาก requireMember
+    const userId = String(req.user?.id || ""); 
     const allowed = await isPartyMemberOrOwner(noteId, userId);
     if (!allowed) return res.status(403).json({ error: "not a party member" });
 
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
-    const cursor = Number(req.query.cursor || 0); // ดึง message_id > cursor
+    const cursor = Number(req.query.cursor || 0); 
 
     const rows = await prisma.party_messages.findMany({
       where: {
@@ -55,9 +48,9 @@ router.get("/party/:noteId", async (req, res) => {
             user_id: true,
             user_name: true,
             img: true,
-            login_name: true,   // ✅ ดึง login_name มาด้วย
+            login_name: true, 
           },
-        }, // relation ไปตาราง users
+        }, 
       },
     });
 
@@ -68,7 +61,7 @@ router.get("/party/:noteId", async (req, res) => {
       img: m.user?.img ?? null,
       content: m.content,
       created_at: m.created_at,
-      login_name: m.user?.login_name ?? null, // ✅ ส่ง login_name ออกไปให้ frontend
+      login_name: m.user?.login_name ?? null,
     }));
 
     res.json({ messages });
@@ -78,17 +71,14 @@ router.get("/party/:noteId", async (req, res) => {
   }
 });
 
-/** POST /api/chat/party/:noteId
- * body: { content }  ← ไม่ต้องส่ง user_id แล้ว (อ่านจาก req.user.id)
- * ต้องเป็น owner หรือ member เท่านั้น
- */
+
 router.post("/party/:noteId",ensureNotPunished, async (req, res) => {
   try {
     const noteId = Number(req.params.noteId);
     if (!Number.isFinite(noteId))
       return res.status(400).json({ error: "invalid note_id" });
 
-    const user_id = String(req.user?.id || ""); // จาก requireMember
+    const user_id = String(req.user?.id || ""); 
     const content = String(req.body?.content || "").trim();
     if (!content)
       return res.status(400).json({ error: "content is required" });
@@ -103,7 +93,7 @@ router.post("/party/:noteId",ensureNotPunished, async (req, res) => {
           select: {
             user_name: true,
             img: true,
-            login_name: true,    // ✅ ดึง login_name ตอนสร้าง message ใหม่ด้วย
+            login_name: true,    
           },
         },
       },
@@ -118,7 +108,7 @@ router.post("/party/:noteId",ensureNotPunished, async (req, res) => {
         img: msg.user?.img ?? null,
         content: msg.content,
         created_at: msg.created_at,
-        login_name: msg.user?.login_name ?? null, // ✅ ส่ง login_name กลับไป
+        login_name: msg.user?.login_name ?? null, 
       },
     });
   } catch (err) {
@@ -127,9 +117,7 @@ router.post("/party/:noteId",ensureNotPunished, async (req, res) => {
   }
 });
 
-/** DELETE /api/chat/party/:noteId/:messageId
- * ลบข้อความ "ของตัวเอง" เท่านั้น และควรเป็น member/owner ของห้องนั้น
- */
+
 router.delete("/party/:noteId/:messageId", async (req, res) => {
   try {
     const noteId = Number(req.params.noteId);

@@ -36,7 +36,6 @@ export default function ProfilePage() {
 
     (async () => {
       try {
-        // 1) หา user จาก handle
         const uRes = await fetch(
           `${API_BASE}/api/user/by-handle/${encodeURIComponent(handle)}`,
           { cache: "no-store" }
@@ -44,7 +43,6 @@ export default function ProfilePage() {
         if (!uRes.ok) throw new Error("User not found");
         const { user: baseUser } = await uRes.json();
 
-        // 2) โหลดโปรไฟล์เต็ม
         const fullRes = await fetch(
           `${API_BASE}/api/user/${baseUser.user_id}`,
           { cache: "no-store" }
@@ -53,7 +51,6 @@ export default function ProfilePage() {
         const fullUser = await fullRes.json();
         const user = { ...baseUser, ...fullUser };
 
-        // 3) โหลด blog ของ user
         let blogs = [];
         try {
           const r = await fetch(`${API_BASE}/api/blog`, { cache: "no-store" });
@@ -75,7 +72,6 @@ export default function ProfilePage() {
           console.warn("load blogs error:", err);
         }
 
-        // 4) เช็กว่ามี active note หรือเปล่า
         let hasNote = false;
         try {
           const noteRes = await fetch(
@@ -166,7 +162,6 @@ export default function ProfilePage() {
                   {u.user_name || u.login_name}
                 </h1>
                 <div className="text-gray-500">@{u.login_name}</div>
-                {/* ไม่ต้องโชว์ description ตรงนี้แล้ว */}
               </div>
             </div>
 
@@ -226,7 +221,6 @@ export default function ProfilePage() {
                 privateHint={!isOwner}
               />
               <Detail label="Location" value={u.location} />
-              {/* ไม่ต้องแสดง website แล้ว */}
             </Card>
           </aside>
 

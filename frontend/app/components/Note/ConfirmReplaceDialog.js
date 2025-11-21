@@ -1,4 +1,3 @@
-// frontend/app/components/ConfirmReplaceDialog.jsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -41,13 +40,11 @@ export default function ConfirmReplaceDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => !busy && onClose?.()}
           />
 
-          {/* Card: ยาวขึ้นเพื่อให้หัวข้อได้หนึ่งบรรทัด */}
           <motion.div
             role="dialog"
             aria-modal="true"
@@ -69,12 +66,9 @@ export default function ConfirmReplaceDialog({
 
             {/* Header */}
             <div className="flex items-start gap-4">
-              {/* ไอคอนใหญ่/เต็ม */}
               <div className="mt-0.5 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 ring-1 ring-blue-100">
                 <PlusIcon className="h-6 w-6 text-blue-600" />
               </div>
-
-              {/* ข้อความ: บังคับหัวข้อบรรทัดเดียว */}
               <div className="min-w-0 flex-1">
                 <h3 className="text-base font-semibold text-gray-900 leading-6 whitespace-nowrap overflow-hidden text-ellipsis">
                   {title}
@@ -85,7 +79,6 @@ export default function ConfirmReplaceDialog({
               </div>
             </div>
 
-            {/* Actions */}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 ref={cancelRef}

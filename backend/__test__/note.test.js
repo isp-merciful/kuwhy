@@ -1,9 +1,6 @@
-// backend/tests/note_api.test.js
 const request = require("supertest");
 
-// ---- 1) mock PrismaClient ก่อน require("../index") ----
 jest.mock("@prisma/client", () => {
-  // สร้าง prisma ปลอมตัวเดียว ใช้แชร์ทั้งไฟล์
   const mPrisma = {
     note: {
       deleteMany: jest.fn(),
@@ -39,9 +36,8 @@ jest.mock("@prisma/client", () => {
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-// ป้องกัน index.js ไป app.listen ตอนรัน test
 process.env.NODE_ENV = "test";
-const app = require("../index"); // export app ไว้แล้วในไฟล์นี้
+const app = require("../index"); 
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -49,7 +45,6 @@ beforeEach(() => {
 
 describe("GET /api/note", () => {
   it("ควรลบ note ที่เก่ากว่า 1 วัน แล้วส่ง list ของ note กลับมา", async () => {
-    // ให้ deleteMany ทำงานสำเร็จ
     prisma.note.deleteMany.mockResolvedValue({ count: 0 });
 
     const fakeNotes = [
@@ -73,13 +68,10 @@ describe("GET /api/note", () => {
     const res = await request(app).get("/api/note");
 
     expect(res.statusCode).toBe(200);
-    // body ต้องเป็น array และเท่ากับ fakeNotes ที่เราตั้งไว้
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toEqual(fakeNotes);
 
-    // เรียก deleteMany 1 ครั้ง
     expect(prisma.note.deleteMany).toHaveBeenCalledTimes(1);
-    // เผื่ออยากเช็ค structure ของ where (ไม่ต้องเทียบ Date เป๊ะ ๆ)
     expect(prisma.note.deleteMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -90,7 +82,6 @@ describe("GET /api/note", () => {
       })
     );
 
-    // เรียก findMany 1 ครั้ง
     expect(prisma.note.findMany).toHaveBeenCalledTimes(1);
     expect(prisma.note.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

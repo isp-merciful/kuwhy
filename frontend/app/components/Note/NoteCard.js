@@ -6,12 +6,10 @@ export default function NoteCard({ note, onClick }) {
   const max = Number(note?.max_party || 0);
   const isFull = isParty && max > 0 && curr >= max;
 
-  // 👇 ถ้า FULL ใช้โทนแดง, ถ้ายังไม่เต็มใช้โทนเขียว (#52B788)
   const partyPillColor = isFull
     ? "bg-rose-50 text-rose-700 border-rose-100"
     : "bg-[#E7F6EF] text-[#2F7757] border-[#52B788]/40";
 
-  // สีหาง/ขอบตาม type note (party vs normal)
   const tailBgClass = isParty ? "bg-amber-50" : "bg-white";
   const tailBorderClass = isParty ? "border-amber-100" : "border-slate-100";
 
@@ -20,7 +18,6 @@ export default function NoteCard({ note, onClick }) {
       onClick={onClick}
       className="snap-start w-[230px] shrink-0 cursor-pointer select-none transition-transform duration-150 hover:-translate-y-1"
     >
-      {/* Bubble ด้านบน */}
       <div
         className={`relative rounded-3xl p-4 h-[120px] flex flex-col justify-between shadow-sm hover:shadow-md border ${
           isParty
@@ -28,12 +25,10 @@ export default function NoteCard({ note, onClick }) {
             : "bg-white border-slate-100"
         }`}
       >
-        {/* ข้อความ */}
         <p className="text-gray-900 font-semibold text-sm break-words line-clamp-2">
           {note.message}
         </p>
 
-        {/* Party / Normal pill */}
         <div className="mt-2 flex items-center justify-between">
           {isParty ? (
             <span
@@ -67,7 +62,6 @@ export default function NoteCard({ note, onClick }) {
           </span>
         </div>
 
-        {/* หางบับเบิ้ลแบบจุดกลมสองชั้น */}
         <span
           aria-hidden
           className={`pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 -translate-x-7 w-3 h-3 rounded-full shadow-sm ${tailBgClass} ${tailBorderClass}`}
@@ -79,7 +73,6 @@ export default function NoteCard({ note, onClick }) {
         />
       </div>
 
-      {/* Avatar + ชื่อด้านล่าง */}
       <div className="my-3 flex flex-col items-center justify-center gap-2 min-h-[110px]">
         {note.img ? (
           <img

@@ -15,7 +15,6 @@ export default function NoteContainer() {
   const [selectedNote, setSelectedNote] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
 
-  // filter: all | normal | party
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
@@ -28,7 +27,6 @@ export default function NoteContainer() {
 
         const data = await res.json();
 
-        // flatten ให้มี user_name / img ตรง ๆ
         const flattened = (data || []).map((n) => ({
           ...n,
           user_name: n.users?.user_name ?? "anonymous",
@@ -46,7 +44,6 @@ export default function NoteContainer() {
     fetchNotes();
   }, []);
 
-  // ซ่อนโน้ตของตัวเองออกจาก community + filter ตาม category
   const visibleNotes = useMemo(() => {
     let base = (notes || []).filter((n) => {
       if (!userId) return true;
@@ -54,10 +51,8 @@ export default function NoteContainer() {
     });
 
     if (filter === "party") {
-      // party note เท่านั้น
       base = base.filter((n) => (n.max_party ?? 0) > 0);
     } else if (filter === "normal") {
-      // โน้ตปกติเท่านั้น (ไม่ใช่ party)
       base = base.filter((n) => (n.max_party ?? 0) <= 0);
     }
     return base;
@@ -102,10 +97,8 @@ export default function NoteContainer() {
 
   return (
     <div className="w-full">
-      {/* กล่องใหญ่ + gradient border */}
       <div className="rounded-[32px] bg-gradient-to-r from-emerald-50 via-sky-50 to-sky-100 p-[1px] shadow-[0_18px_45px_rgba(15,118,110,0.18)]">
         <div className="rounded-[30px] bg-white/90 backdrop-blur px-5 py-5 sm:px-7 sm:py-6">
-          {/* Header รวม notebubble + title เดิม */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-yellow-100 flex items-center justify-center shadow-inner">
@@ -121,7 +114,6 @@ export default function NoteContainer() {
               </div>
             </div>
 
-            {/* Filter category: All / Normal / Party */}
             <div className="flex items-center gap-2 text-[11px] sm:text-xs">
               <span className="hidden sm:inline text-gray-400">
                 Filter:
@@ -166,9 +158,7 @@ export default function NoteContainer() {
             </div>
           </div>
 
-          {/* เนื้อหา */}
           {loading ? (
-            // skeleton เบา ๆ ไม่ให้โล่ง
             <div className="mt-2 flex gap-4 overflow-hidden">
               {[1, 2, 3].map((i) => (
                 <div

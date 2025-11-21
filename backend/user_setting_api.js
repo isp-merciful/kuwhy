@@ -1,14 +1,9 @@
-// user_setting_api.js
 const express = require("express");
 const router = express.Router();
 const { prisma } = require("./lib/prisma.cjs");
 const fs = require("fs");
 const path = require("path");
 
-/**
- * Helper: save base64 data URL to /uploads and return a short path
- *   e.g. "/uploads/pfp_<userId>_<timestamp>.png"
- */
 async function saveBase64Image(userId, dataUrl) {
   if (typeof dataUrl !== "string") return null;
 
@@ -18,9 +13,9 @@ async function saveBase64Image(userId, dataUrl) {
     return null;
   }
 
-  const mime = match[1]; // e.g. "image/png"
+  const mime = match[1]; 
   const base64 = match[2];
-  const ext = (mime.split("/")[1] || "png").toLowerCase(); // "png", "jpeg", ...
+  const ext = (mime.split("/")[1] || "png").toLowerCase(); 
 
   const buffer = Buffer.from(base64, "base64");
 
@@ -34,7 +29,6 @@ async function saveBase64Image(userId, dataUrl) {
 
   const publicPath = `/uploads/${fileName}`;
 
-  // 🟢 แปลงเป็น URL เต็มก่อนเก็บลง DB
   const BASE =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.BACKEND_URL ||
@@ -65,12 +59,11 @@ router.put("/:id", async (req, res) => {
       location,
       website,
       phone,
-      img, // may be data URL or a normal URL
+      img,
     } = req.body || {};
 
     const updates = {};
 
-    // ----- Custom users table fields -----
     if (full_name !== undefined) updates.full_name = full_name;
     if (display_name !== undefined) updates.user_name = display_name;
     if (email !== undefined) updates.email = email;
@@ -84,12 +77,11 @@ router.put("/:id", async (req, res) => {
     if (typeof img === "string" && img.trim() !== "") {
       const trimmed = img.trim();
 
-      // ⭐ if it is a base64 data URL, save to /uploads and use short path
       if (trimmed.startsWith("data:image/")) {
         try {
           const savedPath = await saveBase64Image(userId, trimmed);
           if (savedPath) {
-            finalImg = savedPath; // "/uploads/xxx.png"
+            finalImg = savedPath; 
           }
         } catch (e) {
           console.error("[user-setting] failed to save avatar file:", e);
@@ -98,7 +90,6 @@ router.put("/:id", async (req, res) => {
             .json({ error: "Failed to save profile image" });
         }
       } else {
-        // already a short URL/path; just use it directly
         finalImg = trimmed;
       }
 
@@ -107,13 +98,11 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    // ----- UPDATE your custom users table -----
     const updatedUser = await prisma.users.update({
       where: { user_id: userId },
       data: updates,
     });
 
-    // ⭐ ALSO update NextAuth User.image if we have a new image path
     if (finalImg) {
       try {
         await prisma.user.update({
@@ -121,7 +110,6 @@ router.put("/:id", async (req, res) => {
           data: { image: finalImg },
         });
       } catch (e) {
-        // If there's no NextAuth user row, don't fail the request; just log.
         if (e.code === "P2025") {
           console.warn("[user-setting] NextAuth user not found for", userId);
         } else {

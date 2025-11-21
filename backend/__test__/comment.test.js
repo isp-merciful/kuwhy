@@ -1,8 +1,6 @@
-// backend/__test__/comment.test.js
 const request = require("supertest");
 const express = require("express");
 
-// ---- mocks ----
 jest.mock("../lib/prisma.cjs", () => ({
   prisma: {
     comment: {
@@ -40,7 +38,6 @@ describe("Comment API", () => {
     app = createApp();
   });
 
-  /* ---------------- GET /api/comment (all) ---------------- */
 
   it("GET /api/comment - returns nested tree with user info", async () => {
     const base = new Date("2024-01-01T00:00:00Z");
@@ -126,7 +123,6 @@ describe("Comment API", () => {
     expect(res.body.message).toBe("can't fetch note comment");
   });
 
-  /* ---------------- GET /api/comment/note/:note_id ---------------- */
 
   it("GET /api/comment/note/:note_id - returns tree for a note", async () => {
     prisma.comment.findMany.mockResolvedValue([
@@ -180,7 +176,6 @@ describe("Comment API", () => {
     expect(res.body.message).toBe("can't fetch note comment");
   });
 
-  /* ---------------- GET /api/comment/blog/:blog_id ---------------- */
 
   it("GET /api/comment/blog/:blog_id - returns tree for a blog", async () => {
     prisma.comment.findMany.mockResolvedValue([
@@ -234,7 +229,6 @@ describe("Comment API", () => {
     expect(res.body.error).toBe("DB error");
   });
 
-  /* ---------------- POST /api/comment ---------------- */
 
   it("POST /api/comment - missing fields", async () => {
     const res = await request(app).post("/api/comment").send({});
@@ -420,8 +414,6 @@ describe("Comment API", () => {
     expect(res.body.error).toBe("DB error");
   });
 
-  /* ---------------- PUT /api/comment/:id ---------------- */
-
   it("PUT /api/comment/:id - validate id & message", async () => {
     // bad id
     let res = await request(app).put("/api/comment/NaN").send({
@@ -465,7 +457,6 @@ describe("Comment API", () => {
     expect(res.body.error).toBe("Failed to update comment");
   });
 
-  /* ---------------- DELETE /api/comment/:id ---------------- */
 
   it("DELETE /api/comment/:id - delete ok", async () => {
     prisma.comment.delete.mockResolvedValue({});

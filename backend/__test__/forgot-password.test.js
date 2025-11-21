@@ -1,8 +1,6 @@
-// backend/__test__/forgot-password.test.js
 const request = require("supertest");
 const express = require("express");
 
-// ---------- env สำหรับเทส ----------
 process.env.JWT_RESET_SECRET = "test-reset-secret";
 process.env.BACKEND_BASE_URL = "http://backend.test";
 process.env.FRONTEND_BASE_URL = "http://frontend.test";
@@ -11,7 +9,6 @@ process.env.SMTP_PORT = "587";
 process.env.SMTP_USER = "noreply@test";
 process.env.SMTP_PASS = "pass";
 
-// ---------- mocks ----------
 
 jest.mock("@prisma/client", () => {
   const mockPrisma = {
@@ -26,7 +23,7 @@ jest.mock("@prisma/client", () => {
 
 jest.mock("nodemailer", () => {
   const sendMail = jest.fn();
-  const verify = jest.fn().mockResolvedValue(true); // ให้ verify ผ่านตอน require
+  const verify = jest.fn().mockResolvedValue(true);
   const createTransport = jest.fn(() => ({ sendMail, verify }));
   return {
     createTransport,
@@ -44,7 +41,6 @@ jest.mock("bcryptjs", () => ({
   hash: jest.fn(),
 }));
 
-// ---------- require หลัง mock ----------
 
 const { __mockPrisma } = require("@prisma/client");
 const nodemailer = require("nodemailer");
@@ -52,7 +48,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const forgotRouter = require("../forgot-password");
 
-// helper สร้าง app
 function createApp() {
   const app = express();
   app.use(express.json());
@@ -66,7 +61,6 @@ beforeEach(() => {
 });
 
 describe("Forgot password API", () => {
-  /* ---------- POST /auth/forgot-password ---------- */
 
   it("POST /auth/forgot-password - email is required", async () => {
     const app = createApp();
@@ -81,7 +75,6 @@ describe("Forgot password API", () => {
   it("POST /auth/forgot-password - 500 when JWT_RESET_SECRET missing", async () => {
     const app = createApp();
 
-    // จำค่าของจริงไว้แล้วลบออก
     const saved = process.env.JWT_RESET_SECRET;
     delete process.env.JWT_RESET_SECRET;
 
@@ -103,7 +96,6 @@ describe("Forgot password API", () => {
     expect(jwt.sign).not.toHaveBeenCalled();
     expect(nodemailer.__mockSendMail).not.toHaveBeenCalled();
 
-    // restore
     process.env.JWT_RESET_SECRET = saved;
   });
 
@@ -155,7 +147,6 @@ describe("Forgot password API", () => {
     const mailArg = nodemailer.__mockSendMail.mock.calls[0][0];
     expect(mailArg.to).toBe("user@example.com");
     expect(mailArg.from).toContain(process.env.SMTP_USER);
-    // ลิงก์ reset อยู่ใน html
     expect(mailArg.html).toContain(
       `${process.env.BACKEND_BASE_URL}/auth/reset-password?token=`
     );
@@ -188,14 +179,13 @@ describe("Forgot password API", () => {
     });
   });
 
-  /* ---------- GET /auth/reset-password ---------- */
 
   it("GET /auth/reset-password - missing token -> redirect with error=missing_token", async () => {
     const app = createApp();
 
     const res = await request(app)
       .get("/auth/reset-password")
-      .redirects(0); // อย่าตาม redirect
+      .redirects(0); 
 
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe(
@@ -248,14 +238,13 @@ describe("Forgot password API", () => {
     );
   });
 
-  /* ---------- POST /auth/reset-password ---------- */
 
   it("POST /auth/reset-password - token and password required", async () => {
     const app = createApp();
 
     const res = await request(app)
       .post("/auth/reset-password")
-      .send({}); // ไม่มีทั้ง token และ password
+      .send({}); 
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({

@@ -5,7 +5,6 @@ const bcrypt = require("bcrypt");
 const { optionalAuth } = require("./auth_mw");
 const settingRouter = require('./user_setting_api');
 
-// ===== Reserved & helpers =====
 const RESERVED = new Set([
   'api','admin','blog','note','notes','user','users','profile','profiles','settings',
   'login','logout','_next','favicon.ico','robots.txt','sitemap.xml','static','assets','public'
@@ -13,26 +12,17 @@ const RESERVED = new Set([
 const normHandle = (s='') => String(s).trim().toLowerCase();
 const isValidHandle = (h) => /^[a-z0-9_.]{3,32}$/.test(h);
 
-// ===== New: profile endpoints (PUT THESE ABOVE "/:id") =====
 
-// GET /api/user/by-handle/:handle
-// GET /api/user/by-handle/:handle
 router.get('/by-handle/:handle', async (req, res) => {
   const handle = String(req.params.handle || '').toLowerCase();
   try {
     const user = await prisma.users.findFirst({
       where: { login_name: handle },
-      // เลือกเฉพาะคอลัมน์ที่มีแน่ ๆ ใน DB คุณ (เพิ่มได้ภายหลัง)
       select: {
         user_id: true,
         login_name: true,
         user_name: true,
         img: true,
-        // ถ้ายังไม่มีฟิลด์เหล่านี้ใน schema ให้คอมเมนต์ทิ้งไปก่อน:
-        // bio: true,
-        // location: true,
-        // website: true,
-        // created_at: true,
       }
     });
 
@@ -40,13 +30,11 @@ router.get('/by-handle/:handle', async (req, res) => {
     return res.json({ ok: true, user });
   } catch (e) {
     console.error('[by-handle]', e);
-    // ส่งโค้ด error ออกไปให้ debug ง่าย
     return res.status(500).json({ ok: false, error: e.code || e.message });
   }
 });
 
 
-// GET /api/user/by-id/:id   (สำหรับ legacy redirect ฝั่ง frontend)
 router.get('/by-id/:id', async (req, res) => {
   try {
     const user = await prisma.users.findUnique({
@@ -61,7 +49,6 @@ router.get('/by-id/:id', async (req, res) => {
   }
 });
 
-// HEAD /api/user/exists/:handle  (เช็คมี/ไม่มี แบบเบาๆ)
 router.head('/exists/:handle', async (req, res) => {
   try {
     const handle = normHandle(req.params.handle);
@@ -75,7 +62,6 @@ router.head('/exists/:handle', async (req, res) => {
   }
 });
 
-// POST /api/user/validate-handle  (ตรวจรูปแบบ/คำต้องห้าม/ซ้ำ)
 router.post('/validate-handle', async (req, res) => {
   try {
     let { handle, excludeUserId } = req.body || {};
@@ -95,7 +81,6 @@ router.post('/validate-handle', async (req, res) => {
   }
 });
 
-// ===== Existing auth & user CRUD (kept, with small fixes) =====
 router.get('/', async (_req, res) => {
   try {
     const users = await prisma.users.findMany();
@@ -106,7 +91,6 @@ router.get('/', async (_req, res) => {
   }
 });
 
-// ⚠️ NOTE: keep this below the specific routes above
 router.get('/:id', async (req, res) => {
   try {
     const user = await prisma.users.findUnique({
@@ -138,21 +122,15 @@ router.put('/:userId',optionalAuth, async (req, res) => {
       return res.status(400).json({ error: "Nothing to update (name or img required)" });
     }
 
-    // เตรียม patch
     const data = {};
     if (typeof name === "string" && name.trim()) data.user_name = name.trim();
     if (typeof img === "string" && img.trim()) data.img = img.trim();
 
-    // ป้องกัน anonymous ไปแก้ user คนอื่นที่ไม่ใช่ anonymous
     const existing = await prisma.users.findUnique({
       where: { user_id: targetId },
       select: { user_id: true, role: true, user_name: true },
     });
 
-    // ถ้าล็อกอิน → อนุญาตเสมอ (แต่ targetId จะถูก fix เป็นเจ้าของ token)
-    // ถ้าไม่ล็อกอิน:
-    //  - ถ้ายังไม่มีผู้ใช้ → อนุญาตสร้างเป็น anonymous
-    //  - ถ้ามีอยู่และ role != 'anonymous' → ห้ามแก้
     if (!authedId && existing && existing.role !== "anonymous") {
       return res.status(403).json({ error: "Forbidden: cannot update a non-anonymous user without auth" });
     }

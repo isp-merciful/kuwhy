@@ -33,9 +33,6 @@ export default function NotePage() {
               transition={{ duration: 0.5 }}
               className="w-full mt-6"
             >
-              {/* <h2 className="text-xl font-semibold mb-4 text-gray-800">
-                Community Notes
-              </h2> */}
               <div className="p-6">
               <NoteContainer />
               </div>

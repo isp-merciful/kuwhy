@@ -14,16 +14,14 @@ import {
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
 
-// --- only new helpers for avatar ---
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
 function resolveAvatar(url) {
   if (!url) return '/images/pfp.png';
   if (url.startsWith('http')) return url;
   if (url.startsWith('/images/')) return url;
-  return `${API_BASE}${url}`; // e.g. /uploads/user-xxx.jpg
+  return `${API_BASE}${url}`; 
 }
-// -----------------------------------
 
 export default function Navbar() {
   const { data: session, status } = useSession();
@@ -39,7 +37,6 @@ export default function Navbar() {
 
   useEffect(() => setMounted(true), []);
 
-  // anti-flicker open/close helpers
   const openWithGrace = (setter) => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setter(true);
@@ -64,12 +61,10 @@ export default function Navbar() {
   const isAuthed = status === 'authenticated';
   const isAdmin = session?.user?.role === 'admin';
 
-  // ⭐ use custom img or NextAuth image, and run through resolver
   const avatarSrc = resolveAvatar(session?.user?.img || session?.user?.image);
 
   const displayName = session?.user?.name || 'User';
 
-  // ✅ ใช้ session ทำ handle สำหรับลิงก์ /profile/[handle]
   const loginName =
     session?.user?.login_name
     || session?.user?.handle
@@ -207,13 +202,13 @@ function ProfileMenu({
   avatarSrc,
   displayName,
   onLogout,
-  loginName,        // ✅ รับจาก session
+  loginName,     
 }) {
   const profileHref = loginName
     ? `/profile/${encodeURIComponent(String(loginName).toLowerCase())}`
-    : "/profile"; // fallback
+    : "/profile"; 
 
-  const handleGo = () => setShow(false); // ปิด dropdown หลังคลิก
+  const handleGo = () => setShow(false); 
 
   return (
     <div
@@ -246,7 +241,6 @@ function ProfileMenu({
         role="menu"
       >
         <div className="p-1">
-          {/* ไปหน้าโปรไฟล์ของเราเอง (ใช้ handle จาก session) */}
           <MenuRow href={profileHref} onClick={handleGo}
                    icon={<UserCircleIcon className="h-4 w-4" />} text="Profile" />
           <Divider />

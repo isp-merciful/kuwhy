@@ -1,11 +1,10 @@
-// frontend/app/components/PartyChat.js
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ChatBubbleLeftRightIcon } from "@heroicons/react/24/outline";
-import ReportDialog from "../ReportDialog"; // 👈 เพิ่ม
+import ReportDialog from "../ReportDialog";
 
 const API = "http://localhost:8000/api";
 
@@ -21,7 +20,6 @@ function cx(...xs) {
   return xs.filter(Boolean).join(" ");
 }
 
-/* ---------- helpers: profile url (เหมือนใน CommentSection) ---------- */
 const PROFILE_BASE = process.env.NEXT_PUBLIC_PROFILE_BASE || "/profile";
 function buildProfileUrl(handle) {
   if (!handle) return "/";
@@ -30,7 +28,6 @@ function buildProfileUrl(handle) {
   return `${PROFILE_BASE}/${handle}`;
 }
 
-/** ฟองแชท 1 อัน */
 function Bubble({ mine, name, img, text, time, loginName, noteId, messageId }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -54,7 +51,6 @@ function Bubble({ mine, name, img, text, time, loginName, noteId, messageId }) {
 
   const avatarSrc = img || "/images/pfp.png";
 
-  // ปิดเมนูเมื่อคลิกข้างนอก
   useEffect(() => {
     const onDoc = (e) => {
       if (
@@ -75,7 +71,6 @@ function Bubble({ mine, name, img, text, time, loginName, noteId, messageId }) {
           mine ? "justify-end" : "justify-start"
         }`}
       >
-        {/* avatar เฉพาะฝั่งคนอื่น + คลิกเข้าโปรไฟล์ได้ถ้ามี login_name */}
         {!mine && (
           <button
             type="button"
@@ -105,7 +100,6 @@ function Bubble({ mine, name, img, text, time, loginName, noteId, messageId }) {
             mine ? "items-end" : "items-start"
           }`}
         >
-          {/* ชื่อคนพูด (ฝั่งเราไม่ต้องโชว์) */}
           {!mine &&
             (canOpenProfile ? (
               <button
@@ -122,7 +116,6 @@ function Bubble({ mine, name, img, text, time, loginName, noteId, messageId }) {
               </span>
             ))}
 
-          {/* bubble + เวลา + จุดสามจุด (โผล่ตอน hover) */}
           <div className="relative flex items-end gap-1 group">
             {/* bubble */}
             <div
@@ -137,7 +130,6 @@ function Bubble({ mine, name, img, text, time, loginName, noteId, messageId }) {
               {text}
             </div>
 
-            {/* เวลา */}
             {time && (
               <div
                 className={`text-[10px] self-end ${
@@ -148,7 +140,6 @@ function Bubble({ mine, name, img, text, time, loginName, noteId, messageId }) {
               </div>
             )}
 
-            {/* จุดสามจุดบน bubble */}
             <div
               data-menu-anchor={`party-${messageId}`}
               className={cx(
@@ -194,7 +185,6 @@ function Bubble({ mine, name, img, text, time, loginName, noteId, messageId }) {
         </div>
       </div>
 
-      {/* Report dialog: รายงาน message นี้ → backend ไป map เป็น user ที่พิมพ์ */}
       {showReport && (
         <ReportDialog
           targetType="party_chat"
@@ -213,12 +203,12 @@ export default function PartyChat({ noteId, userId }) {
   const ready = status === "authenticated" && !!session?.apiToken;
 
   const [messages, setMessages] = useState([]);
-  const [memberInfo, setMemberInfo] = useState(null); // { host, members[] }
+  const [memberInfo, setMemberInfo] = useState(null); 
   const [pending, setPending] = useState(false);
   const [text, setText] = useState("");
   const [netErr, setNetErr] = useState("");
 
-  const listRef = useRef(null); // scroll container
+  const listRef = useRef(null); 
   const cursorRef = useRef(0);
 
   const authFetch = useCallback(
@@ -237,7 +227,6 @@ export default function PartyChat({ noteId, userId }) {
     [session?.apiToken]
   );
 
-  /* ---------- โหลด host + members: GET /api/note/:id/members ---------- */
   useEffect(() => {
     if (!noteId) return;
 
@@ -267,7 +256,6 @@ export default function PartyChat({ noteId, userId }) {
     };
   }, [noteId, authFetch]);
 
-  /* ---------- โหลดข้อความ + polling: GET /chat/party/:noteId ---------- */
   useEffect(() => {
     if (!noteId) return;
 
@@ -310,14 +298,12 @@ export default function PartyChat({ noteId, userId }) {
     };
   }, [noteId, ready, authFetch]);
 
-  /* ---------- auto scroll ลงล่างสุด (เฉพาะในกล่องแชท) ---------- */
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
-  /* ---------- ส่งข้อความ: POST /chat/party/:noteId ---------- */
   async function send() {
     const content = String(text || "").trim();
     if (!content || !ready) return;
@@ -336,11 +322,9 @@ export default function PartyChat({ noteId, userId }) {
       if (!res.ok) {
         alert(data?.error || "Send failed");
       } else if (data?.value) {
-        // เดิม: อัปเดตข้อความแชท + cursor
         setMessages((prev) => [...prev, data.value]);
         cursorRef.current = data.value.message_id;
 
-        // 🔔 ส่ง notification ให้ host + สมาชิกคนอื่นในปาร์ตี้
         try {
           if (userId) {
             await fetch(`${API}/noti`, {
@@ -365,7 +349,6 @@ export default function PartyChat({ noteId, userId }) {
     }
   }
 
-  /* ---------- header info: ชื่อกล่อง + avatars ---------- */
 
   const { roomTitle, subtitle, hostAvatar, memberAvatars } = useMemo(() => {
     const host = memberInfo?.host || null;
@@ -483,7 +466,7 @@ export default function PartyChat({ noteId, userId }) {
               img={m.img}
               text={m.content}
               time={m.created_at}
-              loginName={m.login_name} // backend ส่งมาก็ใช้เลย
+              loginName={m.login_name} 
               noteId={noteId}
               messageId={m.message_id}
             />

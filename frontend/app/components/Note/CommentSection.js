@@ -1,14 +1,12 @@
-// frontend/app/components/CommentSection.js
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import ReportDialog from "../ReportDialog"; // 👈 เพิ่ม import
+import ReportDialog from "../ReportDialog"; 
 
-/* ---------------- utils ---------------- */
 const API = "http://localhost:8000/api";
-const VISIBLE_ROOT_LIMIT = 20; // จำนวน root comments ที่แสดงล่าสุด
+const VISIBLE_ROOT_LIMIT = 20; 
 
 function cx(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -59,7 +57,6 @@ function buildProfileUrl(handle) {
   return `${PROFILE_BASE}/${handle}`;
 }
 
-/* ---------------- Skeleton row (ตอนโหลดคอมเมนต์) ---------------- */
 function CommentSkeletonRow() {
   return (
     <div className="mt-3 ml-2 animate-pulse">
@@ -95,12 +92,11 @@ function CommentItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.message || "");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showReport, setShowReport] = useState(false); // 👈 state สำหรับ report dialog
+  const [showReport, setShowReport] = useState(false); 
 
   const hasChildren = (comment.children || []).length > 0;
   const expanded = collapsedMap[comment.comment_id] ?? false;
 
-  // helper: save edit
   const handleSaveEdit = async () => {
     const value = draft.trim();
     if (!value) return;
@@ -108,7 +104,7 @@ function CommentItem({
     if (ok) setEditing(false);
   };
 
-  // close dropdown on outside click
+
   useEffect(() => {
     const onDoc = (e) => {
       if (
@@ -161,10 +157,8 @@ function CommentItem({
           />
         </button>
 
-        {/* bubble (group for hover) */}
         <div className="flex-1 min-w-0">
           <div className="group relative inline-block max-w-full">
-            {/* three-dots (ทุกคอมเมนต์, แต่เมนูต่างกัน) */}
             <div
               data-menu-anchor={comment.comment_id}
               className={cx(
@@ -190,7 +184,6 @@ function CommentItem({
 
               {menuOpen && (
                 <div className="mt-1 w-32 rounded-xl bg-white shadow-lg ring-1 ring-black/5 overflow-hidden text-sm">
-                  {/* ถ้าเป็นของตัวเอง → Edit / Delete */}
                   {isMine && (
                     <>
                       <button
@@ -218,7 +211,6 @@ function CommentItem({
                     </>
                   )}
 
-                  {/* Report (มีทุกเคส) */}
                   <button
                     type="button"
                     className="w-full px-3 py-2 text-left text-amber-600 hover:bg-amber-50"
@@ -406,7 +398,6 @@ function CommentItem({
         </div>
       </div>
 
-      {/* Report dialog (เฉพาะคอมเมนต์นี้) */}
       {showReport && (
         <ReportDialog
           targetType="comment"
@@ -417,8 +408,6 @@ function CommentItem({
     </div>
   );
 }
-
-/* ---------------- Toast สำหรับ login ---------------- */
 
 function LoginToast({ open, onClose, onGoLogin }) {
   return (
@@ -467,7 +456,7 @@ export default function CommentSection({ noteId, userId }) {
   const [submitting, setSubmitting] = useState(false);
   const [showAllRoots, setShowAllRoots] = useState(false);
   const [showLoginToast, setShowLoginToast] = useState(false);
-  const [userExists, setUserExists] = useState(null); // เช็คว่า userId นี้อยู่ใน DB ไหม
+  const [userExists, setUserExists] = useState(null); 
 
   // rate limit state
   const [rateLimit, setRateLimit] = useState(null); // { message, until }
@@ -475,7 +464,6 @@ export default function CommentSection({ noteId, userId }) {
 
   const scrollRef = useRef(null);
 
-  // เช็ค userId กับ DB ครั้งเดียว (หรือเมื่อ userId เปลี่ยน)
   useEffect(() => {
     let cancelled = false;
 
@@ -522,7 +510,6 @@ export default function CommentSection({ noteId, userId }) {
     };
   }, [userId]);
 
-  // tick สำหรับ countdown rate limit
   useEffect(() => {
     if (!rateLimit) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -535,7 +522,6 @@ export default function CommentSection({ noteId, userId }) {
       : 0;
   const rateLimitActive = !!rateLimit && rateLimitRemaining > 0;
 
-  // auto clear rateLimit เมื่อหมดเวลา
   useEffect(() => {
     if (!rateLimit) return;
     if (rateLimit.until && rateLimit.until <= Date.now()) {
@@ -543,7 +529,6 @@ export default function CommentSection({ noteId, userId }) {
     }
   }, [rateLimit, now]);
 
-  // helper: ต้องมี user ที่ valid ก่อนถึงจะโพสต์ได้
   const requireUser = () => {
     if (!userId) {
       setShowLoginToast(true);
@@ -556,7 +541,6 @@ export default function CommentSection({ noteId, userId }) {
     return true;
   };
 
-  // load comments
   useEffect(() => {
     if (!noteId) return;
     let cancelled = false;
@@ -591,7 +575,6 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
-  // create new root comment
   async function handleCreate(message) {
     if (!requireUser()) return;
 
@@ -615,11 +598,9 @@ export default function CommentSection({ noteId, userId }) {
       try {
         data = await res.json();
       } catch (_) {
-        // เผื่อ backend ไม่ได้ส่ง JSON กลับมา (แต่ปกติจะมี)
       }
 
       if (!res.ok) {
-        // 🔒 เคสโดน punish (timeout / ban)
         if (res.status === 403 && data?.code === "PUNISHED") {
           alert(
             data?.error ||
@@ -628,7 +609,6 @@ export default function CommentSection({ noteId, userId }) {
           return;
         }
 
-        // ⏱ เคส rate limit
         if (res.status === 429) {
           let retryAfterSec = Number(data?.retry_after);
           if (!Number.isFinite(retryAfterSec) || retryAfterSec <= 0) {
@@ -646,10 +626,8 @@ export default function CommentSection({ noteId, userId }) {
         return;
       }
 
-      // ok → clear rate limit error (ถ้ามี)
       setRateLimit(null);
 
-      // ⚡ ยิง notification ไปหาเจ้าของโน้ต
       const newCommentId = data?.id ?? data?.comment?.comment_id;
       if (newCommentId && userId && noteId != null) {
         try {
@@ -684,7 +662,6 @@ export default function CommentSection({ noteId, userId }) {
   }
 
 
-  // reply
   async function handleReply(message, parentId) {
     if (!requireUser()) return;
 
@@ -726,7 +703,6 @@ export default function CommentSection({ noteId, userId }) {
 
       setRateLimit(null);
 
-      // ⚡ ยิง notification ไปหาเจ้าของคอมเมนต์แม่ (และผูกกับ note นี้)
       const newCommentId = data?.id ?? data?.comment?.comment_id;
       if (newCommentId && userId && noteId != null && parentId != null) {
         try {
@@ -751,8 +727,6 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
-
-  // edit
   async function handleEdit(id, message) {
     try {
       const res = await fetch(`${API}/comment/${id}`, {
@@ -768,7 +742,6 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
-  // delete
   async function handleDelete(id) {
     try {
       const res = await fetch(`${API}/comment/${id}`, { method: "DELETE" });
@@ -779,7 +752,6 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
-  // open profile by handle
   function openProfileByHandle(handle) {
     if (!handle) return;
     try {
@@ -791,7 +763,6 @@ export default function CommentSection({ noteId, userId }) {
     }
   }
 
-  // root comments & limit
   const rootComments = comments.filter((c) => !c.parent_comment_id);
   const rootCount = rootComments.length;
   const visibleRoots =
@@ -799,7 +770,6 @@ export default function CommentSection({ noteId, userId }) {
       ? rootComments
       : rootComments.slice(rootCount - VISIBLE_ROOT_LIMIT);
 
-  // ถ้า user ไม่ valid → ห้าม edit/delete โดยถือว่า meId = null
   const meId = userExists ? userId : null;
 
   return (
@@ -862,7 +832,6 @@ export default function CommentSection({ noteId, userId }) {
             placeholder="Write a comment..."
             className="flex-1 rounded-full border px-4 py-2 focus:ring-1 focus:ring-blue-500 outline-none"
             onFocus={() => {
-              // ถ้ายังไม่มี user หรือ userId นี้หายจาก DB แล้ว → เตือนเลย
               if (!userId || userExists === false) {
                 setShowLoginToast(true);
               }
