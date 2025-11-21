@@ -50,6 +50,9 @@ export default function ProfileSettingsPage() {
     img: "",
   });
 
+  // snapshot state ก่อนเริ่มแก้ไข (ใช้ตอน Cancel)
+  const [initialFormData, setInitialFormData] = useState(null);
+
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -134,7 +137,7 @@ export default function ProfileSettingsPage() {
         (u?.web && String(u.web).trim()) ||
         "";
 
-      setFormData({
+      const next = {
         name: u.full_name || "",
         display_name: u.user_name || "",
         email: u.email || "",
@@ -144,7 +147,10 @@ export default function ProfileSettingsPage() {
         phone: u.phone || "",
         password: "",
         img: u.img || session?.user?.image || "",
-      });
+      };
+
+      setFormData(next);
+      setInitialFormData(next); // snapshot state ล่าสุดจาก backend
     } catch (err) {
       console.error("fetchUserProfile error:", err);
       setErrors({ general: "Unable to reach server" });
@@ -241,7 +247,7 @@ export default function ProfileSettingsPage() {
       setFormData((prev) => ({ ...prev, password: "" }));
       setTimeout(() => setSuccessMessage(""), 3000);
 
-      // reload profile ให้ form sync กับ backend
+      // reload profile ให้ form + snapshot sync กับ backend
       fetchUserProfile(userId);
     } catch (err) {
       console.error("handleSave error:", err);
@@ -254,7 +260,10 @@ export default function ProfileSettingsPage() {
   };
 
   const handleCancel = () => {
-    if (userId) fetchUserProfile(userId);
+    // ดึง state กลับเป็นค่าก่อนเริ่มแก้ไขทันที (ไม่ยิง API)
+    if (initialFormData) {
+      setFormData(initialFormData);
+    }
     setErrors({});
     setIsEditing(false);
   };
@@ -346,9 +355,7 @@ export default function ProfileSettingsPage() {
               <p className="text-xs text-emerald-900/60 mt-1">
                 Logged in as{" "}
                 <b>
-                  {session?.user?.name ||
-                    session?.user?.login_name ||
-                    "—"}
+                  {session?.user?.name || session?.user?.login_name || "—"}
                 </b>
               </p>
             </div>
@@ -435,11 +442,9 @@ export default function ProfileSettingsPage() {
                   )}
                 </div>
 
-                {/* ⬇️ Display name + login name (ไม่โชว์ email แล้ว) */}
+                {/* Display name + @login_name */}
                 <h3 className="text-lg font-semibold text-emerald-900 mt-4">
-                  {formData.display_name?.trim() ||
-                    formData.name ||
-                    "User"}
+                  {formData.display_name?.trim() || formData.name || "User"}
                 </h3>
                 <p className="text-emerald-900/70 text-sm">
                   @{session?.user?.login_name || session?.user?.name || ""}
@@ -453,7 +458,18 @@ export default function ProfileSettingsPage() {
               </h2>
               <div className="space-y-3">
                 <button
-                  onClick={() => setIsEditing((v) => !v)}
+                  type="button"
+                  onClick={() => {
+                    if (disableActions) return;
+                    if (isEditing) {
+                      // กำลังแก้ไขอยู่ → ยกเลิกและดึง state กลับของเดิม
+                      handleCancel();
+                    } else {
+                      // เริ่มเข้าโหมดแก้ไข → snapshot ค่าปัจจุบันไว้ก่อน
+                      setInitialFormData(formData);
+                      setIsEditing(true);
+                    }
+                  }}
                   className="w-full flex items-center justify-center px-4 py-2 text-white font-semibold rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 shadow hover:opacity-90 transition disabled:opacity-60"
                   disabled={disableActions}
                 >
@@ -521,9 +537,7 @@ export default function ProfileSettingsPage() {
                     </p>
                   )}
                   {errors.name && (
-                    <p className="mt-1 text-sm text-red-600">
-                      {errors.name}
-                    </p>
+                    <p className="mt-1 text-sm text-red-600">{errors.name}</p>
                   )}
                 </div>
 
