@@ -126,21 +126,24 @@ kuwhy/
 # 1. Clone the repository
 git clone https://github.com/isp-merciful/kuwhy.git
 cd kuwhy
-# setup all .env in kuwhy(root),frontend,backend
-App password in backend/.env  
-Sign in to your Google from this link:
 
-- [Google App Passwords](https://myaccount.google.com/apppasswords)
+# setup all .env in kuwhy(root), frontend, backend
+echo "App password in backend/.env"
+echo "Sign in to your Google from this link:"
 
-Enable your 2FA and insert app-password name, click **Create**.  
-Copy the pass-code and paste it into `SMTP_PASS` **without spaces**.
+# Clickable link (ANSI Hyperlink – works in VSCode Terminal, iTerm2, Windows Terminal)
+echo -e "\e]8;;https://myaccount.google.com/apppasswords\e\\Google App Passwords\e]8;;\e\\"
+
+echo "Enable your 2FA and insert app-password name, then click Create."
+echo "Copy the pass-code and paste it into SMTP_PASS without spaces."
 
 # 2. Start all services with Docker
 docker-compose up --build -d
 
 # 3. Access the application
-Frontend: http://localhost:3000
-Backend: http://localhost:8000(configure in backend.env port) 
+echo "Frontend: http://localhost:3000"
+echo "Backend: http://localhost:8000 (configured in backend.env port)"
+
 ```
 ---
 
