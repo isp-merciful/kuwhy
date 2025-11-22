@@ -18,8 +18,8 @@ function resolveProfileImage(raw, fallbackSessionImage) {
     v = fallbackSessionImage.trim();
   }
 
-  if (!v) return "/images/pfp.png"; 
-  if (v.startsWith("data:image")) return v; 
+  if (!v) return "/images/pfp.png";
+  if (v.startsWith("data:image")) return v;
   if (v.startsWith("http://") || v.startsWith("https://")) return v;
 
   return `${API_BASE}${v}`;
@@ -141,7 +141,7 @@ export default function ProfileSettingsPage() {
       };
 
       setFormData(next);
-      setInitialFormData(next); 
+      setInitialFormData(next);
     } catch (err) {
       console.error("fetchUserProfile error:", err);
       setErrors({ general: "Unable to reach server" });
@@ -167,7 +167,7 @@ export default function ProfileSettingsPage() {
       const payload = {
         full_name: formData.name,
         display_name: formData.display_name,
-        email: formData.email,
+        email: formData.email, // จะ normalize ด้านล่าง
         bio: formData.bio,
         user_bio: formData.bio,
         description: formData.bio,
@@ -178,8 +178,20 @@ export default function ProfileSettingsPage() {
         img: formData.img,
       };
 
+      // ถ้ามี password ค่อยส่งไป
       if (formData.password && formData.password.trim()) {
         payload.password = formData.password;
+      }
+
+      // === normalize email: กันเคส "" ไปชน unique constraint ===
+      if (typeof payload.email === "string") {
+        const trimmedEmail = payload.email.trim();
+        if (!trimmedEmail) {
+          // ไม่ส่ง field email ถ้าเป็นค่าว่าง → backend จะไม่อัปเดต email
+          delete payload.email;
+        } else {
+          payload.email = trimmedEmail;
+        }
       }
 
       const res = await authFetch(ROUTES.updateUserSetting(userId), {
@@ -198,9 +210,13 @@ export default function ProfileSettingsPage() {
       }
 
       if (!res.ok) {
+        console.error("[settings] save failed", res.status, data);
         setErrors({
           general:
-            data?.error || "Failed to update profile. Please try again.",
+            data?.error ||
+            (res.status === 409
+              ? "Some of this information is already used by another account (for example, the email)."
+              : "Failed to update profile. Please try again."),
         });
         return;
       }
@@ -667,9 +683,7 @@ export default function ProfileSettingsPage() {
                           </span>
                         )
                       ) : (
-                        <span className="text-emerald-950">
-                          Not provided
-                        </span>
+                        <span className="text-emerald-950">Not provided</span>
                       )}
                     </p>
                   )}

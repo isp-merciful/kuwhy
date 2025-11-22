@@ -180,7 +180,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-[#f2fbf6] to-[#eef6ff]">
-      <main className="mx-auto flex max-w-6xl justify-center px-4 py-10">
+      <main className="mx-auto mt-16 sm:mt-24 flex max-w-6xl justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="rounded-3xl border bg-white shadow-xl">
             <div className="p-6 sm:p-8">

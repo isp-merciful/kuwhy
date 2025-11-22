@@ -135,65 +135,71 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-cyan-50 to-emerald-100 pt-24 pb-16">
       <div className="mx-auto max-w-5xl px-4 md:px-6">
-        {/* ===== HERO SECTION (PFP + background) ===== */}
-        <section className="rounded-3xl border border-emerald-100/70 bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50 shadow-sm px-6 py-6 sm:px-8 sm:py-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4 sm:gap-6">
-              <div className="relative">
-                <div className="p-[3px] rounded-full bg-gradient-to-tr from-emerald-300 to-sky-300 inline-block shadow-sm">
-                  <img
-                    src={avatarSrc}
-                    alt={u.user_name || u.login_name}
-                    className="h-24 w-24 sm:h-28 sm:w-28 rounded-full object-cover ring-4 ring-white bg-white"
-                    onError={(e) => {
-                      if (e.currentTarget.src !== "/images/pfp.png") {
-                        e.currentTarget.src = "/images/pfp.png";
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <h1
-                  className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-emerald-500 to-sky-500 bg-clip-text text-transparent break-words"
-                  style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
-                >
-                  {u.user_name || u.login_name}
-                </h1>
-                <div className="text-gray-500">@{u.login_name}</div>
-              </div>
-            </div>
-
-            {isOwner && (
-              <a
-                href="/settings"
-                className="self-start sm:self-center inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 text-white text-sm font-semibold shadow hover:opacity-90 transition"
-              >
-                Edit Profile
-              </a>
-            )}
+{/* ===== HERO SECTION (PFP + background + note bubble) ===== */}
+<section className="rounded-3xl border border-emerald-100/70 bg-gradient-to-br from-emerald-50 via-cyan-50 to-sky-50 shadow-sm px-6 py-6 sm:px-8 sm:py-8">
+  <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+    {/* ซ้าย: bubble อยู่ตรงบน PFP, ชื่ออยู่คอลัมน์ขวา */}
+    <div className="w-full sm:w-auto">
+      <div className="grid grid-cols-[auto,1fr] gap-x-4 sm:gap-x-6 items-center">
+        {hasActiveNote && (
+          <div
+            className="
+              col-start-1 row-start-1 mb-3
+              justify-self-center
+              pointer-events-none inline-block
+              max-w-[min(56rem,100%)]
+              [&_*]:break-words [&_*]:whitespace-pre-wrap
+            "
+            style={{
+              overflowWrap: "anywhere",
+              wordBreak: "break-word",
+              lineBreak: "anywhere",
+            }}
+          >
+            <ActiveNoteViewer userId={u.user_id} />
           </div>
+        )}
 
-          {hasActiveNote && (
-            <div className="mt-6">
-              <div
-                className="
-                  pointer-events-none inline-block w-full
-                  max-w-[min(56rem,100%)]
-                  [&_*]:break-words [&_*]:whitespace-pre-wrap
-                "
-                style={{
-                  overflowWrap: "anywhere",
-                  wordBreak: "break-word",
-                  lineBreak: "anywhere",
-                }}
-              >
-                <ActiveNoteViewer userId={u.user_id} />
-              </div>
-            </div>
-          )}
-        </section>
+        {/* PFP */}
+        <div className="col-start-1 row-start-2 justify-self-center">
+          <div className="p-[3px] rounded-full bg-gradient-to-tr from-emerald-300 to-sky-300 inline-block shadow-sm">
+            <img
+              src={avatarSrc}
+              alt={u.user_name || u.login_name}
+              className="h-24 w-24 sm:h-28 sm:w-28 rounded-full object-cover ring-4 ring-white bg-white"
+              onError={(e) => {
+                if (e.currentTarget.src !== "/images/pfp.png") {
+                  e.currentTarget.src = "/images/pfp.png";
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* ชื่อ + handle */}
+        <div className="col-start-2 row-start-2">
+          <h1
+            className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-emerald-500 to-sky-500 bg-clip-text text-transparent break-words"
+            style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+          >
+            {u.user_name || u.login_name}
+          </h1>
+          <div className="text-gray-500">@{u.login_name}</div>
+        </div>
+      </div>
+    </div>
+
+    {/* ปุ่ม Edit Profile */}
+    {isOwner && (
+      <a
+        href="/settings"
+        className="self-start sm:self-center inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 text-white text-sm font-semibold shadow hover:opacity-90 transition"
+      >
+        Edit Profile
+      </a>
+    )}
+  </div>
+</section>
 
         {/* ===== MAIN GRID SECTION ===== */}
         <section className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 pb-4">

@@ -58,6 +58,9 @@ function CommentItem({
   const [deleting, setDeleting] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
+  // 🔹 pretty delete confirm modal
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const isReplying = replyingTo === node.comment_id;
   const isOwner =
     currentUserId && String(node.user_id) === String(currentUserId);
@@ -94,7 +97,6 @@ function CommentItem({
 
   async function handleDelete() {
     if (deleting) return;
-    if (!window.confirm("Delete this comment?")) return;
 
     setDeleting(true);
     try {
@@ -107,6 +109,7 @@ function CommentItem({
         alert(data.error || "Failed to delete comment");
       } else {
         setShowMenu(false);
+        setShowDeleteConfirm(false);
         onDeleted?.();
       }
     } catch (e) {
@@ -181,7 +184,7 @@ function CommentItem({
               </button>
 
               {showMenu && (
-                <div className="absolute right-0 z-20 mt-1 w-28 rounded-md border border-gray-200 bg-white shadow-md">
+                <div className="absolute right-0 z-30 mt-1 w-28 rounded-md border border-gray-200 bg-white shadow-md">
                   <button
                     type="button"
                     onClick={() => {
@@ -195,7 +198,10 @@ function CommentItem({
                   </button>
                   <button
                     type="button"
-                    onClick={handleDelete}
+                    onClick={() => {
+                      setShowDeleteConfirm(true);
+                      setShowMenu(false);
+                    }}
                     disabled={deleting}
                     className="block w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
                   >
@@ -299,6 +305,44 @@ function CommentItem({
           </ul>
         </div>
       ) : null}
+
+      {/* 🔹 Delete confirm modal (per comment) */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-red-700">
+              Delete this comment?
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              This action cannot be undone. The comment and its replies (if
+              any) may be removed permanently.
+            </p>
+            <div className="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-700 line-clamp-3">
+              “{(node.message || "").slice(0, 160)}
+              {node.message && node.message.length > 160 ? "…" : ""}”
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setShowDeleteConfirm(false)}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-600 disabled:opacity-60"
+              >
+                {deleting ? "Deleting…" : "Delete comment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </li>
   );
 }
