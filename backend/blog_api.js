@@ -207,7 +207,7 @@ router.get("/:id", optionalAuth, async (req, res) => {
 
 router.put(
   "/:id",
-  requireMember,
+  requireMember,ensureNotPunished,
   upload.array("attachments", 10),
   async (req, res) => {
     try {

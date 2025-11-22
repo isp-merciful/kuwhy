@@ -72,7 +72,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // === ส่วนอื่นตามสิทธิ์เดิม ===
 app.use("/auth",Forgotpassword );
-app.use("/api/blog", requireMember, blogRouter);
+app.use("/api/blog", blogRouter);
 app.use("/api/noti", notificationRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/note", noteRouter);
@@ -197,7 +197,11 @@ app.get('/api/_debug/me', async (req, res) => {
 
 /* ================== START SERVER ================== */
 
-const port = process.env.PORT || 8000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+const PORT = process.env.PORT || 8000;
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
+}
+
+module.exports = app;
