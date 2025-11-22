@@ -125,22 +125,26 @@ kuwhy/
 
 ### Environment variables
 
-1. **Configure environment file**  
+1. **Configure environment file(s)**  
    Copy the example configuration file and then update the values as needed.
 
    - **macOS / Linux**
      ```bash
      cp .env.example .env
+     cp .env backend/.env
+     cp .env frontend/.env
      ```
-   - **Windows**
-     ```bash
+   - **Windows (CMD)**
+     ```cmd
      copy .env.example .env
+     copy .env backend\.env
+     copy .env frontend\.env
      ```
 
 2. **Create Gmail App Password**  
    This is required for sending email (e.g. forgot-password).
 
-   - Open your **Google Account**.
+   - Open your **Google Account** (the Gmail account you want to send from).
    - Go to **Security**.
    - Under **“Signing in to Google”**, turn on **2-Step Verification** (if it isn’t already).
    - After 2FA is enabled, go back to **Security** and click **App passwords**.
@@ -148,40 +152,69 @@ kuwhy/
    - Click **Generate** and copy the 16-character password.
    - Use this value as `SMTP_PASS` in your `.env` file.
 
-3. ⚠️ **Note**  
-   Make sure your database settings in `.env` (especially `DATABASE_URL`) match the configuration used in `docker-compose.yml` / `compose.yml` And all the .env must be the same in every layer
-root(kuwhy),backend/.env,frontend/.env
+3. **How to obtain each value**
+
+   #### Google OAuth — `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+
+   1. Go to **Google Cloud Console**: <https://console.cloud.google.com>  
+   2. Create a new **Project** (or select your existing one).  
+   3. In the left sidebar, go to **APIs & Services → OAuth consent screen**:
+      - Choose **External** (for typical web apps).
+      - Fill in **App name**, **User support email**, etc.
+      - Add scopes (at minimum, `email`, `profile`, `openid` are enough for NextAuth).
+      - Add your test users (for dev) and **Save**.
+   4. Go to **APIs & Services → Credentials**.  
+   5. Click **Create Credentials → OAuth client ID**.  
+   6. Choose **Web application**.  
+   7. Under **Authorized JavaScript origins**, add:
+      - For development: `http://localhost:3000`
+      - For production: `https://{YOUR_DOMAIN}`
+   8. Under **Authorized redirect URIs**, add:
+      - For development:  
+        `http://localhost:3000/api/auth/callback/google`
+      - For production:  
+        `https://{YOUR_DOMAIN}/api/auth/callback/google`
+   9. Click **Create**.  
+   10. Copy the generated **Client ID** and **Client secret**:
+       - Paste them into your `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+4. ⚠️ **Important note about `.env` and Docker**  
+
+   - Make sure your database settings in `.env` (especially `DATABASE_URL`) **match** the configuration used in `docker-compose.yml` / `compose.yml`.  
+   - In this project we usually have:
+     - `./.env`
+     - `backend/.env`
+     - `frontend/.env`
+   - The following **core variables should be identical** across those files:
+     - `DATABASE_URL`
+     - `NEXTAUTH_SECRET`
+     - `NEXTAUTH_URL`
+     - `GOOGLE_CLIENT_ID`
+     - `GOOGLE_CLIENT_SECRET`
+     - Mailer settings (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`)
+   - If these get out of sync, you may see:
+     - Docker using a different DB than Prisma.
+     - NextAuth JWTs not matching the backend (`401 Unauthorized` everywhere).
+     - Frontend calling the wrong backend URL.
 
 ---
 
 #### Required keys in `.env`
 
-| **Section**       | **Variable**           | **Example / Notes**                                                                                                      |
-|-------------------|------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| **Google OAuth**  | `GOOGLE_CLIENT_ID`     | `your-google-oauth-client-id` – from **Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs**.   |
-|                   | `GOOGLE_CLIENT_SECRET` | `your-google-oauth-client-secret` – from the same OAuth client detail page.                                             |
-| **NextAuth**      | `NEXTAUTH_SECRET`      | `random-long-secret-string` – generate with `openssl rand -hex 32` or a Node `crypto` snippet (see below).              |
-|                   | `NEXTAUTH_URL`         | `http://localhost:3000/` for local dev. In production, set to your deployed URL, e.g. `https://your-domain.com/`.       |
-| **Mailer (Gmail)**| `SMTP_HOST`            | `smtp.gmail.com` – Gmail SMTP host.                                                                                      |
-|                   | `SMTP_PORT`            | `587` – SMTP port for STARTTLS.                                                                                          |
-|                   | `SMTP_USER`            | `your-email@gmail.com` – Gmail account used to send emails (must match the account that created the App Password).      |
-|                   | `SMTP_PASS`            | `your-16-char-gmail-app-password` – value generated in step 2 above.                                                    |
-| **Database**      | `DATABASE_URL`         | `mysql://root:root@db:3306/ispgraveyard` – follows `mysql://USER:PASSWORD@HOST:PORT/DB_NAME`, must match Docker config. |
+| **Section**         | **Variable**             | **Example / Notes**                                                                                                                        |
+|---------------------|--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| **Google OAuth**    | `GOOGLE_CLIENT_ID`       | `your-google-oauth-client-id` – from **Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs**.                     |
+|                     | `GOOGLE_CLIENT_SECRET`   | `your-google-oauth-client-secret` – from the same OAuth client detail page.                                                               |
+| **NextAuth**        | `NEXTAUTH_SECRET`        | `random-long-secret-string` – must be the **same** everywhere (Next.js + backend). Generate with `openssl rand -hex 32` or Node snippet. |
+|                     | `NEXTAUTH_URL`           | `http://localhost:3000/` for local dev. In production, set to your deployed URL, e.g. `https://your-domain.com/`.                         |
+| **Frontend → API**  | `NEXT_PUBLIC_BACKEND_URL`| `http://localhost:8000` in dev, or your backend URL in production, e.g. `https://api.your-domain.com`.                                    |
+| **Mailer (Gmail)**  | `SMTP_HOST`              | `smtp.gmail.com` – Gmail SMTP host.                                                                                                       |
+|                     | `SMTP_PORT`              | `587` – SMTP port for STARTTLS.                                                                                                           |
+|                     | `SMTP_USER`              | `your-email@gmail.com` – Gmail account used to send emails (**same account that created the App Password**).                             |
+|                     | `SMTP_PASS`              | `your-16-char-gmail-app-password` – value generated in step 2 above.                                                                     |
+| **Database**        | `DATABASE_URL`           | `mysql://root:root@db:3306/ispgraveyard` – format: `mysql://USER:PASSWORD@HOST:PORT/DB_NAME`, must match your Docker MySQL config.       |
 
----
 
-### How to obtain each value
-
-#### 1. Google OAuth — `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-
-1. Go to **Google Cloud Console**.
-2. Create a new project (or select an existing one).
-3. Navigate to **APIs & Services → Credentials**.
-4. Click **Create Credentials → OAuth client ID**.
-5. Choose **Web application**.
-6. Add an **Authorized redirect URI** such as:
-   ```text
-   http://localhost:3000/api/auth/callback/google
 ### Start the program
 ```bash
 # 1. Clone the repository
