@@ -1,4 +1,3 @@
-// backend/forgot-password.js
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const jwt = require("jsonwebtoken");
@@ -8,12 +7,11 @@ require("dotenv").config();
 const prisma = new PrismaClient();
 const router = express.Router();
 
-/* ---------- Nodemailer Transport ---------- */
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT || 587),
-  secure: false, // ถ้าใช้ port 465 ค่อยเปลี่ยนเป็น true
+  secure: false, 
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -21,7 +19,6 @@ const transporter = nodemailer.createTransport({
 });
 
 
-// ลอง verify ตอนโหลดไฟล์ (จะเห็น error ชัด ๆ เลยถ้า config ผิด)
 transporter
   .verify()
   .then(() => {
@@ -31,8 +28,6 @@ transporter
     console.error("[mail] SMTP verify failed:", err);
   });
 
-/* ---------- 1) POST /auth/forgot-password ---------- */
-/* body: { email: string } */
 
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
@@ -44,8 +39,6 @@ router.post("/forgot-password", async (req, res) => {
   }
 
   try {
-    // ❗ ดูให้ชัวร์ว่า model / field ตรงกับ schema ของโปรเจกต์
-    // ถ้า users ไม่มีฟิลด์ email จริง ๆ อันนี้จะหา user ไม่เจอ => ไม่ส่งเมลแน่นอน
     const user = await prisma.users.findFirst({
       where: { email: email },
       select: { user_id: true, email: true },
@@ -58,7 +51,6 @@ router.post("/forgot-password", async (req, res) => {
         "=> no email will be sent (but respond 200 generic)"
       );
 
-      // เพื่อความปลอดภัย: ไม่บอกว่าไม่มี user
       return res.json({
         message: "If this email is registered, we have sent a reset link.",
       });
@@ -192,7 +184,6 @@ const emailHtml = `
   }
 });
 
-/* ---------- 2) GET /auth/reset-password ---------- */
 
 router.get("/reset-password", (req, res) => {
   const { token } = req.query;
@@ -223,7 +214,6 @@ router.get("/reset-password", (req, res) => {
   }
 });
 
-/* ---------- 3) POST /auth/reset-password ---------- */
 
 router.post("/reset-password", async (req, res) => {
   const { token, password } = req.body;
@@ -241,7 +231,6 @@ router.post("/reset-password", async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
 
-    // ❗ ตรงนี้เหมือนกัน ปรับชื่อ model / field ให้ตรง schema
     await prisma.users.update({
       where: { user_id: payload.userId },
       data: { password: hashed },

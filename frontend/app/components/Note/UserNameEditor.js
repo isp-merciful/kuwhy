@@ -14,44 +14,36 @@ export default function UserNameEditor({
   const [isEditing, setIsEditing] = useState(false);
   const [hover, setHover] = useState(false);
 
-  // sync tempName กับ name จาก parent
   useEffect(() => {
-    // ระหว่างกำลังแก้ไขอยู่ ไม่ให้ค่าใหม่จาก parent มาทับที่พิมพ์อยู่
     if (!isEditing) {
       setTempName(name || "");
     }
   }, [name, isEditing]);
 
-  // ตรวจสอบ flag จาก NoteBubble (ตอน expand แล้วให้เข้าโหมด edit ชื่อ)
   useEffect(() => {
     if (editNameOnExpand && !isPosted) {
       setIsEditing(true);
-      setEditNameOnExpand(false); // รีเซ็ต flag หลังเปิด edit
+      setEditNameOnExpand(false); 
     }
   }, [editNameOnExpand, isPosted, setEditNameOnExpand]);
 
   const confirmChange = async () => {
     const trimmed = (tempName || "").trim();
 
-    // ถ้าชื่อว่าง → ยกเลิกแล้วกลับไปใช้ค่าเดิม
     if (!trimmed) {
       setTempName(name || "");
       setIsEditing(false);
       return;
     }
 
-    // ถ้าเหมือนเดิม → ปิดช่องเฉย ๆ
     if (trimmed === (name || "")) {
       setIsEditing(false);
       return;
     }
 
-    // ✅ อัปเดตชื่อใน state ของ NoteBubble ทันที (optimistic)
-    // ทำให้ UserNameEditor ทั้ง 2 จุดเห็นชื่อใหม่โดยไม่ต้องรีเฟรช
     setName(trimmed);
     setIsEditing(false);
 
-    // 🔁 แล้วค่อยยิง API แบบเดิมของคุณตามหลัง
     try {
       const userId = localStorage.getItem("userId");
       const dicebearUrl = `https://api.dicebear.com/9.x/thumbs/svg?seed=${userId}`;
@@ -59,28 +51,25 @@ export default function UserNameEditor({
       const res = await fetch(`http://localhost:8000/api/user/${userId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        // ✅ ใช้ payload แบบเดิม { name: ... } เพื่อรักษาพฤติกรรมเก่า
         body: JSON.stringify({ name: trimmed ,img: dicebearUrl}),
       });
       if (!res.ok) throw new Error("Failed to update name");
 
       const data = await res.json().catch(() => null);
 
-      // ถ้า backend ส่ง user_name กลับมา ก็ sync ทับอีกที (กันเคส backend ปรับชื่อให้)
       if (data && data.user_name) {
         setName(data.user_name);
         setTempName(data.user_name);
       }
     } catch (err) {
       console.error("Error updating user name:", err);
-      // ถ้า error ก็ไม่ revert ชื่อบน UI เพื่อไม่ให้ดูหายไป
     }
   };
 
   const handleClick = () => {
     if (!isPosted) {
-      if (onEditClick) onEditClick(); // แจ้ง NoteBubble ว่ากำลัง edit (setIsComposing อะไรพวกนี้)
-      setIsEditing(true);             // เปิด edit ชื่อทันที
+      if (onEditClick) onEditClick(); 
+      setIsEditing(true);             
     }
   };
 
@@ -101,7 +90,6 @@ export default function UserNameEditor({
           onKeyDown={(e) => {
             if (e.key === "Enter") confirmChange();
             if (e.key === "Escape") {
-              // กด Esc → ยกเลิกและกลับไปใช้ชื่อเดิม
               setTempName(name || "");
               setIsEditing(false);
             }

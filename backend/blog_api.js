@@ -1,4 +1,3 @@
-// backend/blog_api.js
 const express = require("express");
 const router = express.Router();
 const path = require("path");
@@ -7,9 +6,6 @@ const multer = require("multer");
 const { optionalAuth, requireMember } = require("./auth_mw");
 const { prisma } = require("./lib/prisma.cjs");
 const { ensureNotPunished } = require("./punish_mw");
-
-
-/* ----------------------- Upload folder ----------------------- */
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -32,7 +28,6 @@ function filesToAttachments(files = []) {
   }));
 }
 
-// helper: normalize tags
 function normalizeTags(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) {
@@ -49,7 +44,6 @@ function normalizeTags(raw) {
   return [];
 }
 
-// helper: map prisma blog -> API shape
 function mapBlog(b) {
   return {
     blog_id: b.blog_id,
@@ -57,7 +51,6 @@ function mapBlog(b) {
     message: b.message,
     img: b.users?.img || null,
     user_name: b.users?.user_name || "anonymous",
-    // ⭐ add login_name so frontend can link to /profile/login_name
     login_name: b.users?.login_name || null,
     user_id: b.user_id,
     created_at: b.created_at,
@@ -148,7 +141,6 @@ router.get("/", optionalAuth, async (_req, res) => {
           select: {
             img: true,
             user_name: true,
-            // ⭐ include login_name from users table
             login_name: true,
           },
         },
@@ -164,7 +156,6 @@ router.get("/", optionalAuth, async (_req, res) => {
   }
 });
 
-/* ----------------------- GET SINGLE BLOG ----------------------- */
 
 router.get("/:id", optionalAuth, async (req, res) => {
   try {
@@ -188,7 +179,6 @@ router.get("/:id", optionalAuth, async (req, res) => {
           select: {
             img: true,
             user_name: true,
-            // ⭐ include login_name here too
             login_name: true,
           },
         },
@@ -203,7 +193,6 @@ router.get("/:id", optionalAuth, async (req, res) => {
   }
 });
 
-/* ----------------------- UPDATE BLOG (title/message/tags/attachments) ----------------------- */
 
 router.put(
   "/:id",
@@ -251,7 +240,6 @@ router.put(
         data.tags = tagsArr;
       }
 
-      // ------------ attachments ------------
       let kept = [];
       const hasAttachmentsJson =
         typeof attachments_json !== "undefined" && attachments_json !== null;
@@ -275,7 +263,6 @@ router.put(
       const newUploaded = filesToAttachments(req.files || []);
 
       if (hasAttachmentsJson) {
-        // even if kept & newUploaded are both empty → set attachments = []
         data.attachments = [...kept, ...newUploaded];
       } else if (newUploaded.length > 0) {
         const existingAtts = Array.isArray(existing.attachments)
@@ -283,7 +270,6 @@ router.put(
           : [];
         data.attachments = [...existingAtts, ...newUploaded];
       }
-      // ------------ end attachments ------------
 
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: "No fields to update" });
@@ -307,7 +293,6 @@ router.put(
             select: {
               img: true,
               user_name: true,
-              // ⭐ include login_name in update response as well
               login_name: true,
             },
           },

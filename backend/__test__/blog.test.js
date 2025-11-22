@@ -1,10 +1,6 @@
-// backend/blog_api.test.js
 const request = require("supertest");
 const express = require("express");
 
-// ---------- Mocks ----------
-
-// mock auth_mw: ใช้ header x-test-user-id แทนการยิง JWT จริง
 jest.mock("../auth_mw", () => {
   const requireMember = jest.fn((req, res, next) => {
     const id = req.headers["x-test-user-id"];
@@ -26,13 +22,11 @@ jest.mock("../auth_mw", () => {
   return { optionalAuth, requireMember };
 });
 
-// mock punish_mw: ปกติให้ผ่าน แต่บาง test จะเปลี่ยน implementation เป็น block
 jest.mock("../punish_mw", () => {
   const ensureNotPunished = jest.fn((_req, _res, next) => next());
   return { ensureNotPunished };
 });
 
-// mock prisma.blog
 jest.mock("../lib/prisma.cjs", () => {
   return {
     prisma: {
@@ -52,7 +46,6 @@ const { requireMember, optionalAuth } = require("../auth_mw");
 const { ensureNotPunished } = require("../punish_mw");
 const blogRouter = require("../blog_api");
 
-// helper สร้าง app สำหรับเทส
 function createApp() {
   const app = express();
   app.use(express.json());
@@ -68,7 +61,6 @@ describe("Blog API", () => {
     app = createApp();
   });
 
-  /* ----------------------- GET /api/blog ----------------------- */
 
   it("GET /api/blog - should return mapped blogs with login_name, attachments, tags", async () => {
     const now = new Date();
@@ -138,7 +130,6 @@ describe("Blog API", () => {
     expect(res.body.error).toBe("fetch post fail");
   });
 
-  /* ----------------------- GET /api/blog/:id ----------------------- */
 
   it("GET /api/blog/:id - should return 400 on bad id", async () => {
     const res = await request(app).get("/api/blog/abc");
@@ -200,7 +191,6 @@ describe("Blog API", () => {
     });
   });
 
-  /* ----------------------- POST /api/blog ----------------------- */
 
   it("POST /api/blog - should require auth", async () => {
     const res = await request(app)
@@ -258,7 +248,6 @@ describe("Blog API", () => {
     const res = await request(app)
       .post("/api/blog")
       .set("x-test-user-id", "user-1")
-      // ใช้ field() เพื่อให้ผ่าน multer (multipart/form-data)
       .field("blog_title", "Hello")
       .field("message", "World")
       .field("tags", "  tag1 , tag2 ,, ");
@@ -286,7 +275,6 @@ describe("Blog API", () => {
     expect(Array.isArray(res.body.uploaded_attachments)).toBe(true);
   });
 
-  /* ----------------------- PUT /api/blog/:id ----------------------- */
 
   it("PUT /api/blog/:id - should require auth", async () => {
     const res = await request(app).put("/api/blog/1").send({
@@ -378,7 +366,7 @@ describe("Blog API", () => {
       user_id: "user-1",
       created_at: now,
       updated_at: now,
-      attachments: [], // หลังส่ง attachments_json เป็น [] -> แนบว่าง
+      attachments: [],
       tags: ["tag1", "tag2"],
       users: {
         img: "/images/new.png",
@@ -413,7 +401,7 @@ describe("Blog API", () => {
         blog_title: "New title",
         message: "New content",
         tags: ["tag1", "tag2"],
-        attachments: [], // overwrite attachments
+        attachments: [], 
       }),
       select: expect.any(Object),
     });
@@ -434,7 +422,6 @@ describe("Blog API", () => {
     });
   });
 
-  /* ----------------------- DELETE /api/blog/:id ----------------------- */
 
   it("DELETE /api/blog/:id - should require auth", async () => {
     const res = await request(app).delete("/api/blog/1");
@@ -500,8 +487,6 @@ describe("Blog API", () => {
     expect(res.body.message).toBe("delete success");
   });
 
-  /* ----------------------- POST /api/blog/:id/vote-simple ----------------------- */
-
   it("POST /api/blog/:id/vote-simple - should require auth", async () => {
     const res = await request(app)
       .post("/api/blog/1/vote-simple")
@@ -539,7 +524,6 @@ describe("Blog API", () => {
       blog_down: null,
     });
 
-    // ให้ update คืนค่าตาม data ที่ส่งเข้าไป เพื่อเช็คว่า logic คำนวณถูก
     prisma.blog.update.mockImplementation(async ({ data }) => {
       return {
         blog_up: data.blog_up,

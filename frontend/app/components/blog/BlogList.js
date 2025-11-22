@@ -10,7 +10,7 @@ const SOFT_BREAK_EVERY = 80;
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
-// turn /uploads/... into http://localhost:8000/uploads/...
+
 function toAbs(url) {
   if (!url) return "";
   if (url.startsWith("http")) return url;
@@ -19,7 +19,7 @@ function toAbs(url) {
   return url;
 }
 
-// Insert invisible soft-break every N characters (fix long long word overflow)
+//Insert invisible soft-break 
 function insertSoftBreaks(text, every = SOFT_BREAK_EVERY) {
   if (!text) return "";
   const re = new RegExp(`(.{${every}})`, "g");
@@ -34,7 +34,7 @@ export default function BlogList({ initialBlogs = [] }) {
   const sortMode = (searchParams.get("sort") || "newest").toLowerCase();
   const titleQuery = (searchParams.get("q") || "").trim().toLowerCase();
 
-  // tags from URL: "homework,food" -> ["homework","food"]
+  // tags from URL
   const filterTags = rawTagQuery
     .split(",")
     .map((t) => t.trim().toLowerCase())
@@ -58,7 +58,7 @@ export default function BlogList({ initialBlogs = [] }) {
     return <div className="text-gray-500">No posts yet.</div>;
   }
 
-  // Normalize blogs: ensure tags arrays and lowercases
+  //ensure tags arrays and lowercases
   const normalized = blogs.map((b) => {
     const tags =
       Array.isArray(b.tags)
@@ -75,10 +75,10 @@ export default function BlogList({ initialBlogs = [] }) {
     return { ...b, tags, tagsLower };
   });
 
-  // ----- FILTERING -----
+  //FILTERING
   let filtered = normalized;
 
-  // AND-tag filter
+  // tag filter
   if (filterTags.length > 0) {
     filtered = filtered.filter((b) =>
       filterTags.every((ft) => b.tagsLower.includes(ft))
@@ -92,7 +92,7 @@ export default function BlogList({ initialBlogs = [] }) {
     );
   }
 
-  // ----- SORTING -----
+  // SORTING 
   const sorted = filtered.slice().sort((a, b) => {
     const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
     const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -100,11 +100,11 @@ export default function BlogList({ initialBlogs = [] }) {
     if (sortMode === "top") {
       const scoreA = (a.blog_up ?? 0) - (a.blog_down ?? 0);
       const scoreB = (b.blog_up ?? 0) - (b.blog_down ?? 0);
-      if (scoreB !== scoreA) return scoreB - scoreA; // higher score first
-      return timeB - timeA; // tie-break by newest
+      if (scoreB !== scoreA) return scoreB - scoreA; 
+      return timeB - timeA; // tie-break by newest blog
     }
 
-    // default: newest first
+    // default: newest blog first
     return timeB - timeA;
   });
 
@@ -160,7 +160,7 @@ export default function BlogList({ initialBlogs = [] }) {
 
           previewMessage = insertSoftBreaks(previewMessage);
 
-          // ✅ use flattened fields from backend
+          
           const authorName = b.user_name || "anonymous";
           const rawImg = b.img || "";
           const authorImg = rawImg ? toAbs(rawImg) : "";

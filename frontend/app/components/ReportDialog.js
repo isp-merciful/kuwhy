@@ -56,7 +56,6 @@ export default function ReportDialog({ targetType, targetId, onClose }) {
         return;
       }
 
-      // ✅ แทน alert → ใช้ toast สวย ๆ
       setShowToast(true);
       setTimeout(() => {
         setShowToast(false);
@@ -74,7 +73,6 @@ export default function ReportDialog({ targetType, targetId, onClose }) {
       {/* overlay */}
       <div className="fixed inset-0 z-[80] bg-black/40 flex items-center justify-center px-4">
         <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-6 relative">
-          {/* ปุ่มปิดมุมขวาบน */}
           <button
             type="button"
             onClick={onClose}
@@ -155,7 +153,6 @@ export default function ReportDialog({ targetType, targetId, onClose }) {
         </div>
       </div>
 
-      {/* toast หลังส่งสำเร็จ */}
       {showToast && (
         <div className="fixed bottom-4 left-1/2 z-[90] -translate-x-1/2 rounded-full bg-emerald-600 px-4 py-2 text-sm text-white shadow-lg">
           Report submitted. Thank you. 🙏

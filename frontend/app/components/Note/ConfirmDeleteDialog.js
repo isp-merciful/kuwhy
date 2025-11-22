@@ -1,4 +1,3 @@
-// frontend/app/components/ConfirmDeleteDialog.jsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -41,13 +40,11 @@ export default function ConfirmDeleteDialog({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => !busy && onClose?.()}
           />
 
-          {/* Card */}
           <motion.div
             role="dialog"
             aria-modal="true"
@@ -57,7 +54,6 @@ export default function ConfirmDeleteDialog({
             exit={{ y: 8, scale: 0.98, opacity: 0 }}
             transition={{ type: "spring", stiffness: 280, damping: 26 }}
           >
-            {/* Close */}
             <button
               onClick={() => !busy && onClose?.()}
               className="absolute right-3 top-3 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -67,9 +63,7 @@ export default function ConfirmDeleteDialog({
               <XMarkIcon className="h-5 w-5" />
             </button>
 
-            {/* Header */}
             <div className="flex items-start gap-4">
-              {/* ไอคอน: ใหญ่และเต็มขึ้น */}
               <div className="mt-0.5 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 ring-1 ring-red-100">
                 <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
@@ -83,7 +77,6 @@ export default function ConfirmDeleteDialog({
               </div>
             </div>
 
-            {/* Actions */}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 ref={cancelRef}

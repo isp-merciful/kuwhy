@@ -5,11 +5,6 @@ import NotificationPanel from "./NotificationPanel";
 
 const API_BASE = "http://localhost:8000";
 
-/**
- * Props (optional)
- * - isOpen: boolean
- * - onOpenChange: (open:boolean) => void
- */
 export default function NotificationBell({ isOpen, onOpenChange }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = typeof isOpen === "boolean" ? isOpen : internalOpen;
@@ -20,7 +15,6 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
   const [userId, setUserId] = useState("");
   const rootRef = useRef(null);
 
-  // ✅ track ว่าตอนนี้ popup จาก NotificationPanel เปิดอยู่ไหม
   const [popupOpen, setPopupOpen] = useState(false);
 
   useEffect(() => {
@@ -68,12 +62,10 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
     };
   }, [userId]);
 
-  // ปิดเมื่อคลิกนอก + Escape
   useEffect(() => {
     if (!open) return;
 
     function onDocClick(e) {
-      // ✅ ถ้า popup เปิดอยู่ ให้ไม่ปิด panel
       if (popupOpen) return;
 
       if (rootRef.current && !rootRef.current.contains(e.target)) {
@@ -81,7 +73,6 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
       }
     }
     function onEsc(e) {
-      // ✅ กด Esc ตอน popup เปิดอยู่ ก็ไม่ปิด panel เช่นกัน
       if (popupOpen) return;
       if (e.key === "Escape") setOpen(false);
     }
@@ -141,7 +132,6 @@ export default function NotificationBell({ isOpen, onOpenChange }) {
           <NotificationPanel
             notifications={notifications}
             onNotificationRead={handleNotificationRead}
-            // ✅ ให้ panel แจ้งสถานะ popup กลับมาที่ bell
             onPopupOpenChange={setPopupOpen}
           />
         </div>

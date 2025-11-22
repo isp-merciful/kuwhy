@@ -3,21 +3,18 @@
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import useUserId from "../Note/useUserId"; // adjust path if needed
+import useUserId from "../Note/useUserId"; 
 
-// ✅ unify API_BASE like other files
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.API_BASE ||
   "http://localhost:8000";
 
-// ✅ helper: convert /uploads/... to full URL
 function toAbs(url) {
   if (!url) return "";
   if (url.startsWith("http")) return url;
   if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
-  // frontend static asset, e.g. /images/pfp.png
   return url;
 }
 
@@ -64,7 +61,6 @@ function CommentItem({
   const isOwner =
     currentUserId && String(node.user_id) === String(currentUserId);
 
-  // ✅ avatar: use img from backend, convert to absolute, fallback to default
   const avatarSrc = node.img ? toAbs(node.img) : "/images/pfp.png";
 
   async function handleSaveEdit() {
@@ -85,7 +81,7 @@ function CommentItem({
       } else {
         setIsEditing(false);
         setShowMenu(false);
-        onEdited?.(); // reload from parent
+        onEdited?.(); 
       }
     } catch (e) {
       console.error(e);
@@ -110,7 +106,7 @@ function CommentItem({
         alert(data.error || "Failed to delete comment");
       } else {
         setShowMenu(false);
-        onDeleted?.(); // reload from parent
+        onDeleted?.(); 
       }
     } catch (e) {
       console.error(e);
@@ -306,18 +302,12 @@ function CommentItem({
   );
 }
 
-/**
- * Props:
- *  - blogId: string | number   ← use this (from page)
- *  - currentUserId?: string | null (optional; if not provided we read from useUserId())
- */
 export default function CommentThread({ blogId, currentUserId = null }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rootText, setRootText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
 
-  // 🔔 toast state
   const [toastMsg, setToastMsg] = useState("");
   const toastTimerRef = useRef(null);
 
@@ -325,7 +315,6 @@ export default function CommentThread({ blogId, currentUserId = null }) {
   const { data: session } = useSession();
   const apiToken = session?.apiToken || null;
 
-  // prefer provided id; otherwise take the hook
   const hookUserId = useUserId();
   const userId = currentUserId || hookUserId;
 
@@ -337,7 +326,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     }
     toastTimerRef.current = setTimeout(() => {
       setToastMsg("");
-    }, 3000); // 3 วินาทีหายเอง
+    }, 3000);
   }
 
   useEffect(() => {
@@ -379,7 +368,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     if (!message?.trim()) return;
 
     const body = {
-      user_id: userId, // always send your user_id
+      user_id: userId, 
       message: message.trim(),
       blog_id: Number(blogId),
       parent_comment_id,
@@ -398,11 +387,9 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     try {
       data = await res.json();
     } catch {
-      // backend อาจไม่ส่ง JSON กลับ (แต่ปกติควรมี)
     }
 
     if (!res.ok) {
-      // 🔒 เคสโดน punish (timeout / ban) จาก ensureNotPunished
       if (res.status === 403 && data?.code === "PUNISHED") {
         alert(
           data?.error ||
@@ -411,7 +398,6 @@ export default function CommentThread({ blogId, currentUserId = null }) {
         return;
       }
 
-      // 🔒 เคส blog comment: ยังไม่ล็อกอิน → ให้ redirect ไปหน้า login
       if (
         res.status === 401 &&
         data?.error_code === "LOGIN_REQUIRED_FOR_BLOG_COMMENT"
@@ -425,7 +411,6 @@ export default function CommentThread({ blogId, currentUserId = null }) {
         return;
       }
 
-      // 🔒 เคส blog comment: ล็อกอินแล้วแต่ยังไม่ได้ตั้ง login_name
       if (
         res.status === 403 &&
         data?.error_code === "LOGIN_NAME_REQUIRED_FOR_BLOG_COMMENT"
@@ -441,13 +426,11 @@ export default function CommentThread({ blogId, currentUserId = null }) {
         return;
       }
 
-      // เคสอื่น ๆ → โยน error ให้ caller จัดการเหมือนเดิม
       let msg = "Failed to add comment";
       if (data?.error || data?.message) msg = data.error || data.message;
       throw new Error(msg);
     }
 
-    // ✅ มาถึงตรงนี้ = สร้างคอมเมนต์สำเร็จ → ยิง noti สำหรับ blog
     const newCommentId =
       data?.id ?? data?.comment?.comment_id ?? data?.comment_id ?? null;
 
@@ -467,7 +450,6 @@ export default function CommentThread({ blogId, currentUserId = null }) {
         });
       } catch (e) {
         console.error("create blog comment notification failed:", e);
-        // ไม่ต้อง throw: ไม่อยากให้ noti พังแล้ว comment พังไปด้วย
       }
     }
   }
@@ -509,7 +491,6 @@ export default function CommentThread({ blogId, currentUserId = null }) {
   return (
     <>
       <section className="pt-10 mt-6" aria-labelledby="comments-title">
-        {/* Header */}
         <h2
           id="comments-title"
           className="text-xl font-semibold text-emerald-900"
@@ -517,14 +498,12 @@ export default function CommentThread({ blogId, currentUserId = null }) {
           Comments {items?.length ? `(${items.length})` : ""}
         </h2>
 
-        {/* No comments message ABOVE form */}
         {!loading && items.length === 0 && (
           <p className="mt-4 mb-2 text-sm text-emerald-700/70">
             No comments yet. Be the first to comment!
           </p>
         )}
 
-        {/* ROOT COMMENT BOX */}
         <form
           onSubmit={submitRoot}
           className="mt-3 rounded-2xl border border-emerald-100 bg-white/80 backdrop-blur px-5 py-5 shadow-sm space-y-4"
@@ -560,7 +539,6 @@ export default function CommentThread({ blogId, currentUserId = null }) {
           </div>
         </form>
 
-        {/* COMMENT LIST */}
         {loading ? (
           <p className="mt-8 text-sm text-emerald-700/70">
             Loading comments…
@@ -583,7 +561,6 @@ export default function CommentThread({ blogId, currentUserId = null }) {
         ) : null}
       </section>
 
-      {/* 🔔 Toast message (error) */}
       {toastMsg && (
         <div className="fixed bottom-4 right-4 z-50 max-w-xs rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg">
           <div className="flex items-start gap-2">

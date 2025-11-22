@@ -33,7 +33,6 @@ export default function LoginPage() {
   useEffect(() => {
     setMounted(true);
 
-    // อ่าน ?error=... แบบไม่ใช้ useSearchParams (กัน hook-order issues)
     try {
       const usp = new URLSearchParams(window.location.search);
       const errKey = usp.get("error") || "";
@@ -88,14 +87,12 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      // อ่าน callbackUrl จาก query
       let callbackUrl = "/";
       try {
         const usp = new URLSearchParams(window.location.search);
         callbackUrl = usp.get("callbackUrl") || "/";
       } catch {}
 
-      // ✅ เช็ก username ซ้ำเฉพาะตอนสมัคร
       if (authMode === "register") {
         const resp = await fetch(
           `/api/check-username?login_name=${encodeURIComponent(
@@ -122,7 +119,6 @@ export default function LoginPage() {
         }
       }
 
-      // signIn แบบ redirect:false
       const res = await signIn("credentials", {
         redirect: false,
         login_name: formData.login_name,
@@ -164,7 +160,6 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  // ✅ ปุ่ม Forgot password → เด้งไปหน้า /reset-password (ให้ตรงกับ app/reset-password)
   const handleForgotPassword = () => {
     setAuthError("");
     try {
@@ -262,7 +257,6 @@ export default function LoginPage() {
                       )}
                     </div>
 
-                    {/* user_name (เฉพาะสมัคร) */}
                     {authMode === "register" && (
                       <div>
                         <label
@@ -319,7 +313,6 @@ export default function LoginPage() {
                         </p>
                       )}
 
-                      {/* ✅ ลิงก์ Forgot password (เฉพาะหน้า login) */}
                       {authMode === "login" && (
                         <div className="mt-2 flex justify-end">
                           <button

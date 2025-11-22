@@ -1,4 +1,3 @@
-// backend/punishment_api.js
 const express = require("express");
 const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
@@ -25,8 +24,6 @@ function toInt(v) {
   return Number.isFinite(n) ? n : NaN;
 }
 
-/* ---------- POST /api/punish ---------- */
-// body: { user_id?, ip_address?, kind, minutes?, reason?, report_id? }
 router.post("/", requireAdmin, async (req, res) => {
   try {
     const {
@@ -58,7 +55,7 @@ router.post("/", requireAdmin, async (req, res) => {
 
     let expires_at = null;
     if (type === "TIMEOUT") {
-      const m = Number(minutes) || 60; // default 60 นาที
+      const m = Number(minutes) || 60; 
       expires_at = new Date(Date.now() + m * 60 * 1000);
     }
 
@@ -88,8 +85,6 @@ router.post("/", requireAdmin, async (req, res) => {
   }
 });
 
-/* ---------- GET /api/punish ---------- */
-// ?includeExpired=1 เพื่อโชว์หมด
 router.get("/", requireAdmin, async (req, res) => {
   try {
     const includeExpired =
@@ -139,7 +134,6 @@ router.get("/", requireAdmin, async (req, res) => {
   }
 });
 
-/* ---------- PATCH /api/punish/:id/unban ---------- */
 router.patch("/:id/unban", requireAdmin, async (req, res) => {
   try {
     const idNum = toInt(req.params.id);
@@ -172,7 +166,6 @@ router.get("/me", requireMember, async (req, res) => {
   try {
     const userId = req.user && req.user.id ? String(req.user.id) : null;
 
-    // พยายามดึง IP ให้ได้มากที่สุด
     const ip =
       (req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
       req.ip ||
@@ -221,7 +214,6 @@ router.get("/me", requireMember, async (req, res) => {
   }
 });
 
-// 👇 เช็กสถานะ punish สำหรับ anonymous ได้ (ไม่ต้อง login)
 router.get("/public", async (req, res) => {
   try {
     const userId = req.query.user_id ? String(req.query.user_id) : null;

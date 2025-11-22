@@ -37,7 +37,7 @@ function getNotiMessage(noti) {
 export default function NotificationPanel({
   notifications,
   onNotificationRead,
-  onPopupOpenChange, // ✅ เพิ่ม prop
+  onPopupOpenChange, 
 }) {
   const router = useRouter();
   const viewerUserId = useUserId();
@@ -50,7 +50,6 @@ export default function NotificationPanel({
     setIsClient(true);
   }, []);
 
-  // ✅ แจ้งให้ NotificationBell รู้เมื่อ popup เปิด/ปิด
   useEffect(() => {
     if (typeof onPopupOpenChange === "function") {
       onPopupOpenChange(showPopup);
@@ -126,14 +125,12 @@ export default function NotificationPanel({
 
   return (
     <>
-      {/* กล่อง Notifications ใต้กระดิ่ง */}
       <div
         className="w-80 bg-white shadow-lg rounded-xl p-3"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="font-bold mb-2">Notifications</h3>
 
-        {/* list เลื่อนเองถ้าเยอะ */}
         <div className="mt-2 max-h-[60vh] overflow-y-auto">
           {notifications.length === 0 ? (
             <p className="text-gray-400 text-sm">No notifications yet.</p>
@@ -170,7 +167,6 @@ export default function NotificationPanel({
         </div>
       </div>
 
-      {/* Popup กลางจอ */}
       {isClient &&
         showPopup &&
         popupNote &&

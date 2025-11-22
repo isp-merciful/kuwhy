@@ -13,7 +13,7 @@ export default function BlogPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const avatarImg = session?.user?.image || null;
-  // --- read current query params ---
+  //read current query
   const currentTag = searchParams.get("tag") || "";
   const currentSort = (searchParams.get("sort") || "newest").toLowerCase();
   const currentTitle = searchParams.get("q") || "";
@@ -22,7 +22,7 @@ export default function BlogPage() {
   const [sortMode, setSortMode] = useState(currentSort);
   const [titleInput, setTitleInput] = useState(currentTitle);
 
-  // keep state in sync with URL
+  //keep state in sync 
   useEffect(() => {
     setTagInput(currentTag);
   }, [currentTag]);
@@ -51,7 +51,7 @@ export default function BlogPage() {
     router.push("/blog/new");
   };
 
-  // helper: build URL with tag + sort + title search
+  //URL with tag + sort + title search
   const updateUrl = (tagValue, sortValue, titleValue) => {
     const params = new URLSearchParams();
     const t = tagValue?.trim();
@@ -60,7 +60,7 @@ export default function BlogPage() {
 
     if (t) params.set("tag", t);
     if (q) params.set("q", q);
-    if (s && s !== "newest") params.set("sort", s); // omit default from URL
+    if (s && s !== "newest") params.set("sort", s); // default
 
     const qs = params.toString();
     router.push(qs ? `/blog?${qs}` : "/blog");
@@ -86,7 +86,7 @@ export default function BlogPage() {
     updateUrl(effectiveTag, newSort, effectiveTitle);
   };
 
-  // toggle preset tag in the comma-separated list, AND-style
+  // Preset tag
   const togglePresetTag = (tag) => {
     setTagInput((prev) => {
       const parts = prev
@@ -98,10 +98,10 @@ export default function BlogPage() {
       let next;
 
       if (parts.includes(lowerTag)) {
-        // remove it
+        // remove 
         next = parts.filter((t) => t !== lowerTag);
       } else {
-        // add it
+        // add 
         next = [...parts, lowerTag];
       }
 
@@ -109,7 +109,7 @@ export default function BlogPage() {
     });
   };
 
-  // set for highlighting active preset chips
+  // Highlight selected tag
   const activePresetSet = new Set(
     tagInput
       .split(",")

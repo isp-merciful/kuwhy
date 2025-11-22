@@ -1,8 +1,6 @@
-// backend/__tests__/notification_api.test.js
 const request = require("supertest");
 const express = require("express");
 
-// ---- mock Prisma (ตาม lib/prisma.cjs) ----
 const mockPrisma = {
   note: {
     findUnique: jest.fn(),
@@ -28,7 +26,6 @@ jest.mock("../lib/prisma.cjs", () => ({
   prisma: mockPrisma,
 }));
 
-// ต้อง require หลัง mock แล้ว
 const notificationRouter = require("../notification_api");
 
 describe("Notification API (/api/noti)", () => {
@@ -41,19 +38,14 @@ describe("Notification API (/api/noti)", () => {
     app.use("/api/noti", notificationRouter);
   });
 
-  // ---------------------------------------------------------------------------
-  // 1) โหมด party event: event_type = "party_join" | "party_chat"
-  // ---------------------------------------------------------------------------
   describe("POST /api/noti - party events", () => {
     it("creates party notifications for host and members except sender", async () => {
-      // host
       mockPrisma.note.findUnique.mockResolvedValue({
         user_id: "host-1",
       });
 
-      // party members
       mockPrisma.party_members.findMany.mockResolvedValue([
-        { user_id: "host-1" },   // host อยู่ใน table ด้วย
+        { user_id: "host-1" },   
         { user_id: "member-1" },
         { user_id: "member-2" },
       ]);
@@ -81,7 +73,6 @@ describe("Notification API (/api/noti)", () => {
         select: { user_id: true },
       });
 
-      // host + member-2 เท่านั้น (member-1 เป็น sender เลยโดนลบออก)
       expect(mockPrisma.notifications.createMany).toHaveBeenCalledTimes(1);
       const arg = mockPrisma.notifications.createMany.mock.calls[0][0];
 
@@ -168,13 +159,8 @@ describe("Notification API (/api/noti)", () => {
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // 2) โหมด comment / reply (note หรือ blog)
-  // ---------------------------------------------------------------------------
   describe("POST /api/noti - comment/reply (note/blog)", () => {
-    // ---------- NOTE COMMENT ----------
     it("creates a notification for note owner when someone comments their note", async () => {
-      // note owner = user-B
       mockPrisma.note.findUnique.mockResolvedValue({
         user_id: "user-B",
       });
@@ -253,7 +239,6 @@ describe("Notification API (/api/noti)", () => {
       expect(mockPrisma.notifications.create).not.toHaveBeenCalled();
     });
 
-    // ---------- BLOG COMMENT ----------
     it("creates a notification for blog owner when someone comments their blog", async () => {
       mockPrisma.blog.findUnique.mockResolvedValue({
         user_id: "blog-owner",
@@ -285,7 +270,7 @@ describe("Notification API (/api/noti)", () => {
           blog_id: 10,
           comment_id: 301,
           parent_comment_id: null,
-          type: "comment", // comment + blog_id => เวลาอ่าน noti จะไปหน้า blog
+          type: "comment", 
           is_read: false,
         },
         select: { notification_id: true },
@@ -333,7 +318,6 @@ describe("Notification API (/api/noti)", () => {
       expect(mockPrisma.notifications.create).not.toHaveBeenCalled();
     });
 
-    // ---------- REPLY COMMENT (NOTE) ----------
     it("creates a notification for parent comment owner when someone replies to their note comment", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue({
         user_id: "user-parent",
@@ -350,8 +334,8 @@ describe("Notification API (/api/noti)", () => {
         .send({
           sender_id: "user-replier",
           note_id: 123,
-          comment_id: 456,          // reply comment
-          parent_comment_id: 111,   // คอมเมนต์ที่ถูก reply
+          comment_id: 456,          
+          parent_comment_id: 111,   
         })
         .expect(200);
 
@@ -380,7 +364,6 @@ describe("Notification API (/api/noti)", () => {
       });
     });
 
-    // ---------- REPLY COMMENT (BLOG) ----------
     it("creates a notification for parent comment owner when someone replies to their blog comment", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue({
         user_id: "blog-comment-owner",
@@ -397,8 +380,8 @@ describe("Notification API (/api/noti)", () => {
         .send({
           sender_id: "blog-replier",
           blog_id: 10,
-          comment_id: 402,          // reply comment
-          parent_comment_id: 210,   // คอมเมนต์ที่ถูก reply บน blog
+          comment_id: 402,          
+          parent_comment_id: 210,   
         })
         .expect(200);
 
@@ -427,7 +410,6 @@ describe("Notification API (/api/noti)", () => {
       });
     });
 
-    // ---------- ERROR CASES ----------
     it("returns 400 when parent comment not found for reply", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue(null);
 
@@ -453,7 +435,6 @@ describe("Notification API (/api/noti)", () => {
         .send({
           sender_id: "user-A",
           note_id: 123,
-          // ไม่มี comment_id
         })
         .expect(400);
 
@@ -467,7 +448,6 @@ describe("Notification API (/api/noti)", () => {
         .send({
           sender_id: "user-A",
           comment_id: 456,
-          // ไม่มี note_id / blog_id / parent_comment_id
         })
         .expect(400);
 
@@ -479,9 +459,6 @@ describe("Notification API (/api/noti)", () => {
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // 3) GET /api/noti/:userId
-  // ---------------------------------------------------------------------------
   describe("GET /api/noti/:userId", () => {
     it("returns mapped notifications belonging to the recipient", async () => {
       const now = new Date("2025-01-01T10:00:00Z");
@@ -551,9 +528,6 @@ describe("Notification API (/api/noti)", () => {
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // 4) PUT /api/noti/:notificationId - mark as read
-  // ---------------------------------------------------------------------------
   describe("PUT /api/noti/:notificationId", () => {
     it("marks a notification as read", async () => {
       mockPrisma.notifications.update.mockResolvedValue({

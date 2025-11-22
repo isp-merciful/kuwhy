@@ -1,4 +1,3 @@
-// backend/report_api.js
 const express = require("express");
 const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
@@ -9,7 +8,6 @@ const { ensureNotPunished } = require("./punish_mw");
 
 const ALLOWED_TARGET_TYPES = ["note", "comment", "blog", "party_chat"];
 
-/* ---------- helpers ---------- */
 
 function normalizeTargetType(t) {
   if (!t) return "";
@@ -23,11 +21,6 @@ function toInt(v) {
   return Number.isFinite(n) ? n : NaN;
 }
 
-/* ============================================================
- * POST /api/report
- * body: { targetType, targetId, reason?, detail? }
- * auth: member (requireMember) + not punished (ensureNotPunished)
- * ========================================================== */
 router.post("/", requireMember, ensureNotPunished, async (req, res) => {
   try {
     const { targetType, targetId, reason, detail } = req.body || {};
@@ -64,7 +57,6 @@ router.post("/", requireMember, ensureNotPunished, async (req, res) => {
 
     let targetUserId = null;
 
-    // --- resolve target owner + attach ids ---
     if (tType === "note") {
       const note = await prisma.note.findUnique({
         where: { note_id: idNum },
@@ -85,7 +77,6 @@ router.post("/", requireMember, ensureNotPunished, async (req, res) => {
       }
       targetUserId = c.user_id;
       data.comment_id = idNum;
-      // แนบ blog_id/note_id (ถ้ามี) เพื่อให้ admin ดูง่ายขึ้น
       if (c.blog_id) data.blog_id = c.blog_id;
       if (c.note_id) data.note_id = c.note_id;
     } else if (tType === "blog") {
@@ -99,7 +90,6 @@ router.post("/", requireMember, ensureNotPunished, async (req, res) => {
       targetUserId = b.user_id;
       data.blog_id = idNum;
     } else if (tType === "party_chat") {
-      // report party message
       const msg = await prisma.party_messages.findUnique({
         where: { message_id: idNum },
         select: { user_id: true, note_id: true, content: true },
@@ -109,7 +99,6 @@ router.post("/", requireMember, ensureNotPunished, async (req, res) => {
       }
       targetUserId = msg.user_id;
       data.note_id = msg.note_id;
-      // ถ้า user ไม่กรอก detail เลย แนบเนื้อความ chat ให้ admin เห็น
       if (!data.detail) {
         data.detail = `Reported party chat message: "${msg.content}"`;
       }
@@ -125,10 +114,6 @@ router.post("/", requireMember, ensureNotPunished, async (req, res) => {
   }
 });
 
-/* ============================================================
- * GET /api/report?status=pending|resolved|all
- * ใช้ในหน้า Admin (tab Reports)
- * ========================================================== */
 router.get("/", requireAdmin, async (req, res) => {
   try {
     const status = (req.query.status || "pending").toString();
@@ -138,7 +123,7 @@ router.get("/", requireAdmin, async (req, res) => {
       where = { status: "pending" };
     } else if (status === "resolved") {
       where = { status: "resolved" };
-    } // ถ้า all => where = {}
+    } 
 
     const reports = await prisma.user_report.findMany({
       where,
@@ -179,11 +164,6 @@ router.get("/", requireAdmin, async (req, res) => {
   }
 });
 
-/* ============================================================
- * PATCH /api/report/:id/resolve
- * body: { status?, resolution_action? }
- * ใช้ตอน admin กด "Mark resolved" หรือหลัง delete / punish
- * ========================================================== */
 router.patch("/:id/resolve", requireAdmin, async (req, res) => {
   try {
     const idNum = toInt(req.params.id);
@@ -210,7 +190,6 @@ router.patch("/:id/resolve", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("[PATCH /api/report/:id/resolve] error:", err);
     if (err.code === "P2025") {
-      // record not found
       return res.status(404).json({ error: "Report not found" });
     }
     return res.status(500).json({ error: "Failed to update report" });

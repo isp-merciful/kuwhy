@@ -2,14 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import MessageInput from "./MessageInput";
 
-/**
- * แสดงโน้ตปัจจุบันของผู้ใช้:
- * - ถ้ามีโน้ต => แสดง MessageInput แบบ isPosted=true (อ่านอย่างเดียว)
- * - ถ้าไม่มี => ไม่ render อะไรเลย
- */
 export default function ActiveNoteViewer({
   userId,
-  authHeaders = {},   // เผื่อกรณีต้องแนบโทเคน
+  authHeaders = {},  
   className = "",
 }) {
   const mountedRef = useRef(false);
@@ -17,12 +12,10 @@ export default function ActiveNoteViewer({
   const [loading, setLoading] = useState(true);
   const [hasNote, setHasNote] = useState(false);
 
-  // state เพื่อ feed ให้ MessageInput
   const [text, setText] = useState("");
   const [isPosted, setIsPosted] = useState(false);
   const [noteId, setNoteId] = useState(null);
 
-  // เพิ่ม state อื่น ๆ ตามภาพ (ใช้ดู state อย่างเดียว)
   const [isParty, setIsParty] = useState(false);
   const [maxParty, setMaxParty] = useState(0);
   const [currParty, setCurrParty] = useState(0);
@@ -45,7 +38,6 @@ export default function ActiveNoteViewer({
         if (!mountedRef.current) return;
 
         if (!res.ok) {
-          // ไม่มีโน้ตหรือ error -> reset ให้ไม่แสดง
           setHasNote(false);
           setIsPosted(false);
           setNoteId(null);
@@ -60,7 +52,6 @@ export default function ActiveNoteViewer({
 
         const data = await res.json();
 
-        // API ของคุณ: ไม่มีโน้ต => { note: null }
         if (data?.note === null || !data?.message) {
           setHasNote(false);
           setIsPosted(false);
@@ -74,9 +65,8 @@ export default function ActiveNoteViewer({
           return;
         }
 
-        // มีโน้ต -> โชว์เป็นบับเบิลอ่านอย่างเดียว
         setHasNote(true);
-        setIsPosted(true);             // <- ทำให้แก้ไขไม่ได้ (MessageInput จะ render <p>)
+        setIsPosted(true);            
         setNoteId(data.note_id ?? null);
         setText(data.message ?? "");
 
@@ -88,7 +78,6 @@ export default function ActiveNoteViewer({
         setLoading(false);
       } catch (_e) {
         if (!mountedRef.current) return;
-        // error network -> ปิดการแสดง
         setHasNote(false);
         setIsPosted(false);
         setNoteId(null);
@@ -109,25 +98,21 @@ export default function ActiveNoteViewer({
     };
   }, [userId, authHeaders]);
 
-  if (loading) return null;          // ไม่โชว์ skeleton ตามโจทย์ “ไม่มีเวลาบอก”
-  if (!hasNote) return null;         // ไม่มีโน้ต => ไม่แสดงอะไรเลย
+  if (loading) return null;         
+  if (!hasNote) return null;         
 
   return (
     <div className={className}>
       <MessageInput
         text={text}
         setText={setText}
-        isPosted={isPosted}           // true => อ่านอย่างเดียว
+        isPosted={isPosted}           
         handlePost={() => {}}
         loading={false}
-        showButton={false}            // ไม่ให้มีปุ่มโพสต์
+        showButton={false}            
         variant="default"
-        onBubbleClick={undefined}     // ไม่เปิดแก้ไข
+        onBubbleClick={undefined}    
       />
-      {/* คุณต้องการดู state เพิ่มเติม/ดีบั๊ก สามารถเปิดบรรทัดล่างได้ */}
-      {/* <pre className="text-xs text-gray-500 mt-2">
-        {JSON.stringify({ noteId, isParty, maxParty, currParty, joinedMemberOnly }, null, 2)}
-      </pre> */}
     </div>
   );
 }

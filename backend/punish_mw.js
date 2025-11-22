@@ -1,34 +1,18 @@
-// backend/punish_mw.js
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-/**
- * บล็อก action สำหรับ user ที่โดนลงโทษ
- *
- * รองรับทั้ง
- * - login member: ใช้ req.user.id (จาก requireMember)
- * - anonymous ที่ส่ง user_id ใน body (เช่น POST /api/comment)
- *
- * TYPE ใน DB ใช้เป็นตัวพิมพ์ใหญ่:
- * - TIMEOUT
- * - BAN_USER
- * - BAN_IP
- */
 async function ensureNotPunished(req, res, next) {
   try {
     let userId = null;
 
-    // 1) เคส login: มี req.user.id (จาก requireMember หรือ middleware อื่น)
     if (req.user && req.user.id) {
       userId = String(req.user.id);
     }
 
-    // 2) เคส anonymous: ส่ง user_id มากับ body (เช่น POST /api/comment)
     if (!userId && req.body && req.body.user_id) {
       userId = String(req.body.user_id);
     }
 
-    // หา IP (เผื่อมี BAN_IP)
     const ipHeader = (req.headers["x-forwarded-for"] || "").split(",")[0].trim();
     const ip =
       ipHeader ||
@@ -36,7 +20,6 @@ async function ensureNotPunished(req, res, next) {
       (req.connection && req.connection.remoteAddress) ||
       null;
 
-    // ถ้าไม่มีทั้ง user และ IP → ไม่รู้จะเช็คใคร → ปล่อยผ่าน
     if (!userId && !ip) {
       return next();
     }
@@ -79,7 +62,6 @@ async function ensureNotPunished(req, res, next) {
     return res.status(403).json({ error: message, code: "PUNISHED" });
   } catch (e) {
     console.error("[ensureNotPunished] error:", e);
-    // ถ้าเช็ค punish พัง ให้ผ่านไปก่อน (จะไม่ทำให้เว็บใช้ไม่ได้)
     return next();
   }
 }

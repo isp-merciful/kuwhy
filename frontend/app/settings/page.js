@@ -11,20 +11,17 @@ const ROUTES = {
   updateUserSetting: (id) => `${API_BASE}/api/settings/${id}`,
 };
 
-// helper: resolve image url to show
 function resolveProfileImage(raw, fallbackSessionImage) {
   let v = typeof raw === "string" ? raw.trim() : "";
 
-  // ถ้า form ยังไม่มีค่า แต่ session มีรูป ก็ใช้จาก session ก่อน
   if (!v && typeof fallbackSessionImage === "string") {
     v = fallbackSessionImage.trim();
   }
 
-  if (!v) return "/images/pfp.png"; // fallback รูป default
-  if (v.startsWith("data:image")) return v; // preview base64 จาก input file
-  if (v.startsWith("http://") || v.startsWith("https://")) return v; // full URL
+  if (!v) return "/images/pfp.png"; 
+  if (v.startsWith("data:image")) return v; 
+  if (v.startsWith("http://") || v.startsWith("https://")) return v;
 
-  // สมมติ backend ส่ง path แบบ /uploads/avatars/xxx.png
   return `${API_BASE}${v}`;
 }
 
@@ -50,7 +47,6 @@ export default function ProfileSettingsPage() {
     img: "",
   });
 
-  // snapshot state ก่อนเริ่มแก้ไข (ใช้ตอน Cancel)
   const [initialFormData, setInitialFormData] = useState(null);
 
   const [errors, setErrors] = useState({});
@@ -69,7 +65,6 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  // Email ไม่ required แล้ว แต่ถ้ากรอกต้องเป็นรูปแบบถูกต้อง
   const validateForm = () => {
     const newErrors = {};
 
@@ -85,7 +80,6 @@ export default function ProfileSettingsPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // fetch ที่แนบ Bearer token ให้อัตโนมัติ
   const authFetch = async (url, init = {}) => {
     const headers = new Headers(init.headers || {});
     headers.set("Content-Type", "application/json");
@@ -99,7 +93,6 @@ export default function ProfileSettingsPage() {
     return res;
   };
 
-  // โหลดข้อมูลโปรไฟล์จาก backend
   const fetchUserProfile = async (uid) => {
     if (!uid) return;
 
@@ -125,13 +118,11 @@ export default function ProfileSettingsPage() {
       const data = await res.json().catch(() => ({}));
       const u = data?.user || data || {};
 
-      // ⭐ Description ใช้ค่าตัวเดียวกับหน้าโปรไฟล์ (bioText ที่นั่น)
       const description =
         [u?.user_bio, u?.bio, u?.description, u?.about].find(
           (v) => !!v && String(v).trim()
         ) || "";
 
-      // website รองรับทั้ง website / web
       const website =
         (u?.website && String(u.website).trim()) ||
         (u?.web && String(u.web).trim()) ||
@@ -150,7 +141,7 @@ export default function ProfileSettingsPage() {
       };
 
       setFormData(next);
-      setInitialFormData(next); // snapshot state ล่าสุดจาก backend
+      setInitialFormData(next); 
     } catch (err) {
       console.error("fetchUserProfile error:", err);
       setErrors({ general: "Unable to reach server" });
@@ -177,7 +168,6 @@ export default function ProfileSettingsPage() {
         full_name: formData.name,
         display_name: formData.display_name,
         email: formData.email,
-        // ⭐ sync description → ยิงกลับหลายชื่อ field เผื่อ backend ใช้อันไหน
         bio: formData.bio,
         user_bio: formData.bio,
         description: formData.bio,
@@ -188,7 +178,6 @@ export default function ProfileSettingsPage() {
         img: formData.img,
       };
 
-      // ส่ง password เฉพาะตอนกรอก
       if (formData.password && formData.password.trim()) {
         payload.password = formData.password;
       }
@@ -216,7 +205,6 @@ export default function ProfileSettingsPage() {
         return;
       }
 
-      // อัปเดตรูปใน session (NextAuth) ให้ตรงกับรูปใหม่
       try {
         const u = data?.user || {};
         let rawImg = u.img || formData.img || session?.user?.image || "";
@@ -247,7 +235,6 @@ export default function ProfileSettingsPage() {
       setFormData((prev) => ({ ...prev, password: "" }));
       setTimeout(() => setSuccessMessage(""), 3000);
 
-      // reload profile ให้ form + snapshot sync กับ backend
       fetchUserProfile(userId);
     } catch (err) {
       console.error("handleSave error:", err);
@@ -260,7 +247,6 @@ export default function ProfileSettingsPage() {
   };
 
   const handleCancel = () => {
-    // ดึง state กลับเป็นค่าก่อนเริ่มแก้ไขทันที (ไม่ยิง API)
     if (initialFormData) {
       setFormData(initialFormData);
     }
@@ -268,7 +254,6 @@ export default function ProfileSettingsPage() {
     setIsEditing(false);
   };
 
-  // เปลี่ยนรูปโปรไฟล์ → เก็บ base64 ไว้ใน formData.img
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -284,7 +269,6 @@ export default function ProfileSettingsPage() {
     reader.readAsDataURL(file);
   };
 
-  // โหลดเมื่อ session พร้อม
   useEffect(() => {
     if (status === "authenticated" && userId) {
       fetchUserProfile(userId);
@@ -292,7 +276,6 @@ export default function ProfileSettingsPage() {
     if (status === "unauthenticated") {
       setIsLoadingProfile(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, userId, apiToken]);
 
   const profileImageSrc = resolveProfileImage(
@@ -462,10 +445,8 @@ export default function ProfileSettingsPage() {
                   onClick={() => {
                     if (disableActions) return;
                     if (isEditing) {
-                      // กำลังแก้ไขอยู่ → ยกเลิกและดึง state กลับของเดิม
                       handleCancel();
                     } else {
-                      // เริ่มเข้าโหมดแก้ไข → snapshot ค่าปัจจุบันไว้ก่อน
                       setInitialFormData(formData);
                       setIsEditing(true);
                     }

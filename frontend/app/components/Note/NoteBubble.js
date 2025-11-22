@@ -1,4 +1,3 @@
-// frontend/app/components/NoteBubble.js
 "use client";
 
 import {
@@ -10,7 +9,7 @@ import {
 } from "react";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSearchParams, useRouter, usePathname } from "next/navigation"; // ✅ เพิ่มตรงนี้
+import { useSearchParams, useRouter, usePathname } from "next/navigation"; 
 
 import MessageInput from "./MessageInput";
 import Avatar from "./Avatar";
@@ -21,7 +20,7 @@ import PartyChat from "./PartyChat";
 import useUserId from "./useUserId";
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
 import ConfirmReplaceDialog from "./ConfirmReplaceDialog";
-import ConfirmLeaveDialog from "./ConfirmLeaveDialog"; //
+import ConfirmLeaveDialog from "./ConfirmLeaveDialog"; 
 const MAX_NOTE_CHARS = 60;
 const WARNING_THRESHOLD = 55;
 
@@ -36,12 +35,10 @@ export default function NoteBubble() {
     [apiToken]
   );
 
-  // ✅ hooks สำหรับอ่าน query / จัดการ URL
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname(); // ควรเป็น "/note"
+  const pathname = usePathname(); 
 
-  // --- user id: ตรึงให้เสถียร ---
   const localOrAuthId = useUserId();
   const stableUserIdRef = useRef(null);
   useEffect(() => {
@@ -53,7 +50,6 @@ export default function NoteBubble() {
   }, [authed, session?.user?.id, localOrAuthId]);
   const userId = stableUserIdRef.current || localOrAuthId || null;
 
-  // --- ui states ---
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState("anonymous");
@@ -62,7 +58,6 @@ export default function NoteBubble() {
   const [isComposing, setIsComposing] = useState(false);
   const [editNameOnExpand, setEditNameOnExpand] = useState(false);
 
-  // dialog box
   const [showDelete, setShowDelete] = useState(false);
   const [showReplace, setShowReplace] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -75,7 +70,6 @@ export default function NoteBubble() {
   const [currParty, setCurrParty] = useState(0);
   const [joinedMemberOnly, setJoinedMemberOnly] = useState(false);
 
-  // toast สำหรับ login
   const [showLoginToast, setShowLoginToast] = useState(false);
 
   const toggleParty = () => {
@@ -102,7 +96,6 @@ export default function NoteBubble() {
 
   const buttonEnabled = text.trim().length > 0;
 
-  // helper สำหรับ limit ตัวอักษร
   const handleChangeText = (value) => {
     if (typeof value !== "string") return;
     setText(value.slice(0, MAX_NOTE_CHARS));
@@ -111,14 +104,11 @@ export default function NoteBubble() {
   const charCount = text.length;
   const showCharWarning = isComposing && charCount >= WARNING_THRESHOLD;
 
-  // ✅ อ่าน query `openCompose` จาก URL แล้วเปิด composing
   useEffect(() => {
     const openCompose = searchParams.get("openCompose");
     if (openCompose === "1") {
-      // เปิดโหมด compose
       setIsComposing(true);
 
-      // เคลียร์ query ออกจาก URL ให้สะอาด (กันเปิดซ้ำ)
       const params = new URLSearchParams(searchParams.toString());
       params.delete("openCompose");
       const newQuery = params.toString();
@@ -128,16 +118,12 @@ export default function NoteBubble() {
     }
   }, [searchParams, pathname, router]);
 
-  // toast auto-hide
   useEffect(() => {
     if (!showLoginToast) return;
     const t = setTimeout(() => setShowLoginToast(false), 4000);
     return () => clearTimeout(t);
   }, [showLoginToast]);
 
-  // --------------------------
-  // helpers
-  // --------------------------
   const extractServerName = (u) => {
     const candidate =
       u?.user_name ??
@@ -152,9 +138,7 @@ export default function NoteBubble() {
     return typeof candidate === "string" ? candidate : null;
   };
 
-  // --------------------------
-  // Avatar persistence
-  // --------------------------
+
   const [serverImg, setServerImg] = useState(null);
   const pendingAvatarUrlRef = useRef(null);
 
@@ -191,9 +175,6 @@ export default function NoteBubble() {
     pendingAvatarUrlRef.current = null;
   }, [userId]);
 
-  // --------------------------
-  // refresh note จาก server (ใช้ได้ทั้งตอน mount และตอน popup join event)
-  // --------------------------
   const refreshNote = useCallback(
     async (signal) => {
       if (!userId) return;
@@ -212,7 +193,6 @@ export default function NoteBubble() {
         if (!mountedRef.current) return;
 
         if (!res.ok) {
-          // ไม่มี note
           setIsPosted(false);
           setNoteId(null);
           setText("");
@@ -262,13 +242,9 @@ export default function NoteBubble() {
     [userId, authHeaders]
   );
 
-  // --------------------------
-  // initial load (profile + note)
-  // --------------------------
   useEffect(() => {
     if (!userId || !ready) return;
 
-    // reset note/party states
     setText("");
     setNoteId(null);
     setIsPosted(false);
@@ -331,18 +307,12 @@ export default function NoteBubble() {
     return () => controller.abort();
   }, [userId, ready, authed, session?.user?.name, authHeaders, refreshNote]);
 
-  // --------------------------
-  // ฟัง event จาก Popup: join party แล้วให้รีเฟรช note ทันที
-  // --------------------------
   useEffect(() => {
     if (!userId) return;
     if (typeof window === "undefined") return;
 
     const handler = (e) => {
       const detail = e.detail || {};
-      // ถ้าจะกรอง userId ก็ทำแบบนี้ได้ (ตอนนี้ปล่อยให้รีเฟรชทุกครั้งที่มี event)
-      // if (detail.userId && String(detail.userId) !== String(userId)) return;
-
       refreshNote();
     };
 
@@ -351,9 +321,6 @@ export default function NoteBubble() {
       window.removeEventListener("kuwhy-active-note-changed", handler);
   }, [userId, refreshNote]);
 
-  // --------------------------
-  // Actions
-  // --------------------------
   const handlePost = async () => {
     if (!ready)
       return alert("กำลังตรวจสอบสถานะผู้ใช้… ลองใหม่อีกครั้ง");
@@ -468,7 +435,6 @@ export default function NoteBubble() {
     }
   };
 
-  // (PartySwitch ยังเก็บไว้เผื่อใช้ต่อในอนาคต)
   const PartySwitch = useMemo(
     () => (
       <button
@@ -574,8 +540,6 @@ export default function NoteBubble() {
               <span className="text-base leading-none">←</span>
               <span className="text-sm font-medium">Back</span>
             </button>
-
-            {/* main layout: ซ้าย = note, ขวา = comments / party chat */}
             <div
               className={`w-full flex ${
                 isPosted && noteId
@@ -633,7 +597,6 @@ export default function NoteBubble() {
                   )}
                 </div>
 
-                {/* ชื่อผู้ใช้ */}
                 <UserNameEditor
                   name={name}
                   setName={setName}
@@ -643,7 +606,6 @@ export default function NoteBubble() {
                   onEditClick={null}
                 />
 
-                {/* ปุ่มโพสต์ + toast */}
                 {!isPosted && (
                   <div className="mt-4 relative flex flex-col items-center">
                     <button
@@ -695,7 +657,6 @@ export default function NoteBubble() {
                   </div>
                 )}
 
-                {/* แผงปาร์ตี้เล็ก */}
                 {!isPosted && (
                   <motion.div
                     key="party-mini"
@@ -867,7 +828,6 @@ export default function NoteBubble() {
               )}
             </div>
 
-            {/* คำอธิบาย */}
             {!isPosted && (
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
@@ -933,7 +893,7 @@ export default function NoteBubble() {
         onConfirm={async () => {
           try {
             setLeaving(true);
-            await handleLeaveParty();   // ใช้ฟังก์ชันเดิม ทั้ง reset state/API
+            await handleLeaveParty();  
           } finally {
             setLeaving(false);
             setShowLeave(false);

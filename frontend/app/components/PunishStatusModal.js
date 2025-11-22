@@ -2,33 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import useUserId from "./Note/useUserId"; // ปรับ path ให้ตรงกับโปรเจกต์จริง
+import useUserId from "./Note/useUserId"; 
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 export default function PunishStatusModal() {
   const { data: session, status } = useSession();
-  const anonUserId = useUserId(); // anonymous user_id (ตัวเดียวกับที่ใช้โพสต์ note/comment)
+  const anonUserId = useUserId(); 
 
   const [open, setOpen] = useState(false);
   const [info, setInfo] = useState(null);
 
-  // flag กันยิงซ้ำ
   const [checkedLogin, setCheckedLogin] = useState(false);
   const [checkedAnon, setCheckedAnon] = useState(false);
 
-  /* ---------- เคส login (ใช้ /api/punish/me) ---------- */
   useEffect(() => {
-    // ยังโหลด session อยู่ → รอก่อน
     if (status === "loading") return;
 
-    // ถ้าไม่ได้ login → ไม่เช็กฝั่งนี้
     if (status !== "authenticated") return;
 
-    // ไม่มี apiToken → เช็กอะไรไม่ได้
     if (!session?.apiToken) return;
 
-    // เช็กไปแล้ว → ไม่ต้องเช็กอีกรอบ
     if (checkedLogin) return;
 
     let cancelled = false;
@@ -68,12 +62,9 @@ export default function PunishStatusModal() {
     };
   }, [status, session, checkedLogin]);
 
-  /* ---------- เคส anonymous (ใช้ /api/punish/public) ---------- */
   useEffect(() => {
-    // ถ้า login แล้ว → ใช้ฝั่ง /me แทน ไม่ต้องยิง /public
     if (status === "authenticated") return;
 
-    // ยังไม่มี anonUserId → ยังเช็กไม่ได้
     if (!anonUserId) return;
 
     if (checkedAnon) return;

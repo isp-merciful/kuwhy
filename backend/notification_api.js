@@ -1,18 +1,7 @@
-// backend/notification_api.js
 const express = require("express");
 const { prisma } = require("./lib/prisma.cjs");
 const router = express.Router();
 
-/**
- * POST /api/noti
- *
- * ใช้ได้ 2 โหมดหลัก:
- * 1) Notification จาก comment/reply (note หรือ blog)
- *    body: { sender_id, note_id?, blog_id?, comment_id, parent_comment_id? }
- *
- * 2) Notification จาก event ใน party
- *    body: { sender_id, note_id, event_type: "party_join" | "party_chat" }
- */
 router.post("/", async (req, res) => {
   try {
     const {
@@ -21,7 +10,7 @@ router.post("/", async (req, res) => {
       blog_id: blogRaw,
       comment_id: commentRaw,
       parent_comment_id: parentRaw,
-      event_type, // "party_join" | "party_chat" | undefined
+      event_type, 
     } = req.body;
 
     if (!sender_id) {
@@ -35,9 +24,6 @@ router.post("/", async (req, res) => {
     const parent_comment_id =
       parentRaw !== undefined && parentRaw !== null ? Number(parentRaw) : null;
 
-    /* ------------------------------------------------------------------
-       1) โหมด event แบบ party (party_join / party_chat)
-       ------------------------------------------------------------------ */
     if (event_type === "party_join" || event_type === "party_chat") {
       if (!note_id) {
         return res
@@ -59,13 +45,13 @@ router.post("/", async (req, res) => {
       });
 
       const recipients = new Set();
-      recipients.add(note.user_id); // host
+      recipients.add(note.user_id); 
 
       for (const m of members) {
-        recipients.add(m.user_id); // สมาชิกคนอื่น
+        recipients.add(m.user_id);
       }
 
-      recipients.delete(sender_id); // ไม่แจ้งเตือนคนที่เป็นคนส่งเอง
+      recipients.delete(sender_id);
 
       if (recipients.size === 0) {
         return res.json({ message: "no notification needed" });
@@ -78,7 +64,7 @@ router.post("/", async (req, res) => {
         blog_id: null,
         comment_id: null,
         parent_comment_id: null,
-        type: event_type, // "party_join" | "party_chat"
+        type: event_type, 
         is_read: false,
       }));
 
@@ -90,19 +76,15 @@ router.post("/", async (req, res) => {
       });
     }
 
-    /* ------------------------------------------------------------------
-       2) โหมดปกติ: comment / reply (note หรือ blog)
-       ------------------------------------------------------------------ */
     if (commentRaw == null) {
       return res.status(400).json({ error: "comment_id จำเป็น" });
     }
     const comment_id = Number(commentRaw);
 
     let recipientId = null;
-    let type = "comment"; // comment โน้ตเรา / blog เรา
+    let type = "comment"; 
 
     if (parent_comment_id != null) {
-      // reply → หาเจ้าของคอมเมนต์แม่
       const parent = await prisma.comment.findUnique({
         where: { comment_id: parent_comment_id },
         select: { user_id: true, blog_id: true, note_id: true },
@@ -115,7 +97,7 @@ router.post("/", async (req, res) => {
       recipientId = parent.user_id;
       type = "reply";
     } else if (note_id != null) {
-      // comment โน้ตเรา
+
       const note = await prisma.note.findUnique({
         where: { note_id },
         select: { user_id: true },
@@ -124,9 +106,8 @@ router.post("/", async (req, res) => {
         return res.status(400).json({ error: "Note (note_id) ไม่พบ" });
       }
       recipientId = note.user_id;
-      type = "comment"; // comment + note_id  => เวลาอ่าน noti จะเปิด composing
+      type = "comment"; 
     } else if (blog_id != null) {
-      // comment blog เรา
       const blog = await prisma.blog.findUnique({
         where: { blog_id },
         select: { user_id: true },
@@ -135,7 +116,7 @@ router.post("/", async (req, res) => {
         return res.status(400).json({ error: "Blog (blog_id) ไม่พบ" });
       }
       recipientId = blog.user_id;
-      type = "comment"; // comment + blog_id => เวลาอ่าน noti จะไปหน้า blog
+      type = "comment"; 
     } else {
       return res.status(400).json({
         error:
@@ -144,7 +125,6 @@ router.post("/", async (req, res) => {
     }
 
     if (!recipientId || recipientId === sender_id) {
-      // ไม่แจ้งเตือนตัวเอง
       return res.json({ message: "no notification needed" });
     }
 
@@ -156,7 +136,7 @@ router.post("/", async (req, res) => {
         blog_id,
         comment_id,
         parent_comment_id,
-        type, // "comment" | "reply"
+        type, 
         is_read: false,
       },
       select: { notification_id: true },
@@ -177,9 +157,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-/**
- * GET /api/noti/:userId
- */
 router.get("/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -213,10 +190,6 @@ router.get("/:userId", async (req, res) => {
   }
 });
 
-/**
- * PUT /api/noti/:notificationId
- * mark as read
- */
 router.put("/:notificationId", async (req, res) => {
   try {
     const notificationId = Number(req.params.notificationId);

@@ -1,6 +1,5 @@
 const request = require("supertest");
 
-// --- mock prisma (lib/prisma.cjs) สำหรับ user_api ---
 jest.mock("../lib/prisma.cjs", () => {
   const mPrisma = {
     users: {
@@ -12,7 +11,6 @@ jest.mock("../lib/prisma.cjs", () => {
       deleteMany: jest.fn(),
       create: jest.fn(),
     },
-    // กันไว้เผื่อ router อื่นเรียก
     note: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -39,11 +37,9 @@ jest.mock("../lib/prisma.cjs", () => {
   return { prisma: mPrisma };
 });
 
-// ✅ mock auth_mw ให้ครบ *รวม requireAuth ด้วย*
 jest.mock("../auth_mw", () => ({
   optionalAuth: (req, _res, next) => next(),
   requireMember: (req, _res, next) => {
-    // ใส่ user ปลอมให้ case ที่ต้องมี login
     req.user = req.user || { id: "member-1" };
     next();
   },
@@ -57,16 +53,14 @@ jest.mock("../auth_mw", () => ({
   },
 }));
 
-// ✅ mock punish_mw ให้ ensureNotPunished ไม่ไปแตะ DB จริง
 jest.mock("../punish_mw", () => ({
   ensureNotPunished: (req, _res, next) => next(),
 }));
 
 const { prisma } = require("../lib/prisma.cjs");
 
-// ให้แน่ใจว่า index.js ไม่ไป listen port ตอน test
 process.env.NODE_ENV = "test";
-const app = require("../index");   // <- require หลัง mock ทั้งหมด
+const app = require("../index");   
 
 
 beforeEach(() => {
@@ -130,10 +124,9 @@ describe("HEAD /api/user/exists/:handle", () => {
 
 describe("POST /api/user/validate-handle", () => {
   it("ควรคืน PATTERN ถ้า handle ไม่ผ่าน regex", async () => {
-    // น้อยกว่า 3 ตัว หรือมีตัวอักษรแปลก ๆ
     const res = await request(app)
       .post("/api/user/validate-handle")
-      .send({ handle: "ab" }); // สั้นไป
+      .send({ handle: "ab" }); 
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ ok: false, reason: "PATTERN" });
@@ -204,7 +197,6 @@ describe("GET /api/user/:id", () => {
 
 describe("PUT /api/user/:userId", () => {
   it("ควร upsert user ใหม่ (โหมด anonymous) แล้วคืนข้อมูลกลับมา", async () => {
-    // ไม่เจอ user เดิม
     prisma.users.findUnique.mockResolvedValue(null);
 
     const upsertResult = {
@@ -241,7 +233,7 @@ describe("PUT /api/user/:userId", () => {
   it("ควรคืน 400 ถ้าไม่ได้ส่ง name / img อะไรมาเลย", async () => {
     const res = await request(app)
       .put("/api/user/anon-123")
-      .send({}); // ไม่มี field ให้แก้
+      .send({}); 
 
     expect(res.statusCode).toBe(400);
     expect(res.body).toEqual({
