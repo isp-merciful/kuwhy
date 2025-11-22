@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import ReportDialog from "../ReportDialog"; 
+import ReportDialog from "../ReportDialog";
+import CommentBody from "../CommentBody";
 
 const API = "http://localhost:8000/api";
-const VISIBLE_ROOT_LIMIT = 20; 
+const VISIBLE_ROOT_LIMIT = 20;
 
 function cx(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -92,7 +93,7 @@ function CommentItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.message || "");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showReport, setShowReport] = useState(false); 
+  const [showReport, setShowReport] = useState(false);
 
   const hasChildren = (comment.children || []).length > 0;
   const expanded = collapsedMap[comment.comment_id] ?? false;
@@ -103,7 +104,6 @@ function CommentItem({
     const ok = await onEditSubmit(comment.comment_id, value);
     if (ok) setEditing(false);
   };
-
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -251,9 +251,9 @@ function CommentItem({
 
               {/* content OR editor */}
               {!editing ? (
-                <p className="mt-1 text-[15px] text-gray-900 break-words">
-                  {comment.message}
-                </p>
+                <div className="mt-1">
+                  <CommentBody text={comment.message || ""} />
+                </div>
               ) : (
                 <div className="mt-1">
                   <textarea
@@ -456,7 +456,7 @@ export default function CommentSection({ noteId, userId }) {
   const [submitting, setSubmitting] = useState(false);
   const [showAllRoots, setShowAllRoots] = useState(false);
   const [showLoginToast, setShowLoginToast] = useState(false);
-  const [userExists, setUserExists] = useState(null); 
+  const [userExists, setUserExists] = useState(null);
 
   // rate limit state
   const [rateLimit, setRateLimit] = useState(null); // { message, until }
@@ -597,8 +597,7 @@ export default function CommentSection({ noteId, userId }) {
       let data = null;
       try {
         data = await res.json();
-      } catch (_) {
-      }
+      } catch (_) {}
 
       if (!res.ok) {
         if (res.status === 403 && data?.code === "PUNISHED") {
@@ -660,7 +659,6 @@ export default function CommentSection({ noteId, userId }) {
       setSubmitting(false);
     }
   }
-
 
   async function handleReply(message, parentId) {
     if (!requireUser()) return;
