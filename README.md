@@ -123,7 +123,7 @@ kuwhy/
 - [Docker](https://www.docker.com/)
 - [Git](https://git-scm.com/)
 
-###Environment setup
+**Environment setup**
 App password in backend/.env  
 Sign in to your Google from this link:
 
