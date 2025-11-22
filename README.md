@@ -190,6 +190,7 @@ git clone https://github.com/isp-merciful/kuwhy.git cd kuwhy
 
 # 2. Start all services with Docker
 docker-compose up --build -d
+
 # 3. Access the application
 Frontend: http://localhost:3000
 Backend: http://localhost:8000(configure in backend.env port)
