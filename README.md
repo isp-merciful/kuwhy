@@ -134,8 +134,6 @@ docker-compose up --build -d
 # 3. Access the application
 Frontend: http://localhost:3000
 Backend: http://localhost:8000(configure in backend.env port) 
-
-# 4. Visit `http://localhost:3000` on your browser
 ```
 ---
 
