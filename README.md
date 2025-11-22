@@ -90,10 +90,12 @@ Users receive notifications for:
 
 ## 🧰 Tech Stack
 
-**Frontend:** React, Next.js  
-**Backend:** Node.js, Express.js  
+**Frontend:** Next.js (React), Tailwind CSS  
+**Backend:** Node.js, Express.js, Prisma ORM  
 **Database:** MySQL  
-**Authentication:** OAuth (Google) & Email Login
+**Authentication:** NextAuth (Google OAuth & Email/Password)  
+**Testing:** Jest  
+**DevOps & Deployment:** Docker, Docker Compose, GitHub Actions (CI/CD), Self-hosted
 
 ---
 
@@ -102,10 +104,14 @@ Users receive notifications for:
 
 ```
 kuwhy/
-├── frontend/      # Next.js UI components and pages
-├── backend/       # Express API server
-├── public/        # Static assets (images, icons)
-├── docs/          # Project documentation & diagrams
+├── frontend/          # Next.js app (UI pages & components)
+├── backend/           # Express API server
+├── prisma/            # Prisma schema & migrations
+├── .github/           # GitHub Actions (CI/CD) workflows
+├── docker-compose.yml # Docker services (db, backend, frontend)
+├── .env.example       # Example environment variables
+├── .gitignore         # Git ignore rules
+├── .dockerignore      # Docker ignore rules
 └── README.md
 ```
 
