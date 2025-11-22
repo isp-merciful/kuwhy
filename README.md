@@ -127,6 +127,10 @@ kuwhy/
 git clone https://github.com/isp-merciful/kuwhy.git
 cd kuwhy
 # setup all .env in kuwhy(root),frontend,backend
+App password in backend/.env
+sign in to your google from this link
+- [Google](https://myaccount.google.com/apppasswords)
+Enable your F2A and Insert app-password name click Create Copy the pass-code Paste it in STMP_PASS with out spaces
 
 # 2. Start all services with Docker
 docker-compose up --build -d
