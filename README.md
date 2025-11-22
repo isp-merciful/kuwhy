@@ -218,7 +218,8 @@ kuwhy/
 ### Start the program
 ```bash
 # 1. Clone the repository
-git clone https://github.com/isp-merciful/kuwhy.git cd kuwhy
+git clone https://github.com/isp-merciful/kuwhy.git
+cd kuwhy
 # setup all .env in kuwhy(root),frontend,backend
 
 # 2. Start all services with Docker
