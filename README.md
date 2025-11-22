@@ -149,7 +149,8 @@ kuwhy/
    - Use this value as `SMTP_PASS` in your `.env` file.
 
 3. ⚠️ **Note**  
-   Make sure your database settings in `.env` (especially `DATABASE_URL`) match the configuration used in `docker-compose.yml` / `compose.yml`.
+   Make sure your database settings in `.env` (especially `DATABASE_URL`) match the configuration used in `docker-compose.yml` / `compose.yml` And all the .env must be the same in every layer
+root(kuwhy),backend/.env,frontend/.env
 
 ---
 
