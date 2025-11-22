@@ -132,8 +132,8 @@ cd kuwhy
 docker-compose up --build -d
 
 # 3. Access the application
-Frontend: http://localhost:[FRONTEND_PORT] -- to be add
-Backend: http://localhost:[API_PORT] -- to be add
+Frontend: http://localhost:3000
+Backend: http://localhost:8000(configure in backend.env port) -- to be add
 
 # 4.Turn off
 docker-compose down -v
@@ -148,11 +148,9 @@ docker-compose down -v
 4. **Run the application**
 
 ```bash
-# Run frontend
-npm run dev
-
-# Run backend
-npm start
+# Run
+cd kuwhy
+docker-compose up --build -d
 ```
 
 5. Visit `http://localhost:3000` in your browser.
