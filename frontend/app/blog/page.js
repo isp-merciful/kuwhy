@@ -5,8 +5,10 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Avatar from "../components/Note/Avatar";
 import BlogList from "../components/blog/BlogList";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
-const PRESET_TAGS = ["homework", "health", "game", "anime", "food", "other"];
+
+const PRESET_TAGS = ["homework", "health", "game","anime", "other"];
 
 export default function BlogPage() {
   const { data: session } = useSession();
@@ -185,95 +187,105 @@ export default function BlogPage() {
             </div>
           </div>
 
-          {/* Tag filter + title search + Sort controls */}
-          <div className="w-full max-w-3xl mx-auto mt-5">
-            <form
-              onSubmit={applyFilters}
-              className="flex flex-col gap-3 sm:flex-row sm:items-end rounded-2xl border border-emerald-100 bg-white/80 px-4 py-3 shadow-sm"
+{/* Title search + Tag filter + Sort controls */}
+<div className="w-full max-w-3xl mx-auto mt-5">
+  <form
+    onSubmit={applyFilters}
+    className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-white/80 px-4 py-3 shadow-sm"
+  >
+    {/* Search row – ให้เด่นสุด */}
+    <div className="flex-1">
+      <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
+        Search by title
+      </label>
+      <div className="relative">
+        <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400" />
+        <input
+          type="text"
+          value={titleInput}
+          onChange={(e) => setTitleInput(e.target.value)}
+          placeholder="Type part of the blog title…"
+          className="w-full rounded-xl border border-emerald-200 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+        />
+      </div>
+    </div>
+
+    {/* Row ล่าง: Filter tag + Sort + Buttons */}
+    <div className="mt-2 space-y-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        {/* Filter by tag (เฉพาะ input) */}
+        <div className="flex-1">
+          <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
+            Filter by tag
+          </label>
+          <input
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            placeholder="e.g. homework, health, game"
+            className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
+          />
+        </div>
+
+        {/* Sort selector */}
+        <div className="sm:w-40">
+          <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
+            Sort by
+          </label>
+          <select
+            value={sortMode}
+            onChange={handleSortChange}
+            className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none bg-white focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+          >
+            <option value="newest">Newest</option>
+            <option value="top">Most liked</option>
+          </select>
+        </div>
+
+        {/* Apply / Clear buttons */}
+        <div className="flex gap-2 sm:pt-0 pt-1">
+          <button
+            type="submit"
+            className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex items-center justify-center rounded-xl border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
+      {/* Preset tag chips: แยกเป็นแถวล่างสุดเต็มความกว้าง */}
+      <div className="flex flex-wrap gap-2 text-[11px]">
+        {PRESET_TAGS.map((tag) => {
+          const isActive = activePresetSet.has(tag.toLowerCase());
+          return (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => togglePresetTag(tag)}
+              className={`inline-flex items-center rounded-full px-3 py-1 border text-xs transition-colors ${
+                isActive
+                  ? "border-emerald-500 bg-emerald-100 text-emerald-800"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              }`}
             >
-              {/* Tag + title inputs */}
-              <div className="flex-1 space-y-2">
-                <div>
-                  <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
-                    Filter by tag
-                  </label>
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    placeholder="e.g. cat, homework, question"
-                    className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
-                  />
+              #{tag}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  </form>
+</div>
 
-                  {/* Preset tag chips */}
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {PRESET_TAGS.map((tag) => {
-                      const isActive = activePresetSet.has(tag.toLowerCase());
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => togglePresetTag(tag)}
-                          className={`inline-flex items-center rounded-full px-3 py-1 border text-xs transition-colors ${
-                            isActive
-                              ? "border-emerald-500 bg-emerald-100 text-emerald-800"
-                              : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                          }`}
-                        >
-                          #{tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
-                    Search by title
-                  </label>
-                  <input
-                    type="text"
-                    value={titleInput}
-                    onChange={(e) => setTitleInput(e.target.value)}
-                    placeholder="Type part of the blog title…"
-                    className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 bg-white"
-                  />
-                </div>
-              </div>
 
-              {/* Sort selector */}
-              <div className="sm:w-44">
-                <label className="block text-xs font-semibold text-emerald-700/80 mb-1">
-                  Sort by
-                </label>
-                <select
-                  value={sortMode}
-                  onChange={handleSortChange}
-                  className="w-full rounded-xl border border-emerald-100 px-3 py-2 text-sm outline-none bg-white focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                >
-                  <option value="newest">Newest</option>
-                  <option value="top">Most liked</option>
-                </select>
-              </div>
-
-              {/* Apply / Clear buttons */}
-              <div className="flex gap-2 sm:pt-0 pt-1">
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-colors"
-                >
-                  Apply
-                </button>
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center justify-center rounded-xl border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 transition-colors"
-                >
-                  Clear
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       </section>
 

@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import useUserId from "../Note/useUserId"; 
+import useUserId from "../Note/useUserId";
+import CommentBody from "../CommentBody";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -81,7 +82,7 @@ function CommentItem({
       } else {
         setIsEditing(false);
         setShowMenu(false);
-        onEdited?.(); 
+        onEdited?.();
       }
     } catch (e) {
       console.error(e);
@@ -106,7 +107,7 @@ function CommentItem({
         alert(data.error || "Failed to delete comment");
       } else {
         setShowMenu(false);
-        onDeleted?.(); 
+        onDeleted?.();
       }
     } catch (e) {
       console.error(e);
@@ -209,9 +210,9 @@ function CommentItem({
 
       {/* message or edit box */}
       {!isEditing ? (
-        <p className="mt-2 whitespace-pre-wrap text-gray-800">
-          {node.message}
-        </p>
+        <div className="mt-2 text-gray-800">
+          <CommentBody text={node.message || ""} />
+        </div>
       ) : (
         <div className="mt-3 space-y-2">
           <textarea
@@ -368,7 +369,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     if (!message?.trim()) return;
 
     const body = {
-      user_id: userId, 
+      user_id: userId,
       message: message.trim(),
       blog_id: Number(blogId),
       parent_comment_id,
@@ -386,8 +387,7 @@ export default function CommentThread({ blogId, currentUserId = null }) {
     let data = null;
     try {
       data = await res.json();
-    } catch {
-    }
+    } catch {}
 
     if (!res.ok) {
       if (res.status === 403 && data?.code === "PUNISHED") {
