@@ -182,7 +182,7 @@ root(kuwhy),backend/.env,frontend/.env
 6. Add an **Authorized redirect URI** such as:
    ```text
    http://localhost:3000/api/auth/callback/google
-
+### Start the program
 ```bash
 bash # 1. Clone the repository
 git clone https://github.com/isp-merciful/kuwhy.git cd kuwhy
