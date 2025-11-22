@@ -12,7 +12,7 @@ export default function OtherPostsSearch({ posts = [] }) {
     return posts.filter((p) => (p.blog_title || "").toLowerCase().includes(s));
   }, [q, posts]);
 
-  // show only 3 when no search; show all matches when searching
+  // show only 3 example when no search show all matches when searching
   const visible = useMemo(() => {
     const s = q.trim();
     return s ? filtered : filtered.slice(0, 3);

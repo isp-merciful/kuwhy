@@ -124,7 +124,7 @@ async function fetchAllPosts() {
 export default function BlogPostPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params?.id; // [id] from URL
+  const id = params?.id; 
 
   const { data: session } = useSession();
 
@@ -155,7 +155,7 @@ export default function BlogPostPage() {
   const [draftAtts, setDraftAtts] = useState([]);
   const [newFiles, setNewFiles] = useState([]);
 
-  // 🔹 state สำหรับเมนูสามจุด
+  // 🔹 state for ... menu
   const [actionsOpen, setActionsOpen] = useState(false);
 
   useEffect(() => {
@@ -500,7 +500,7 @@ export default function BlogPostPage() {
               ) : null}
             </div>
 
-            {/* ขวาสุด: ถ้า editing แสดง Save/Cancel, ถ้าไม่ แสดงเมนูสามจุด */}
+            {/* most right: if editing show Save/Cancel, if not show ... menu */}
             <div className="relative flex-shrink-0">
               {isEditing && isOwner ? (
                 <div className="flex flex-wrap justify-end gap-2">

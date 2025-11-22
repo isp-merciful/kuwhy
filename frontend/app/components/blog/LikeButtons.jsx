@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.API_BASE ||
@@ -10,8 +11,13 @@ const API_BASE =
 export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
   const [up, setUp] = useState(initialUp ?? 0);
   const [down, setDown] = useState(initialDown ?? 0);
-  const [mine, setMine] = useState(null); // "up" | "down" | null
+  const [mine, setMine] = useState(null); 
   const [loading, setLoading] = useState(false);
+
+  const { data: session, status } = useSession();
+  const authed = status === "authenticated" && !!session?.apiToken;
+
+    const router = useRouter();
 
   const lsKey = useMemo(() => `blogVote:${blogId}`, [blogId]);
 
@@ -26,28 +32,58 @@ export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
 
   async function doVote(action) {
     if (loading || !blogId) return;
+      if (!authed) {
+        const callbackUrl = window.location.href; 
+        router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+
+        return;
+      }
+
     setLoading(true);
 
     const prev = mine;
     const next = nextState(action);
 
     const snap = { up, down, mine };
+
+   
     if (prev !== next) {
-      if (prev === null && next === "up")       { setUp(v => v + 1); setMine("up"); }
-      else if (prev === null && next === "down"){ setDown(v => v + 1); setMine("down"); }
-      else if (prev === "up" && next === null)  { setUp(v => Math.max(0, v - 1)); setMine(null); }
-      else if (prev === "down" && next === null){ setDown(v => Math.max(0, v - 1)); setMine(null); }
-      else if (prev === "up" && next === "down"){ setUp(v => Math.max(0, v - 1)); setDown(v => v + 1); setMine("down"); }
-      else if (prev === "down" && next === "up"){ setDown(v => Math.max(0, v - 1)); setUp(v => v + 1); setMine("up"); }
+      if (prev === null && next === "up") {
+        setUp((v) => v + 1);
+        setMine("up");
+      } else if (prev === null && next === "down") {
+        setDown((v) => v + 1);
+        setMine("down");
+      } else if (prev === "up" && next === null) {
+        setUp((v) => Math.max(0, v - 1));
+        setMine(null);
+      } else if (prev === "down" && next === null) {
+        setDown((v) => Math.max(0, v - 1));
+        setMine(null);
+      } else if (prev === "up" && next === "down") {
+        setUp((v) => Math.max(0, v - 1));
+        setDown((v) => v + 1);
+        setMine("down");
+      } else if (prev === "down" && next === "up") {
+        setDown((v) => Math.max(0, v - 1));
+        setUp((v) => v + 1);
+        setMine("up");
+      }
     }
 
     try {
       const res = await fetch(`${API_BASE}/api/blog/${blogId}/vote-simple`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          
+          Authorization: `Bearer ${session.apiToken}`,
+        },
         body: JSON.stringify({ prev, next }),
       });
+
       if (!res.ok) throw new Error(`Vote failed (${res.status})`);
+
       const data = await res.json();
 
       if (typeof data.blog_up === "number") setUp(data.blog_up);
@@ -59,7 +95,10 @@ export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
         else localStorage.removeItem(lsKey);
       } catch {}
     } catch (e) {
-      setUp(snap.up); setDown(snap.down); setMine(snap.mine);
+      // rollback ถ้าพัง
+      setUp(snap.up);
+      setDown(snap.down);
+      setMine(snap.mine);
       console.error(e);
       alert(e.message || "Vote failed");
     } finally {
@@ -90,7 +129,7 @@ export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
       >
         👍 <span>{up}</span>
       </button>
-  
+
       {/* DISLIKE BUTTON */}
       <button
         onClick={() => doVote("down")}
@@ -110,5 +149,5 @@ export default function LikeButton({ blogId, initialUp = 0, initialDown = 0 }) {
         👎 <span>{down}</span>
       </button>
     </div>
-  );  
+  );
 }

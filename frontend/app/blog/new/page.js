@@ -30,7 +30,7 @@ export default function NewBlogPage() {
   const authed = status === "authenticated" && !!session?.user?.id;
   const ready = status !== "loading";
 
-  // apiToken อยู่บน session (เหมือนหน้า debug / note)
+
   const apiToken = authed ? session?.apiToken : null;
 
   const authHeaders = useMemo(
@@ -45,13 +45,13 @@ export default function NewBlogPage() {
   const [tagsInput, setTagsInput] = useState(""); // free-typed tags
   const [presetTags, setPresetTags] = useState([]); // selected preset tags
 
-  // ✅ ชื่อจริงจาก users.user_name (แมปมาเป็น session.user.name ใน callback)
+  //username
   const displayName =
     session?.user?.name ||
     session?.user?.login_name ||
     "anonymous";
 
-  // ✅ รูปโปรไฟล์จริงจาก users.img (แมปมาเป็น session.user.image)
+  // user profile image
   const rawAvatar = session?.user?.image || "";
   const avatarImg = rawAvatar ? toAbs(rawAvatar) : "";
 
@@ -67,7 +67,7 @@ export default function NewBlogPage() {
     [files]
   );
 
-  // ถ้าโหลดเสร็จแล้วแต่ยังไม่ authed → เด้งไปหน้า login
+  // if finished loading but no authed → go to login
   useEffect(() => {
     if (ready && !authed) {
       router.push("/login?callbackUrl=/blog/new");
@@ -97,7 +97,7 @@ export default function NewBlogPage() {
 
     if (!apiToken) {
       alert(
-        "Session ของคุณหมดอายุหรือไม่มีสิทธิ์ กรุณา log in ใหม่อีกครั้งก่อนโพสต์บล็อก"
+        "Your session has expired or you don’t have permission. Please log in again before posting a blog."
       );
       router.push("/login?callbackUrl=/blog/new");
       return;
@@ -105,14 +105,14 @@ export default function NewBlogPage() {
 
     setLoading(true);
     try {
-      // สามารถส่ง user_id ไปด้วยก็ได้ แต่ backend ตอนนี้ใช้ req.user.id เป็นหลักแล้ว
+      //  
       const userId = session?.user?.id || session?.user?.user_id;
 
       const fd = new FormData();
       fd.append("blog_title", title.trim());
       fd.append("message", detail.trim());
 
-      // --- collect tags from free input + preset buttons ---
+      // collect tags from free input + preset buttons 
       const manualTags = tagsInput
         .split(",")
         .map((t) => t.trim())
@@ -123,25 +123,25 @@ export default function NewBlogPage() {
       );
 
       if (combinedTags.length > 0) {
-        // send as comma-separated string, backend splits
+        // send as comma-separated string
         fd.append("tags", combinedTags.join(","));
       }
 
       files.forEach((f) => fd.append("attachments", f));
 
-      // ✅ จุดที่หายไป: ต้องประกาศ res ก่อนใช้
+      
       const res = await fetch(`${API_BASE}/api/blog`, {
         method: "POST",
         credentials: "include",
         headers: {
-          // อย่าใส่ Content-Type เอง เพราะใช้ FormData
+          // use FormData instead of manual Content-Type
           ...(authHeaders || {}),
         },
         body: fd,
       });
 
       if (!res.ok) {
-        // พยายามอ่าน body กลับมาก่อน
+        // read body first
         let raw = "";
         let data = null;
         try {
@@ -149,13 +149,13 @@ export default function NewBlogPage() {
           try {
             data = JSON.parse(raw);
           } catch {
-            // ถ้า parse json ไม่ได้ ก็ใช้ raw เป็น text ธรรมดา
+            // if json not working try reading as text
           }
         } catch {
-          // อ่าน body ไม่ได้ก็ปล่อยไป
+          // if still failed let it go for now
         }
 
-        // 🔒 เคสโดน punish จาก ensureNotPunished
+        // 🔒 In case of get punish from ensureNotPunished
         if (res.status === 403 && data && data.code === "PUNISHED") {
           alert(
             data.error ||
@@ -209,7 +209,7 @@ export default function NewBlogPage() {
           {/* User / title input card */}
           <div className="rounded-3xl border border-emerald-100 bg-white/80 shadow-sm px-6 py-5 sm:px-8 sm:py-6 flex flex-col items-center gap-4 mb-8">
             <div className="flex items-center gap-4">
-              {/* ✅ ใช้ img จริงจาก DB ถ้ามี, ถ้าไม่มี fallback เป็นตัวอักษรแรก */}
+              {/* ✅ ีuser real img from DB if available, if not fallback to first alphabet of username */}
               {avatarImg ? (
                 <img
                   src={avatarImg}
