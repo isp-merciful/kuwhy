@@ -1,13 +1,14 @@
 # 🌐 KUWHY – Group 13 “Merciful"
 
-> **KUWHY** is a web platform for Kasetsart University students to connect across faculties, collaborate on projects, share ideas, and organize events — all in one central hub.
+> KUWHY is a full-stack web platform designed for **Kasetsart University (KU)** students to communicate, collaborate, and share information. It provides features such as short posts (Notes), long-form content (Blogs), real-time group chats (Parties), user profiles, and instant notifications.
+all in one central hub.
 
 ---
 
 ## 📌 Table of Contents
 > Click any topic to jump to the section
 
-- [Features at a Glance](#-features-at-a-glance)
+- [Features](#-features)
 - [Project Objective](#-project-objective)
 - [Tech Stack](#-tech-stack)
 - [Repository Structure](#-repository-structure)
@@ -19,43 +20,58 @@
 
 ---
 
-## 🚀 Features at a Glance
+## 🚀 Features
 
-### ✏️ Casual Notes & Polls
-- Share quick updates or polls  
-- Supports anonymous posting
+### 📝 Notes (Short Posts)
+- Create short posts that disappear after **24 hours**
+- Guests can write and read Notes
+- Logged-in users can comment, edit, and delete Notes
+- Users can create a Party from a Note
+- Anonymous users can only comment on Notes they posted
 
-### 👥 Groups & Events
-- Create, join, and manage study groups  
-- Organize campus events seamlessly
+### ✍️ Blogs (Long Articles)
+- Write detailed posts with text, tags, and files uploads
+- Search Blogs by keywords or tags
+- Like or dislike a post
+- Comment on Blogs
+- Edit or delete your own Blog posts
+- Guests can only view Blogs
 
-### 📚 Blogs & Q&A
-- Write articles or ask questions  
-- Interact with peers via comments
+### 👥 Parties (Student Groups)
+- Groups of 2–20 members created through Notes
+- Real-time chat
+- Party auto-deletes after **24 hours**
+- Join/leave notifications
 
-### 📰 Smart Feed
-- Personalized content  
-- Infinite scroll and filters
-
-### 📂 File Sharing
-- Upload and download project files  
-- Simplify team collaboration
+### 💬 Real-Time Chat
+- Instant messaging within Parties
+- Notifications for new messages and new participants
 
 ### 🔔 Notifications
-- Receive updates for replies, comments, and group activity
+Users receive notifications for:
+- Comments and replies
+- Blog interactions
+- Party events (chat and join)
+- Note replies (including anonymous notes)
 
-### 🔑 Authentication
-- Email login, Google OAuth  
-- Optional guest access
+### 👤 User Profiles
+- Public profile pages
+- Update your name, bio, picture, and contact information
+- Click user photos/names to view their profile
 
-### ⚙️ Profile and Settings
-- View and edit personal information  
-- Change profile picture and password  
-- Manage preferences and account settings
-  
-### 🛠️ Admin Panel
-- Moderate content  
-- Manage users and review reports
+### 🔐 Authentication
+- Login with Google
+- Username + password login
+- Credential-based login with JWT
+- Guest mode available
+- Forgot Password feature allows users to reset their account password  
+
+
+### 🛠 Admin Panel
+- Report and punishment system
+- Anti-spam protection
+- Admin controls for content and user management
+
 
 ---
 
@@ -99,9 +115,9 @@ kuwhy/
 
 | Name                   | Role               | Student ID |
 | ---------------------- | ------------------ | ---------- |
-| Danita Frikaow         | UI/UX Designer     | 6410545461 |
+| Danita Frikaow         | UI/UX Designer & Frontend Developer     | 6410545461 |
 | Thanabordee Bundisakul | Frontend Developer | 6510545489 |
-| Chitiwat Phajan        | Project Manager    | 6710545539 |
+| Chitiwat Phajan        | Fullstack Developer    | 6710545539 |
 | Piyawat Wiriyayothin   | Backend Developer  | 6710545717 |
 
 ---
