@@ -133,28 +133,10 @@ docker-compose up --build -d
 
 # 3. Access the application
 Frontend: http://localhost:3000
-Backend: http://localhost:8000(configure in backend.env port) -- to be add
+Backend: http://localhost:8000(configure in backend.env port) 
 
-# 4.Turn off
-docker-compose down -v
+# 4. Visit `http://localhost:3000` on your browser
 ```
-
-**📖 Documentation**
--  [Project Document (Google Docs)](https://docs.google.com/document/d/131_PXGYz7tKTbDQGwVTPiXUC1EjhQ9EdugwcNyNUobY/edit?usp=sharing)  
-
-3. **Configure environment**
-   Create a `.env` file for backend settings (DB credentials, OAuth keys).
-
-4. **Run the application**
-
-```bash
-# Run
-cd kuwhy
-docker-compose up --build -d
-```
-
-5. Visit `http://localhost:3000` in your browser.
-
 ---
 
 ## 📝 Contribution Guidelines
